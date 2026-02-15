@@ -1,0 +1,7 @@
+project_id = "mxrejzcckhtmdyywsgww"
+
+[functions.analyze-resume]
+verify_jwt = false
+
+[functions.fix-resume]
+verify_jwt = false
