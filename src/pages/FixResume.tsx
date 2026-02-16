@@ -3,12 +3,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { generateResumePdf, downloadPdf } from "@/lib/pdf-generator";
+import { Card, CardContent } from "@/components/ui/card";
+import { generateResumePdf, downloadPdf, TemplateType } from "@/lib/pdf-generator";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, Zap, FileText, Briefcase, Award } from "lucide-react";
+import { ArrowLeft, Download, FileText, Briefcase, Award, Minus, Target } from "lucide-react";
 import { motion } from "framer-motion";
+import ResumePreview from "@/components/fix-resume/ResumePreview";
 
 interface FixedContent {
   name: string;
@@ -20,16 +20,23 @@ interface FixedContent {
   skills: string[];
 }
 
+const templates: { id: TemplateType; label: string; icon: typeof FileText; desc: string; accent: string }[] = [
+  { id: "classic", label: "Classic ATS", icon: FileText, desc: "Black & white, maximum ATS compatibility", accent: "border-muted-foreground/30" },
+  { id: "modern", label: "Modern Tech", icon: Briefcase, desc: "Blue accents, skill tags, clean spacing", accent: "border-blue-500/40" },
+  { id: "executive", label: "Executive Pro", icon: Award, desc: "Navy & gold, premium leadership layout", accent: "border-amber-500/40" },
+  { id: "minimal", label: "Minimal Clean", icon: Minus, desc: "Light grey, thin lines, high readability", accent: "border-muted-foreground/20" },
+  { id: "impact", label: "Impact-Focused", icon: Target, desc: "Achievements highlighted, metrics emphasized", accent: "border-emerald-500/40" },
+];
+
 export default function FixResume() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [analysis, setAnalysis] = useState<any>(null);
   const [fixedContent, setFixedContent] = useState<FixedContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [template, setTemplate] = useState<"classic" | "modern" | "executive">("classic");
+  const [template, setTemplate] = useState<TemplateType>("classic");
 
   useEffect(() => {
     if (!id || !user) return;
@@ -41,7 +48,6 @@ export default function FixResume() {
       .single()
       .then(({ data }) => {
         if (data) {
-          setAnalysis(data);
           generateFix(data);
         } else {
           setLoading(false);
@@ -53,10 +59,7 @@ export default function FixResume() {
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("fix-resume", {
-        body: {
-          resumeText: analysisData.resume_text,
-          analysisResult: analysisData.analysis_result,
-        },
+        body: { resumeText: analysisData.resume_text, analysisResult: analysisData.analysis_result },
       });
       if (error) throw error;
       setFixedContent(data.fixedContent);
@@ -101,12 +104,6 @@ export default function FixResume() {
     );
   }
 
-  const templates = [
-    { id: "classic" as const, label: "Classic ATS", icon: FileText, desc: "Clean, traditional format" },
-    { id: "modern" as const, label: "Modern Tech", icon: Briefcase, desc: "Developer/tech focused" },
-    { id: "executive" as const, label: "Executive", icon: Award, desc: "Senior/leadership" },
-  ];
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border glass-strong sticky top-0 z-50">
@@ -123,25 +120,24 @@ export default function FixResume() {
         </div>
       </header>
 
-      <main className="container py-8 max-w-5xl">
+      <main className="container py-8 max-w-6xl">
         {/* Template Selection */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h2 className="text-xl font-bold mb-4">Choose Template</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
+          <h2 className="text-xl font-bold mb-2">Choose Your Template</h2>
+          <p className="text-sm text-muted-foreground mb-5">Each template uses a structurally different layout optimized for ATS parsing.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {templates.map((t) => (
               <Card
                 key={t.id}
-                className={`glass cursor-pointer transition-all ${template === t.id ? "border-primary/50 bg-primary/5" : "hover:border-primary/20"}`}
+                className={`cursor-pointer transition-all border-2 ${template === t.id ? `${t.accent} bg-primary/5 shadow-md` : "border-transparent hover:border-muted-foreground/10"}`}
                 onClick={() => setTemplate(t.id)}
               >
-                <CardContent className="flex items-center gap-3 py-4">
-                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${template === t.id ? "bg-primary/20" : "bg-secondary"}`}>
-                    <t.icon className={`h-5 w-5 ${template === t.id ? "text-primary" : "text-muted-foreground"}`} />
+                <CardContent className="py-4 px-4">
+                  <div className={`h-9 w-9 rounded-lg flex items-center justify-center mb-2 ${template === t.id ? "bg-primary/20" : "bg-secondary"}`}>
+                    <t.icon className={`h-4 w-4 ${template === t.id ? "text-primary" : "text-muted-foreground"}`} />
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{t.label}</p>
-                    <p className="text-xs text-muted-foreground">{t.desc}</p>
-                  </div>
+                  <p className="font-semibold text-sm">{t.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">{t.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -150,68 +146,13 @@ export default function FixResume() {
 
         {/* Preview */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <h2 className="text-xl font-bold mb-4">Resume Preview</h2>
-          <Card className="glass">
-            <CardContent className="py-8 px-6 sm:px-10 space-y-6">
-              <div className="border-b border-border pb-4">
-                <h3 className="text-2xl font-bold">{fixedContent.name}</h3>
-                <p className="text-sm text-muted-foreground">{fixedContent.email}{fixedContent.phone ? ` | ${fixedContent.phone}` : ""}</p>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">Professional Summary</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">{fixedContent.summary}</p>
-              </div>
-
-              {fixedContent.experience?.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-primary mb-3">Experience</h4>
-                  <div className="space-y-4">
-                    {fixedContent.experience.map((exp, i) => (
-                      <div key={i}>
-                        <div className="flex items-center justify-between">
-                          <p className="font-semibold text-sm">{exp.title}</p>
-                          <span className="text-xs text-muted-foreground">{exp.duration}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-2">{exp.company}</p>
-                        <ul className="space-y-1">
-                          {exp.bullets.map((b, j) => (
-                            <li key={j} className="text-sm text-muted-foreground flex items-start gap-2">
-                              <span className="text-primary">•</span> {b}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {fixedContent.education?.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">Education</h4>
-                  {fixedContent.education.map((edu, i) => (
-                    <div key={i} className="mb-2">
-                      <p className="font-medium text-sm">{edu.degree}</p>
-                      <p className="text-xs text-muted-foreground">{edu.school} — {edu.year}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {fixedContent.skills?.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">Skills</h4>
-                  <p className="text-sm text-muted-foreground">{fixedContent.skills.join(" • ")}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <h2 className="text-xl font-bold mb-4">Resume Preview — {templates.find(t => t.id === template)?.label}</h2>
+          <ResumePreview content={fixedContent} template={template} />
         </motion.div>
 
         <div className="text-center mt-8">
           <Button size="lg" onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-2" /> Download as PDF ({template})
+            <Download className="h-4 w-4 mr-2" /> Download as PDF
           </Button>
         </div>
       </main>
