@@ -15,16 +15,21 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
 
-    const systemPrompt = `You are a professional resume writer and ATS optimization expert. Given a resume and its analysis, generate an improved version of the resume content.
+    const systemPrompt = `You are an elite professional resume writer and ATS optimization specialist. Given a resume and its detailed analysis, generate a measurably improved version.
+
+IMPROVEMENT REQUIREMENTS:
+1. QUANTIFICATION: Add or enhance metrics in every bullet point. Convert vague statements into measurable achievements (percentages, dollar amounts, team sizes, timeframes).
+2. ACTION VERBS: Replace weak verbs (helped, worked, responsible for, managed) with high-impact verbs (spearheaded, architected, accelerated, delivered, orchestrated, engineered).
+3. KEYWORD ENRICHMENT: Naturally weave in the missing high-impact keywords identified in the analysis. Ensure domain-critical terms appear in context.
+4. SECTION CLARITY: Ensure each section is clearly delineated, properly ordered, and ATS-parseable.
+5. SUMMARY: Rewrite to be a compelling 3-4 sentence value proposition that immediately communicates seniority, specialization, and measurable impact.
 
 RULES:
-- Optimize for ATS compatibility
-- Use strong action verbs with quantified achievements
-- Keep content professional and impactful
-- Extract and improve the actual content from the original resume
-- Do NOT fabricate experience or qualifications
-- Improve bullet points to be achievement-focused with metrics
-- Rewrite the summary to be compelling and keyword-rich`;
+- Do NOT fabricate experience, companies, or qualifications
+- Improve existing content — don't invent new roles or achievements
+- Every bullet must follow the format: [Strong Verb] + [What You Did] + [Measurable Result]
+- The improved version must logically produce better scores when re-analyzed
+- Keep professional tone — no buzzwords without substance`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
