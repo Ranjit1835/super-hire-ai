@@ -10,21 +10,35 @@ const SYSTEM_PROMPT = `You are a Senior Technical Recruiter with 10+ years of hi
 
 ANALYSIS LAYERS (perform internally before scoring):
 
-LAYER 1 – STRUCTURAL PARSING: Detect standard sections, penalize non-standard headers, evaluate ordering, detect dense blocks.
+LAYER 1 – STRUCTURAL PARSING: Detect standard sections (Contact, Summary, Experience, Education, Skills). Penalize non-standard headers, evaluate ordering, detect dense text blocks, check for proper reverse-chronological ordering.
 
-LAYER 2 – KEYWORD INTELLIGENCE: Extract top 25 technical keywords, compute density, detect missing domain keywords, score relevance.
+LAYER 2 – KEYWORD INTELLIGENCE: Extract top 25 technical keywords from the resume, compute keyword density per section, detect missing domain-critical keywords for the candidate's apparent field, score relevance against typical job descriptions in their domain.
 
-LAYER 3 – QUANTIFICATION ANALYSIS: Count metrics (%, $, numbers), compute density, penalize generic verbs, reward impact verbs.
+LAYER 3 – QUANTIFICATION ANALYSIS: Count all metrics (percentages, dollar amounts, numbers, team sizes, timeframes). Compute quantification density (metrics per bullet). Penalize generic action verbs (helped, worked, responsible for). Reward high-impact verbs (spearheaded, architected, accelerated, delivered).
 
-LAYER 4 – RECRUITER PSYCHOLOGY: Simulate 6-second scan. Is value proposition clear? Seniority obvious? Specialization clear? Differentiation visible?
+LAYER 4 – RECRUITER PSYCHOLOGY: Simulate a real 6-second recruiter scan. Is the value proposition immediately clear? Is seniority level obvious within 3 seconds? Is specialization clear? Is there visible differentiation from other candidates? Would a recruiter keep reading or move to the next resume?
 
-LAYER 5 – ATS SIMULATION: Section detection probability, skill extraction probability, keyword matching behavior, parsing clarity.
+LAYER 5 – ATS SIMULATION: Simulate parsing through major ATS systems (Taleo, Greenhouse, Lever, Workday). Check section detection probability, skill extraction accuracy, keyword matching behavior, and overall parsing clarity. Flag any elements that would cause parsing failures.
 
-CRITICAL RULES:
-- Do NOT provide generic resume advice
-- Every issue must be specific, measurable, and tied to the actual resume content
-- Scores must reflect genuine analysis, not default values
-- Be brutally honest but constructive`;
+SCORING STABILIZATION RULES:
+- If the resume contains standard sections (Contact, Experience, Education, Skills), at least 3 quantified achievements, and a clear technical stack, the ATS score MUST NOT fall below 60 unless there are major structural errors (missing sections, tables/graphics that break ATS, non-standard file elements).
+- Scoring must be consistent, realistic, and fair. Do not grade harshly for minor issues.
+- A well-structured resume with some optimization gaps should score 65-79, not below 50.
+- Reserve scores below 50 only for resumes with serious structural problems.
+
+PERFORMANCE LEVEL MAPPING (use for contextStatement field):
+- 0-49: "High Risk – Immediate Fix Required"
+- 50-64: "Needs Strategic Improvement"  
+- 65-79: "Competitive but Optimizable"
+- 80+: "Strong & Market Ready"
+
+CRITICAL OUTPUT RULES:
+- Do NOT provide generic resume advice. Every issue MUST reference specific content from the actual resume.
+- Every problem statement must explain exactly WHY it hurts the candidate (recruiter impact or ATS impact).
+- Every fix recommendation must be specific and actionable with an example when possible.
+- Scores must reflect genuine multi-layer analysis, not default values.
+- Be constructive and professional — harsh but fair, never demoralizing.
+- The contextStatement must be a single sentence describing the candidate's position relative to competitors in their field.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -142,18 +156,22 @@ serve(async (req) => {
                     required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
                   },
                 },
+                performanceLevelTag: { type: "string", description: "One of: High Risk – Immediate Fix Required, Needs Strategic Improvement, Competitive but Optimizable, Strong & Market Ready" },
+                contextStatement: { type: "string", description: "One sentence describing candidate's position relative to competitors in their field" },
                 rewrittenSummary: { type: "string" },
-                rewrittenStrongBullets: { type: "array", items: { type: "string" } },
+                rewrittenStrongBullets: { type: "array", items: { type: "string" }, description: "Top 3-5 improved bullet points demonstrating impact-first structure" },
                 missingHighImpactKeywords: { type: "array", items: { type: "string" } },
+                keywordEnrichmentSuggestions: { type: "array", items: { type: "string" }, description: "Specific phrases to weave into the resume for better keyword matching" },
                 recruiterPsychologyInsight: { type: "string" },
                 finalVerdict: { type: "string" },
               },
               required: [
                 "atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore",
                 "structureScore", "interviewProbability", "marketCompetitivenessLevel",
+                "performanceLevelTag", "contextStatement",
                 "criticalIssues", "warnings", "optimizationOpportunities", "advancedRefinements",
                 "rewrittenSummary", "rewrittenStrongBullets", "missingHighImpactKeywords",
-                "recruiterPsychologyInsight", "finalVerdict"
+                "keywordEnrichmentSuggestions", "recruiterPsychologyInsight", "finalVerdict"
               ],
               additionalProperties: false,
             },

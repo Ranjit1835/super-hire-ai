@@ -13,6 +13,8 @@ export interface AnalysisResult {
   structureScore: number;
   interviewProbability: number;
   marketCompetitivenessLevel: "Below Average" | "Competitive" | "Strong" | "Elite";
+  performanceLevelTag: string;
+  contextStatement: string;
   criticalIssues: AnalysisIssue[];
   warnings: AnalysisIssue[];
   optimizationOpportunities: AnalysisIssue[];
@@ -20,6 +22,7 @@ export interface AnalysisResult {
   rewrittenSummary: string;
   rewrittenStrongBullets: string[];
   missingHighImpactKeywords: string[];
+  keywordEnrichmentSuggestions: string[];
   recruiterPsychologyInsight: string;
   finalVerdict: string;
 }
