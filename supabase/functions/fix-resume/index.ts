@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,8 +10,31 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Authentication
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) throw new Error("No authorization header");
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error("Unauthorized");
+
+    // Input validation
     const { resumeText, analysisResult } = await req.json();
-    if (!resumeText) throw new Error("Missing resume text");
+
+    if (!resumeText || typeof resumeText !== "string") {
+      throw new Error("Invalid resume text");
+    }
+    if (resumeText.length > 50000) {
+      throw new Error("Resume text exceeds maximum size");
+    }
+    if (!analysisResult || typeof analysisResult !== "object") {
+      throw new Error("Invalid analysis result");
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
