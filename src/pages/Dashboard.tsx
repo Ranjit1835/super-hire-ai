@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { ScanningAnimation } from "@/components/ScanningAnimation";
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
@@ -54,7 +55,6 @@ export default function Dashboard() {
         return;
       }
 
-      // Call edge function
       const { data, error } = await supabase.functions.invoke("analyze-resume", {
         body: { resumeText: text, fileName: file.name, contentHash },
       });
@@ -91,9 +91,26 @@ export default function Dashboard() {
     }
   };
 
+  if (uploading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border glass-strong sticky top-0 z-50">
+          <div className="container flex items-center justify-between h-14">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+                <Zap className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <span className="font-bold text-foreground">Super Hire AI</span>
+            </div>
+          </div>
+        </header>
+        <ScanningAnimation />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
@@ -118,27 +135,18 @@ export default function Dashboard() {
         {/* Upload zone */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card
-            className={`glass cursor-pointer transition-all mb-8 ${dragOver ? "border-primary/50 bg-primary/5" : "hover:border-primary/30"}`}
+            className={`glass cursor-pointer transition-all duration-200 mb-8 hover:shadow-lg hover:-translate-y-0.5 ${dragOver ? "border-primary/50 bg-primary/5" : "hover:border-primary/30"}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
-            onClick={() => !uploading && document.getElementById("file-input")?.click()}
+            onClick={() => document.getElementById("file-input")?.click()}
           >
             <CardContent className="flex flex-col items-center justify-center py-12">
-              {uploading ? (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  <p className="text-sm text-muted-foreground">Analyzing your resume...</p>
-                </div>
-              ) : (
-                <>
-                  <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                    <Upload className="h-6 w-6 text-primary" />
-                  </div>
-                  <p className="font-medium mb-1">Drop your resume PDF here</p>
-                  <p className="text-sm text-muted-foreground">or click to browse</p>
-                </>
-              )}
+              <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+                <Upload className="h-6 w-6 text-primary" />
+              </div>
+              <p className="font-medium mb-1">Drop your resume PDF here</p>
+              <p className="text-sm text-muted-foreground">or click to browse</p>
               <input
                 id="file-input"
                 type="file"
@@ -159,7 +167,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               {analyses.map((a, i) => (
                 <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Card className="glass hover:border-primary/30 transition-colors">
+                  <Card className="glass hover:border-primary/30 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
                     <CardContent className="flex items-center justify-between py-4">
                       <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => navigate(`/analysis/${a.id}`)}>
                         <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">

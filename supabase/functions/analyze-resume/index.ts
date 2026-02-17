@@ -26,7 +26,17 @@ SCORING STABILIZATION RULES:
 - A well-structured resume with some optimization gaps should score 65-79, not below 50.
 - Reserve scores below 50 only for resumes with serious structural problems.
 
-PERFORMANCE LEVEL MAPPING (use for contextStatement field):
+RESPONSE STYLE – HIGH IMPACT MODE:
+- Be CONCISE and IMPACTFUL. Sound like a real senior recruiter giving blunt, actionable feedback.
+- criticalIssues: Limit to TOP 3-5 most damaging issues only. Each must reference specific resume content.
+- warnings: Limit to 2-3 strategic improvements. No filler.
+- optimizationOpportunities: Limit to 2-3 high-value enhancements.
+- advancedRefinements: Limit to 1-2 polish items. Only for already-good resumes.
+- Tone: Direct recruiter voice. Example: "As a recruiter, I cannot identify your core specialization in the first 3 lines. This kills your 6-second scan."
+- NO motivational filler. NO generic advice. Every sentence must be specific and actionable.
+- Each issue must clearly state: what's wrong, why it hurts interview probability, and exactly how to fix it.
+
+PERFORMANCE LEVEL MAPPING (use for performanceLevelTag field):
 - 0-49: "High Risk – Immediate Fix Required"
 - 50-64: "Needs Strategic Improvement"  
 - 65-79: "Competitive but Optimizable"
@@ -37,7 +47,6 @@ CRITICAL OUTPUT RULES:
 - Every problem statement must explain exactly WHY it hurts the candidate (recruiter impact or ATS impact).
 - Every fix recommendation must be specific and actionable with an example when possible.
 - Scores must reflect genuine multi-layer analysis, not default values.
-- Be constructive and professional — harsh but fair, never demoralizing.
 - The contextStatement must be a single sentence describing the candidate's position relative to competitors in their field.`;
 
 serve(async (req) => {
@@ -56,7 +65,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { resumeText, fileName, contentHash } = await req.json();
+    const { resumeText, fileName, contentHash, previousAnalysisId } = await req.json();
     if (!resumeText || !fileName || !contentHash) throw new Error("Missing required fields");
 
     // Check cache
@@ -73,10 +82,36 @@ serve(async (req) => {
       });
     }
 
+    // Fetch previous analysis for score regression prevention
+    let previousScores: Record<string, number> | null = null;
+    if (previousAnalysisId) {
+      const { data: prev } = await supabase
+        .from("resume_analyses")
+        .select("ats_score, recruiter_scan_score, keyword_strength_score, quantification_score, structure_score, interview_probability")
+        .eq("id", previousAnalysisId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (prev) {
+        previousScores = {
+          atsScore: prev.ats_score ?? 0,
+          recruiterScanScore: prev.recruiter_scan_score ?? 0,
+          keywordStrengthScore: prev.keyword_strength_score ?? 0,
+          quantificationScore: prev.quantification_score ?? 0,
+          structureScore: prev.structure_score ?? 0,
+          interviewProbability: prev.interview_probability ?? 0,
+        };
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
 
-    // Call AI with tool calling for structured output
+    // Build user message with previous scores context if available
+    let userMessage = `Analyze this resume thoroughly using all 5 layers:\n\n${resumeText}`;
+    if (previousScores) {
+      userMessage += `\n\nIMPORTANT CONTEXT: This is a RE-ANALYSIS of a previously fixed/improved resume. The previous version scored: ATS=${previousScores.atsScore}, RecruiterScan=${previousScores.recruiterScanScore}, Keywords=${previousScores.keywordStrengthScore}, Quantification=${previousScores.quantificationScore}, Structure=${previousScores.structureScore}. If the resume has measurably improved (more metrics, better verbs, better structure, more keywords), scores MUST NOT decrease — they should logically increase. Only reduce scores if specific measurable components have genuinely degraded.`;
+    }
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -87,7 +122,7 @@ serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Analyze this resume thoroughly using all 5 layers:\n\n${resumeText}` },
+          { role: "user", content: userMessage },
         ],
         tools: [{
           type: "function",
@@ -210,10 +245,23 @@ serve(async (req) => {
       throw new Error("Invalid AI response format");
     }
 
-    // Validate required fields
     if (typeof analysisResult.atsScore !== "number") throw new Error("Invalid analysis result");
 
-    // Store in database (only cache successful, validated responses)
+    // Score regression prevention: if this is a re-analysis of an improved resume,
+    // enforce that scores don't drop when measurable components have improved
+    if (previousScores) {
+      const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
+      for (const key of scoreKeys) {
+        const prev = previousScores[key];
+        const curr = analysisResult[key];
+        if (typeof prev === "number" && typeof curr === "number" && curr < prev) {
+          // Allow max 2-point variance, but enforce floor at previous score minus 2
+          analysisResult[key] = Math.max(curr, prev - 2);
+        }
+      }
+    }
+
+    // Store in database
     const { data: inserted, error: insertError } = await supabase
       .from("resume_analyses")
       .insert({
