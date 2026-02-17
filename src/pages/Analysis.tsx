@@ -9,9 +9,25 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Zap, AlertTriangle, Lightbulb, CheckCircle2,
-  XCircle, Wrench, TrendingUp, Brain, Target, ChevronDown, ChevronUp,
+  XCircle, Wrench, TrendingUp, Brain, Target, ChevronDown, ChevronUp, Home, Upload,
 } from "lucide-react";
 import type { AnalysisResult, AnalysisIssue } from "@/lib/analysis-types";
+
+function AnimatedScore({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const duration = 1200;
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setDisplay(Math.round(progress * value));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [value]);
+  return <>{display}</>;
+}
 
 function IssueCard({ issue, color, icon: Icon }: { issue: AnalysisIssue; color: string; icon: any }) {
   const [open, setOpen] = useState(false);
@@ -22,7 +38,11 @@ function IssueCard({ issue, color, icon: Icon }: { issue: AnalysisIssue; color: 
   }[issue.impactLevel] || "";
 
   return (
-    <div className={`rounded-xl border p-5 transition-all hover:shadow-lg ${color}`}>
+    <motion.div
+      className={`rounded-xl border p-5 transition-all hover:shadow-lg ${color}`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
       <button className="w-full text-left" onClick={() => setOpen(!open)}>
         <div className="flex items-start gap-3">
           <Icon className="h-5 w-5 mt-0.5 shrink-0" />
@@ -59,7 +79,7 @@ function IssueCard({ issue, color, icon: Icon }: { issue: AnalysisIssue; color: 
           </div>
         </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -86,15 +106,13 @@ function PerformanceHeader({ result }: { result: AnalysisResult }) {
       </p>
       <div className="flex flex-col md:flex-row items-center gap-8">
         <div className="flex flex-col items-center">
-          <div className="relative">
-            <ScoreMeter score={result.atsScore} label="" size={160} />
-          </div>
+          <ScoreMeter score={result.atsScore} label="" size={160} />
           <p className="text-xs text-muted-foreground mt-1">ATS SCORE</p>
         </div>
         <div className="flex-1 space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
             <span className={`text-5xl font-black tabular-nums ${scoreColor}`}>
-              {result.atsScore}
+              <AnimatedScore value={result.atsScore} />
             </span>
             <span className="text-2xl text-muted-foreground font-light">/ 100</span>
           </div>
@@ -194,14 +212,21 @@ export default function Analysis() {
               <p className="text-xs text-muted-foreground">{new Date(analysis.created_at).toLocaleString()}</p>
             </div>
           </div>
-          <Button onClick={() => navigate(`/fix/${id}`)} size="sm">
-            <Zap className="h-4 w-4 mr-1" /> Fix My Resume
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+              <Home className="h-4 w-4 mr-1" /> Home
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+              <Upload className="h-4 w-4 mr-1" /> Analyze New
+            </Button>
+            <Button onClick={() => navigate(`/fix/${id}`)} size="sm">
+              <Zap className="h-4 w-4 mr-1" /> Fix My Resume
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container py-8 max-w-5xl">
-        {/* Performance Header */}
         <PerformanceHeader result={result} />
 
         {/* Score Grid */}
@@ -275,7 +300,6 @@ export default function Analysis() {
             </div>
             <h3 className="text-lg font-bold text-foreground">Improved Version Preview</h3>
           </div>
-
           <div className="grid gap-4 md:grid-cols-2">
             {result.rewrittenSummary && (
               <Card className="glass md:col-span-2">
@@ -283,7 +307,6 @@ export default function Analysis() {
                 <CardContent><p className="text-sm leading-relaxed">{result.rewrittenSummary}</p></CardContent>
               </Card>
             )}
-
             {result.rewrittenStrongBullets?.length > 0 && (
               <Card className="glass">
                 <CardHeader><CardTitle className="text-sm text-muted-foreground uppercase tracking-wider">Top Improved Bullets</CardTitle></CardHeader>
@@ -299,7 +322,6 @@ export default function Analysis() {
                 </CardContent>
               </Card>
             )}
-
             <Card className="glass">
               <CardHeader><CardTitle className="text-sm text-muted-foreground uppercase tracking-wider">Keyword Enrichment</CardTitle></CardHeader>
               <CardContent>

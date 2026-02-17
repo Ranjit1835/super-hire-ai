@@ -1,20 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FileText, Target, Zap, Download, ArrowRight, CheckCircle2 } from "lucide-react";
+import { FileText, Target, Zap, BarChart3, ArrowRight, CheckCircle2, Shield, Brain } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
-  { icon: Target, title: "ATS Simulation", desc: "Deep ATS parsing simulation with keyword extraction & section detection scoring" },
-  { icon: FileText, title: "Recruiter Scan", desc: "6-second recruiter psychology simulation — are you passing the first glance?" },
-  { icon: Zap, title: "AI Fix Engine", desc: "Auto-rewrite your resume with optimized bullets, summary, and keywords" },
-  { icon: Download, title: "PDF Templates", desc: "3 ATS-friendly templates with instant download — Classic, Modern, Executive" },
+  { icon: Shield, title: "ATS Simulation", desc: "Simulates Taleo, Greenhouse, Lever & Workday parsing. Know exactly how your resume is read by machines." },
+  { icon: Brain, title: "Deep Impact Analysis", desc: "5-layer analysis: structure, keywords, quantification, recruiter psychology, and ATS compatibility." },
+  { icon: Zap, title: "Resume Fix Engine", desc: "AI rewrites your resume with optimized bullets, quantified achievements, and enriched keywords." },
+  { icon: BarChart3, title: "Interview Probability Score", desc: "Data-driven prediction of your callback probability based on recruiter behavior patterns." },
 ];
 
 const stats = [
   { value: "5-Layer", label: "Deep Analysis" },
   { value: "95%+", label: "ATS Accuracy" },
-  { value: "3", label: "PDF Templates" },
+  { value: "5", label: "PDF Templates" },
   { value: "<30s", label: "Analysis Time" },
 ];
 
@@ -41,25 +41,25 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <section className="pt-32 pb-20 px-4">
+      <section className="pt-36 pb-24 px-4">
         <div className="container max-w-4xl text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-secondary text-xs font-medium text-muted-foreground mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-secondary/30 text-xs font-medium text-muted-foreground mb-6">
               <CheckCircle2 className="h-3 w-3 text-primary" />
-              AI-Powered Resume Intelligence
+              Recruiter-Grade Intelligence Engine
             </div>
-            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-6">
-              Your Resume, <br />
-              <span className="gradient-text">Recruiter-Tested</span>
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-[1.1]">
+              Recruiter-Grade<br />
+              <span className="gradient-text">Resume Intelligence</span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              5-layer deep analysis engine that simulates ATS parsing, recruiter psychology, keyword intelligence, and quantification scoring. Then auto-fixes everything.
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+              Simulate ATS screening, recruiter 6-second scan, and real hiring evaluation before you apply. Know exactly where you stand.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button size="lg" onClick={() => navigate(user ? "/dashboard" : "/auth")} className="text-base px-8">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" onClick={() => navigate(user ? "/dashboard" : "/auth")} className="text-base px-10 h-12">
                 Analyze My Resume <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>
+              <Button size="lg" variant="outline" onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="h-12">
                 See How It Works
               </Button>
             </div>
@@ -68,7 +68,7 @@ export default function Landing() {
       </section>
 
       {/* Stats */}
-      <section className="py-12 border-y border-border bg-secondary/30">
+      <section className="py-14 border-y border-border bg-secondary/20">
         <div className="container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((s, i) => (
@@ -85,14 +85,14 @@ export default function Landing() {
       <section id="features" className="py-24 px-4">
         <div className="container max-w-5xl">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4">Not a Formatting Checker.</h2>
-            <p className="text-muted-foreground text-lg">A recruiter-grade evaluation engine built to dominate.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Not a Formatting Checker.</h2>
+            <p className="text-muted-foreground text-lg">A recruiter-grade evaluation engine that tells you what recruiters actually think.</p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
             {features.map((f, i) => (
               <motion.div
                 key={i}
-                className="glass rounded-xl p-6 hover:border-primary/30 transition-colors"
+                className="glass rounded-xl p-6 hover:border-primary/30 transition-all hover:shadow-lg hover:-translate-y-0.5 duration-200"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
@@ -102,7 +102,7 @@ export default function Landing() {
                   <f.icon className="h-5 w-5 text-primary" />
                 </div>
                 <h3 className="font-semibold text-lg mb-2">{f.title}</h3>
-                <p className="text-muted-foreground text-sm">{f.desc}</p>
+                <p className="text-muted-foreground text-sm leading-relaxed">{f.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -115,8 +115,8 @@ export default function Landing() {
           <div className="glass rounded-2xl p-12 gradient-border">
             <h2 className="text-3xl font-bold mb-4">Ready to Dominate?</h2>
             <p className="text-muted-foreground mb-8">Upload your resume and get a detailed, recruiter-grade analysis in under 30 seconds.</p>
-            <Button size="lg" onClick={() => navigate(user ? "/dashboard" : "/auth")} className="text-base px-8">
-              Start Free Analysis <ArrowRight className="h-4 w-4 ml-1" />
+            <Button size="lg" onClick={() => navigate(user ? "/dashboard" : "/auth")} className="text-base px-10 h-12">
+              Analyze My Resume <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         </div>

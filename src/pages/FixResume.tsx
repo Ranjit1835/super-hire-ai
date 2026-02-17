@@ -6,19 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { generateResumePdf, downloadPdf, TemplateType } from "@/lib/pdf-generator";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, FileText, Briefcase, Award, Minus, Target } from "lucide-react";
+import { ArrowLeft, Download, FileText, Briefcase, Award, Minus, Target, Pencil, Eye, Zap, Home } from "lucide-react";
 import { motion } from "framer-motion";
-import ResumePreview from "@/components/fix-resume/ResumePreview";
-
-interface FixedContent {
-  name: string;
-  email: string;
-  phone?: string;
-  summary: string;
-  experience: { title: string; company: string; duration: string; bullets: string[] }[];
-  education: { degree: string; school: string; year: string }[];
-  skills: string[];
-}
+import ResumePreview, { FixedContent } from "@/components/fix-resume/ResumePreview";
 
 const templates: { id: TemplateType; label: string; icon: typeof FileText; desc: string; accent: string }[] = [
   { id: "classic", label: "Classic ATS", icon: FileText, desc: "Black & white, maximum ATS compatibility", accent: "border-muted-foreground/30" },
@@ -37,6 +27,7 @@ export default function FixResume() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [template, setTemplate] = useState<TemplateType>("classic");
+  const [editable, setEditable] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -62,8 +53,29 @@ export default function FixResume() {
         body: { resumeText: analysisData.resume_text, analysisResult: analysisData.analysis_result },
       });
       if (error) throw error;
-      setFixedContent(data.fixedContent);
+      if (!data?.fixedContent) throw new Error("No content returned");
+      // Sanitize content to prevent null issues
+      const fc = data.fixedContent;
+      setFixedContent({
+        name: fc.name || "Name",
+        email: fc.email || "",
+        phone: fc.phone || "",
+        summary: fc.summary || "",
+        experience: (fc.experience || []).map((e: any) => ({
+          title: e.title || "",
+          company: e.company || "",
+          duration: e.duration || "",
+          bullets: (e.bullets || []).filter((b: any) => typeof b === "string" && b.trim()),
+        })),
+        education: (fc.education || []).map((e: any) => ({
+          degree: e.degree || "",
+          school: e.school || "",
+          year: e.year || "",
+        })),
+        skills: (fc.skills || []).filter((s: any) => typeof s === "string" && s.trim()),
+      });
     } catch (err: any) {
+      console.error("Fix generation failed:", err);
       toast({ title: "Fix generation failed", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -78,6 +90,7 @@ export default function FixResume() {
       downloadPdf(bytes, `resume-${template}-${Date.now()}.pdf`);
       toast({ title: "Downloaded!", description: "Your fixed resume PDF has been downloaded." });
     } catch (err: any) {
+      console.error("PDF generation error:", err);
       toast({ title: "PDF generation failed", description: err.message, variant: "destructive" });
     }
   };
@@ -108,15 +121,27 @@ export default function FixResume() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => navigate(`/analysis/${id}`)}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <span className="font-medium text-sm">Fix My Resume</span>
           </div>
-          <Button onClick={handleDownload} size="sm">
-            <Download className="h-4 w-4 mr-1" /> Download PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+              <Home className="h-4 w-4 mr-1" /> Dashboard
+            </Button>
+            <Button
+              variant={editable ? "default" : "outline"}
+              size="sm"
+              onClick={() => setEditable(!editable)}
+            >
+              {editable ? <><Eye className="h-4 w-4 mr-1" /> Preview</> : <><Pencil className="h-4 w-4 mr-1" /> Edit</>}
+            </Button>
+            <Button onClick={handleDownload} size="sm">
+              <Download className="h-4 w-4 mr-1" /> Download PDF
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -129,7 +154,7 @@ export default function FixResume() {
             {templates.map((t) => (
               <Card
                 key={t.id}
-                className={`cursor-pointer transition-all border-2 ${template === t.id ? `${t.accent} bg-primary/5 shadow-md` : "border-transparent hover:border-muted-foreground/10"}`}
+                className={`cursor-pointer transition-all duration-200 border-2 hover:-translate-y-0.5 hover:shadow-lg ${template === t.id ? `${t.accent} bg-primary/5 shadow-md` : "border-transparent hover:border-muted-foreground/10"}`}
                 onClick={() => setTemplate(t.id)}
               >
                 <CardContent className="py-4 px-4">
@@ -146,8 +171,16 @@ export default function FixResume() {
 
         {/* Preview */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <h2 className="text-xl font-bold mb-4">Resume Preview — {templates.find(t => t.id === template)?.label}</h2>
-          <ResumePreview content={fixedContent} template={template} />
+          <h2 className="text-xl font-bold mb-4">
+            Resume Preview — {templates.find(t => t.id === template)?.label}
+            {editable && <span className="text-primary text-sm font-normal ml-2">(Editing Mode)</span>}
+          </h2>
+          <ResumePreview
+            content={fixedContent}
+            template={template}
+            editable={editable}
+            onContentChange={setFixedContent}
+          />
         </motion.div>
 
         <div className="text-center mt-8">
