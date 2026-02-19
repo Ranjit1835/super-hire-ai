@@ -122,8 +122,26 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { resumeText, fileName, contentHash, previousAnalysisId } = await req.json();
-    if (!resumeText || !fileName || !contentHash) throw new Error("Missing required fields");
+    const body = await req.json();
+    const resumeText = body.resumeText;
+    const fileName = body.fileName;
+    const contentHash = body.contentHash;
+    const previousAnalysisId = body.previousAnalysisId;
+
+    // ─── Input Validation ────────────────────────────────────────────
+    if (!resumeText || typeof resumeText !== "string") throw new Error("Invalid resume text");
+    if (resumeText.length < 50) throw new Error("Resume text too short");
+    if (resumeText.length > 50000) throw new Error("Resume text exceeds maximum size");
+    if (!fileName || typeof fileName !== "string") throw new Error("Invalid file name");
+    if (fileName.length > 255) throw new Error("File name too long");
+    if (!/^[\w\s.\-()]+\.pdf$/i.test(fileName)) throw new Error("Invalid file name format");
+    if (!contentHash || typeof contentHash !== "string") throw new Error("Invalid content hash");
+    if (!/^[a-f0-9]{64}$/.test(contentHash)) throw new Error("Invalid content hash format");
+    if (previousAnalysisId !== undefined && previousAnalysisId !== null) {
+      if (typeof previousAnalysisId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(previousAnalysisId)) {
+        throw new Error("Invalid previous analysis ID format");
+      }
+    }
 
     // Check cache
     const { data: cached } = await supabase

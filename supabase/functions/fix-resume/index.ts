@@ -24,11 +24,21 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { resumeText, analysisResult } = await req.json();
+    const body = await req.json();
+    const resumeText = body.resumeText;
+    const analysisResult = body.analysisResult;
 
+    // ─── Input Validation ────────────────────────────────────────────
     if (!resumeText || typeof resumeText !== "string") throw new Error("Invalid resume text");
+    if (resumeText.length < 50) throw new Error("Resume text too short");
     if (resumeText.length > 50000) throw new Error("Resume text exceeds maximum size");
-    if (!analysisResult || typeof analysisResult !== "object") throw new Error("Invalid analysis result");
+    if (!analysisResult || typeof analysisResult !== "object" || Array.isArray(analysisResult)) throw new Error("Invalid analysis result");
+    // Validate expected fields in analysisResult
+    if (analysisResult.criticalIssues !== undefined && !Array.isArray(analysisResult.criticalIssues)) throw new Error("Invalid analysis result structure");
+    if (analysisResult.warnings !== undefined && !Array.isArray(analysisResult.warnings)) throw new Error("Invalid analysis result structure");
+    // Cap analysisResult size to prevent abuse
+    const analysisJson = JSON.stringify(analysisResult);
+    if (analysisJson.length > 100000) throw new Error("Analysis result too large");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
