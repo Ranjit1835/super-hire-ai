@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import OtpVerification from "./pages/OtpVerification";
 import Dashboard from "./pages/Dashboard";
 import Analysis from "./pages/Analysis";
 import FixResume from "./pages/FixResume";
@@ -24,6 +25,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/verify-otp" element={<OtpVerification />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/analysis/:id" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
             <Route path="/fix/:id" element={<ProtectedRoute><FixResume /></ProtectedRoute>} />
