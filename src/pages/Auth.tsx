@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Zap } from "lucide-react";
+import { Zap, LogIn, UserPlus, Mail, Lock, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
 
 export default function Auth() {
-  const { signIn, signUp, user } = useAuth();
+  const { signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -23,12 +25,49 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
     const form = new FormData(e.currentTarget);
-    const { error } = await signIn(form.get("email") as string, form.get("password") as string);
-    setLoading(false);
-    if (error) {
-      toast({ title: "Sign in failed", description: error, variant: "destructive" });
-    } else {
-      navigate("/dashboard");
+    const email = form.get("email") as string;
+    const password = form.get("password") as string;
+
+    try {
+      // Step 1: Validate credentials & send OTP via edge function
+      const { data, error } = await supabase.functions.invoke("send-otp", {
+        body: { email, password },
+      });
+
+      if (error) throw error;
+      if (data?.locked) {
+        toast({ title: "Account locked", description: data.error, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      if (data?.error) {
+        toast({ title: "Sign in failed", description: data.error, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      // In dev mode, show the OTP in a toast
+      if (data?.otpCode) {
+        toast({ title: "Dev Mode OTP", description: `Your code: ${data.otpCode}`, duration: 15000 });
+      }
+
+      // Redirect to OTP verification page
+      navigate("/verify-otp", {
+        state: {
+          email,
+          password,
+          maskedEmail: data?.email,
+          expiresAt: data?.expiresAt,
+        },
+      });
+    } catch (err: any) {
+      toast({
+        title: "Sign in failed",
+        description: err.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -51,42 +90,94 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md glass">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-            <Zap className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">Super Hire AI</CardTitle>
-          <CardDescription>Resume Intelligence Platform</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="signin">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <Input name="email" type="email" placeholder="Email" required />
-                <Input name="password" type="password" placeholder="Password" required />
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </TabsContent>
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <Input name="name" placeholder="Full Name" required />
-                <Input name="email" type="email" placeholder="Email" required />
-                <Input name="password" type="password" placeholder="Password (min 6 chars)" required minLength={6} />
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creating account..." : "Create Account"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md"
+      >
+        <Card className="glass shadow-xl">
+          <CardHeader className="text-center pb-4">
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
+              className="mx-auto mb-3 h-12 w-12 rounded-xl bg-primary flex items-center justify-center"
+            >
+              <Zap className="h-6 w-6 text-primary-foreground" />
+            </motion.div>
+            <CardTitle className="text-2xl">Super Hire AI</CardTitle>
+            <CardDescription>Resume Intelligence Platform</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="signin">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="signin" className="gap-1.5">
+                  <LogIn className="h-3.5 w-3.5" /> Sign In
+                </TabsTrigger>
+                <TabsTrigger value="signup" className="gap-1.5">
+                  <UserPlus className="h-3.5 w-3.5" /> Sign Up
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="signin">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input name="email" type="email" placeholder="Email" required className="pl-10" />
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input name="password" type="password" placeholder="Password" required className="pl-10" />
+                  </div>
+                  <Button type="submit" className="w-full h-11" disabled={loading}>
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        Authenticating...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <LogIn className="h-4 w-4" /> Sign In
+                      </span>
+                    )}
+                  </Button>
+                  <p className="text-xs text-center text-muted-foreground">
+                    A verification code will be sent to your email
+                  </p>
+                </form>
+              </TabsContent>
+              <TabsContent value="signup">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input name="name" placeholder="Full Name" required className="pl-10" />
+                  </div>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input name="email" type="email" placeholder="Email" required className="pl-10" />
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input name="password" type="password" placeholder="Password (min 6 chars)" required minLength={6} className="pl-10" />
+                  </div>
+                  <Button type="submit" className="w-full h-11" disabled={loading}>
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        Creating account...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <UserPlus className="h-4 w-4" /> Create Account
+                      </span>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

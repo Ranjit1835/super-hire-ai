@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
 
 export default function Dashboard() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, session } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [analyses, setAnalyses] = useState<any[]>([]);
@@ -127,7 +127,17 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={async () => {
+              // Invalidate session record in DB
+              if (session?.access_token) {
+                const tokenSuffix = session.access_token.slice(-16);
+                await supabase.from("user_sessions").delete().eq("session_token", tokenSuffix);
+              }
+              await signOut();
+              navigate("/auth");
+            }}>
+              <LogOut className="h-4 w-4 mr-1" /> Sign Out
+            </Button>
           </div>
         </div>
       </header>
