@@ -1,6 +1,12 @@
 import * as pdfjsLib from "pdfjs-dist";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
+// Use a module worker via workerPort for Vite compatibility (no CDN needed)
+if (typeof window !== "undefined" && "Worker" in window) {
+  pdfjsLib.GlobalWorkerOptions.workerPort = new Worker(
+    new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url),
+    { type: "module" }
+  );
+}
 
 export async function extractTextFromPdf(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
