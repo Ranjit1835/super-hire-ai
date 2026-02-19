@@ -46,10 +46,7 @@ export default function Auth() {
         return;
       }
 
-      // In dev mode, show the OTP in a toast
-      if (data?.otpCode) {
-        toast({ title: "Dev Mode OTP", description: `Your code: ${data.otpCode}`, duration: 15000 });
-      }
+      toast({ title: "OTP Sent", description: "A verification code has been sent to your registered email." });
 
       // Redirect to OTP verification page
       navigate("/verify-otp", {

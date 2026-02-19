@@ -20,6 +20,54 @@ async function hashOtp(otp: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function sendOtpEmail(toEmail: string, otp: string): Promise<boolean> {
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  if (!resendApiKey) {
+    console.error("RESEND_API_KEY is not configured");
+    return false;
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Super Hire AI <onboarding@resend.dev>",
+        to: [toEmail],
+        subject: "Your Super Hire AI Login OTP",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+            <h2 style="color: #1a1a2e; margin-bottom: 16px;">Your Verification Code</h2>
+            <div style="background: #f4f4f8; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+              <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1a1a2e;">${otp}</span>
+            </div>
+            <p style="color: #555; font-size: 14px; line-height: 1.6;">
+              This code is valid for <strong>5 minutes</strong>. Do not share it with anyone.
+            </p>
+            <p style="color: #999; font-size: 12px; margin-top: 24px;">
+              If you did not request this login, please ignore this email.
+            </p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.text();
+      console.error(`Resend API error [${res.status}]: ${errorBody}`);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Failed to send OTP email:", err);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -105,40 +153,29 @@ serve(async (req) => {
       locked_until: null,
     });
 
-    // Send OTP via Supabase Auth admin email (using auth.admin API to send a custom email)
-    // We'll use a direct SMTP-style approach via Supabase's built-in email
-    const emailRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/generate_link`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        type: "magiclink",
-        email: email,
-      }),
-    });
+    // Send OTP via email
+    const emailSent = await sendOtpEmail(email, otp);
 
-    // We actually just need to send a simple email with the OTP code
-    // Since Supabase doesn't have a generic "send email" API, we'll use the 
-    // edge function response to pass the OTP flow token instead
-    // The OTP is verified server-side, so we pass a session ticket
-    
-    // For production: integrate with an email service (Resend, SendGrid, etc.)
-    // For now: the OTP will be delivered via the response for the flow to work
-    // In a real deployment, you'd send via email API here
+    if (!emailSent) {
+      // Mark OTP as used since we couldn't deliver it
+      await adminClient
+        .from("otp_codes")
+        .update({ used: true })
+        .eq("user_id", userId)
+        .eq("otp_hash", otpHash);
 
-    console.log(`OTP generated for user ${userId}: ${otp}`); // Remove in production
+      return new Response(JSON.stringify({
+        error: "Unable to send OTP. Please try again.",
+      }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
+    // SECURITY: Never return OTP in response
     return new Response(JSON.stringify({
       success: true,
-      userId,
       email: email.replace(/(.{2}).*(@.*)/, "$1***$2"), // Masked email
       expiresAt,
-      // NOTE: In production, remove otpCode and send via email service
-      // For development/demo, we include it so the flow works
-      otpCode: otp,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
