@@ -6,6 +6,63 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const AI_MODEL = Deno.env.get("AI_MODEL") || "google/gemini-2.5-flash";
+
+// ─── Deterministic Metrics Engine ───────────────────────────────────────────
+const STRONG_VERBS = new Set([
+  "spearheaded","architected","accelerated","delivered","orchestrated","engineered",
+  "transformed","optimized","pioneered","launched","negotiated","streamlined",
+  "redesigned","automated","consolidated","drove","increased","reduced","generated",
+  "implemented","developed","established","led","built","scaled","improved","achieved",
+  "exceeded","managed","directed","created","designed","executed","resolved","overhauled",
+]);
+const WEAK_VERBS = new Set([
+  "helped","worked","responsible","assisted","participated","contributed","involved",
+  "supported","handled","used","utilized","did","made","got","tried",
+]);
+
+function computeTextMetrics(text: string) {
+  if (!text) return { quantCount: 0, strongVerbCount: 0, weakVerbCount: 0, keywordDensity: 0, sectionCount: 0 };
+  const quantRegex = /\d+[\.,]?\d*\s*[%$€£]|\$\s*\d+[\.,]?\d*[KMBkmb]?|\d+[\.,]?\d*\s*(percent|million|billion|thousand|users|customers|teams|people|projects|years|months|revenue|growth|savings|reduction|improvement|increase|decrease)/gi;
+  const quantCount = (text.match(quantRegex) || []).length;
+  // Also count standalone numbers that look like metrics (e.g. "150+", "3x", "$2M")
+  const metricNumbers = (text.match(/\b\d+[+x%]|\$[\d,.]+[KMBkmb]?/g) || []).length;
+  
+  const words = text.toLowerCase().split(/\s+/);
+  let strongVerbCount = 0;
+  let weakVerbCount = 0;
+  for (const w of words) {
+    const clean = w.replace(/[^a-z]/g, "");
+    if (STRONG_VERBS.has(clean)) strongVerbCount++;
+    if (WEAK_VERBS.has(clean)) weakVerbCount++;
+  }
+
+  const sectionHeaders = (text.match(/\b(experience|education|skills|summary|objective|projects|certifications|awards|publications|languages|interests|volunteer|professional)\b/gi) || []).length;
+
+  return {
+    quantCount: quantCount + metricNumbers,
+    strongVerbCount,
+    weakVerbCount,
+    keywordDensity: words.length > 0 ? (strongVerbCount / words.length) * 100 : 0,
+    sectionCount: sectionHeaders,
+  };
+}
+
+function metricsImproved(current: ReturnType<typeof computeTextMetrics>, previous: ReturnType<typeof computeTextMetrics>): boolean {
+  let improvements = 0;
+  let declines = 0;
+  if (current.quantCount > previous.quantCount) improvements++;
+  else if (current.quantCount < previous.quantCount) declines++;
+  if (current.strongVerbCount > previous.strongVerbCount) improvements++;
+  else if (current.strongVerbCount < previous.strongVerbCount) declines++;
+  if (current.weakVerbCount < previous.weakVerbCount) improvements++;
+  else if (current.weakVerbCount > previous.weakVerbCount) declines++;
+  if (current.sectionCount >= previous.sectionCount) improvements++;
+  else declines++;
+  // Improved or equal = improvements >= declines
+  return improvements >= declines;
+}
+
 const SYSTEM_PROMPT = `You are a Senior Technical Recruiter with 10+ years of hiring experience combined with an ATS Evaluation Engine. You must perform multi-layer internal reasoning before producing scores.
 
 ANALYSIS LAYERS (perform internally before scoring):
@@ -84,10 +141,11 @@ serve(async (req) => {
 
     // Fetch previous analysis for score regression prevention
     let previousScores: Record<string, number> | null = null;
+    let previousResumeText: string | null = null;
     if (previousAnalysisId) {
       const { data: prev } = await supabase
         .from("resume_analyses")
-        .select("ats_score, recruiter_scan_score, keyword_strength_score, quantification_score, structure_score, interview_probability")
+        .select("ats_score, recruiter_scan_score, keyword_strength_score, quantification_score, structure_score, interview_probability, resume_text")
         .eq("id", previousAnalysisId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -100,6 +158,7 @@ serve(async (req) => {
           structureScore: prev.structure_score ?? 0,
           interviewProbability: prev.interview_probability ?? 0,
         };
+        previousResumeText = prev.resume_text;
       }
     }
 
@@ -119,7 +178,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: AI_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userMessage },
@@ -235,6 +294,12 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
+    
+    // Log token usage for cost monitoring
+    if (aiData.usage) {
+      console.log("Token usage:", JSON.stringify(aiData.usage));
+    }
+
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
 
@@ -247,15 +312,48 @@ serve(async (req) => {
 
     if (typeof analysisResult.atsScore !== "number") throw new Error("Invalid analysis result");
 
-    // Score regression prevention: if this is a re-analysis of an improved resume,
-    // enforce that scores don't drop when measurable components have improved
-    if (previousScores) {
+    // ─── Response Truncation (Impact Mode enforcement) ───────────────
+    if (analysisResult.criticalIssues?.length > 5) analysisResult.criticalIssues = analysisResult.criticalIssues.slice(0, 5);
+    if (analysisResult.warnings?.length > 3) analysisResult.warnings = analysisResult.warnings.slice(0, 3);
+    if (analysisResult.optimizationOpportunities?.length > 3) analysisResult.optimizationOpportunities = analysisResult.optimizationOpportunities.slice(0, 3);
+    if (analysisResult.advancedRefinements?.length > 2) analysisResult.advancedRefinements = analysisResult.advancedRefinements.slice(0, 2);
+
+    // ─── Deterministic Score Regression Prevention ───────────────────
+    if (previousScores && previousResumeText) {
+      const currentMetrics = computeTextMetrics(resumeText);
+      const previousMetrics = computeTextMetrics(previousResumeText);
+      const improved = metricsImproved(currentMetrics, previousMetrics);
+
+      console.log("Metrics comparison:", JSON.stringify({ currentMetrics, previousMetrics, improved }));
+
+      const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
+      
+      if (improved) {
+        // Metrics improved or equal — scores must NOT decrease
+        for (const key of scoreKeys) {
+          const prev = previousScores[key];
+          const curr = analysisResult[key];
+          if (typeof prev === "number" && typeof curr === "number" && curr < prev) {
+            analysisResult[key] = Math.max(curr, prev);
+          }
+        }
+      } else {
+        // Metrics declined — allow reduction but cap at prev - 2 variance
+        for (const key of scoreKeys) {
+          const prev = previousScores[key];
+          const curr = analysisResult[key];
+          if (typeof prev === "number" && typeof curr === "number" && curr < prev - 2) {
+            analysisResult[key] = Math.max(curr, prev - 2);
+          }
+        }
+      }
+    } else if (previousScores) {
+      // No previous resume text available — fall back to simple floor
       const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
       for (const key of scoreKeys) {
         const prev = previousScores[key];
         const curr = analysisResult[key];
-        if (typeof prev === "number" && typeof curr === "number" && curr < prev) {
-          // Allow max 2-point variance, but enforce floor at previous score minus 2
+        if (typeof prev === "number" && typeof curr === "number" && curr < prev - 2) {
           analysisResult[key] = Math.max(curr, prev - 2);
         }
       }

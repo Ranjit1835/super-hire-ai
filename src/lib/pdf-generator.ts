@@ -88,44 +88,44 @@ function renderClassic(ctx: DrawContext, content: ResumeContent): DrawContext {
   ctx.y -= 8;
 
   // Experience
-  if (content.experience.length > 0) {
+  if ((content.experience || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.5, color: grey });
     ctx.y -= 14;
     drawTextLine(ctx, "PROFESSIONAL EXPERIENCE", ctx.margin, 11, ctx.boldFont, black);
     ctx.y -= 16;
     for (const exp of content.experience) {
       ctx = ensureSpace(ctx, 80);
-      drawTextLine(ctx, exp.title, ctx.margin, 10, ctx.boldFont, black);
-      const durW = ctx.font.widthOfTextAtSize(exp.duration, 8);
-      drawTextLine(ctx, exp.duration, ctx.margin + ctx.width - durW, 8, ctx.font, grey);
+      drawTextLine(ctx, exp.title || "", ctx.margin, 10, ctx.boldFont, black);
+      const durW = ctx.font.widthOfTextAtSize(exp.duration || "", 8);
+      drawTextLine(ctx, exp.duration || "", ctx.margin + ctx.width - durW, 8, ctx.font, grey);
       ctx.y -= 13;
-      drawTextLine(ctx, exp.company, ctx.margin, 9, ctx.font, grey);
+      drawTextLine(ctx, exp.company || "", ctx.margin, 9, ctx.font, grey);
       ctx.y -= 14;
-      for (const bullet of exp.bullets) {
+      for (const bullet of (exp.bullets || [])) {
         ctx = ensureSpace(ctx, 50);
-        ctx = drawWrappedBlock(ctx, `• ${bullet}`, 9, 8);
+        ctx = drawWrappedBlock(ctx, `- ${bullet}`, 9, 8);
       }
       ctx.y -= 6;
     }
   }
 
   // Education
-  if (content.education.length > 0) {
+  if ((content.education || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.5, color: grey });
     ctx.y -= 14;
     drawTextLine(ctx, "EDUCATION", ctx.margin, 11, ctx.boldFont, black);
     ctx.y -= 16;
     for (const edu of content.education) {
       ctx = ensureSpace(ctx, 50);
-      drawTextLine(ctx, edu.degree, ctx.margin, 10, ctx.boldFont, black);
+      drawTextLine(ctx, edu.degree || "", ctx.margin, 10, ctx.boldFont, black);
       ctx.y -= 13;
-      drawTextLine(ctx, `${edu.school} — ${edu.year}`, ctx.margin, 9, ctx.font, grey);
+      drawTextLine(ctx, `${edu.school || ""} - ${edu.year || ""}`, ctx.margin, 9, ctx.font, grey);
       ctx.y -= 16;
     }
   }
 
   // Skills
-  if (content.skills.length > 0) {
+  if ((content.skills || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.5, color: grey });
     ctx.y -= 14;
     drawTextLine(ctx, "SKILLS", ctx.margin, 11, ctx.boldFont, black);
@@ -148,7 +148,7 @@ function renderModern(ctx: DrawContext, content: ResumeContent): DrawContext {
   ctx.y -= 18;
 
   // Contact on same line as accent
-  drawTextLine(ctx, `${content.email}${content.phone ? `  •  ${content.phone}` : ""}`, ctx.margin + 14, 9, ctx.font, mid);
+  drawTextLine(ctx, `${content.email}${content.phone ? `  -  ${content.phone}` : ""}`, ctx.margin + 14, 9, ctx.font, mid);
   ctx.y -= 20;
 
   // Blue accent line
@@ -161,8 +161,8 @@ function renderModern(ctx: DrawContext, content: ResumeContent): DrawContext {
   ctx = drawWrappedBlock(ctx, content.summary, 9, 0, mid);
   ctx.y -= 10;
 
-  // Skills as tag-style grid
-  if (content.skills.length > 0) {
+  // Skills as tag-style grid — FIXED: safe rectangle positioning
+  if ((content.skills || []).length > 0) {
     drawTextLine(ctx, "TECHNICAL SKILLS", ctx.margin, 10, ctx.boldFont, blue);
     ctx.y -= 16;
     let xPos = ctx.margin;
@@ -173,39 +173,40 @@ function renderModern(ctx: DrawContext, content: ResumeContent): DrawContext {
         ctx.y -= 18;
         ctx = ensureSpace(ctx, 50);
       }
-      // Tag background
-      ctx.page.drawRectangle({ x: xPos, y: ctx.y - 4, width: skillW, height: 16, color: rgb(0.92, 0.95, 0.99), borderColor: rgb(0.8, 0.85, 0.92), borderWidth: 0.5 });
+      // Tag background — ensure y doesn't go negative
+      const rectY = Math.max(ctx.y - 4, 10);
+      ctx.page.drawRectangle({ x: xPos, y: rectY, width: skillW, height: 16, color: rgb(0.92, 0.95, 0.99), borderColor: rgb(0.8, 0.85, 0.92), borderWidth: 0.5 });
       ctx.page.drawText(skill, { x: xPos + 7, y: ctx.y, size: 8, font: ctx.font, color: dark });
       xPos += skillW + 6;
     }
     ctx.y -= 24;
   }
 
-  // Experience
-  if (content.experience.length > 0) {
+  // Experience — FIXED: replaced ▸ with -
+  if ((content.experience || []).length > 0) {
     drawTextLine(ctx, "EXPERIENCE", ctx.margin, 10, ctx.boldFont, blue);
     ctx.y -= 16;
     for (const exp of content.experience) {
       ctx = ensureSpace(ctx, 80);
-      drawTextLine(ctx, exp.title, ctx.margin, 10, ctx.boldFont, dark);
+      drawTextLine(ctx, exp.title || "", ctx.margin, 10, ctx.boldFont, dark);
       ctx.y -= 13;
-      drawTextLine(ctx, `${exp.company}  ·  ${exp.duration}`, ctx.margin, 8, ctx.font, mid);
+      drawTextLine(ctx, `${exp.company || ""}  -  ${exp.duration || ""}`, ctx.margin, 8, ctx.font, mid);
       ctx.y -= 14;
-      for (const bullet of exp.bullets) {
+      for (const bullet of (exp.bullets || [])) {
         ctx = ensureSpace(ctx, 50);
-        ctx = drawWrappedBlock(ctx, `▸ ${bullet}`, 9, 8, mid);
+        ctx = drawWrappedBlock(ctx, `- ${bullet}`, 9, 8, mid);
       }
       ctx.y -= 8;
     }
   }
 
   // Education
-  if (content.education.length > 0) {
+  if ((content.education || []).length > 0) {
     drawTextLine(ctx, "EDUCATION", ctx.margin, 10, ctx.boldFont, blue);
     ctx.y -= 16;
     for (const edu of content.education) {
       ctx = ensureSpace(ctx, 50);
-      drawTextLine(ctx, `${edu.degree}  —  ${edu.school} (${edu.year})`, ctx.margin, 9, ctx.font, dark);
+      drawTextLine(ctx, `${edu.degree || ""}  -  ${edu.school || ""} (${edu.year || ""})`, ctx.margin, 9, ctx.font, dark);
       ctx.y -= 14;
     }
   }
@@ -219,76 +220,68 @@ function renderExecutive(ctx: DrawContext, content: ResumeContent): DrawContext 
   const gold = rgb(0.55, 0.45, 0.25);
   const body = rgb(0.2, 0.2, 0.22);
 
-  // Large name block
   drawTextLine(ctx, content.name.toUpperCase(), ctx.margin, 26, ctx.boldFont, navy);
   ctx.y -= 18;
 
-  // Role/title line if available from first experience
-  if (content.experience.length > 0) {
-    drawTextLine(ctx, content.experience[0].title, ctx.margin, 12, ctx.font, gold);
+  if ((content.experience || []).length > 0) {
+    drawTextLine(ctx, content.experience[0].title || "", ctx.margin, 12, ctx.font, gold);
     ctx.y -= 16;
   }
 
-  // Contact
   drawTextLine(ctx, `${content.email}${content.phone ? `  |  ${content.phone}` : ""}`, ctx.margin, 9, ctx.font, body);
   ctx.y -= 14;
 
-  // Double line separator
   ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 1.5, color: navy });
   ctx.y -= 3;
   ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.5, color: gold });
   ctx.y -= 20;
 
-  // Executive Summary
   drawTextLine(ctx, "Executive Summary", ctx.margin, 12, ctx.boldFont, navy);
   ctx.y -= 16;
   ctx = drawWrappedBlock(ctx, content.summary, 9.5, 0, body);
   ctx.y -= 14;
 
-  // Experience with premium spacing
-  if (content.experience.length > 0) {
+  if ((content.experience || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + 120, y: ctx.y }, thickness: 0.5, color: gold });
     ctx.y -= 14;
     drawTextLine(ctx, "Professional Experience", ctx.margin, 12, ctx.boldFont, navy);
     ctx.y -= 18;
     for (const exp of content.experience) {
       ctx = ensureSpace(ctx, 90);
-      drawTextLine(ctx, exp.title.toUpperCase(), ctx.margin, 10, ctx.boldFont, navy);
+      drawTextLine(ctx, (exp.title || "").toUpperCase(), ctx.margin, 10, ctx.boldFont, navy);
       ctx.y -= 14;
-      drawTextLine(ctx, exp.company, ctx.margin, 9, ctx.boldFont, gold);
-      const durW = ctx.font.widthOfTextAtSize(exp.duration, 8);
-      drawTextLine(ctx, exp.duration, ctx.margin + ctx.width - durW, 8, ctx.font, body);
+      drawTextLine(ctx, exp.company || "", ctx.margin, 9, ctx.boldFont, gold);
+      const durW = ctx.font.widthOfTextAtSize(exp.duration || "", 8);
+      drawTextLine(ctx, exp.duration || "", ctx.margin + ctx.width - durW, 8, ctx.font, body);
       ctx.y -= 15;
-      for (const bullet of exp.bullets) {
+      for (const bullet of (exp.bullets || [])) {
         ctx = ensureSpace(ctx, 50);
-        ctx = drawWrappedBlock(ctx, `— ${bullet}`, 9, 10, body);
+        ctx = drawWrappedBlock(ctx, `-- ${bullet}`, 9, 10, body);
       }
       ctx.y -= 10;
     }
   }
 
-  // Education
-  if (content.education.length > 0) {
+  if ((content.education || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + 120, y: ctx.y }, thickness: 0.5, color: gold });
     ctx.y -= 14;
     drawTextLine(ctx, "Education", ctx.margin, 12, ctx.boldFont, navy);
     ctx.y -= 16;
     for (const edu of content.education) {
       ctx = ensureSpace(ctx, 50);
-      drawTextLine(ctx, edu.degree, ctx.margin, 10, ctx.boldFont, navy);
+      drawTextLine(ctx, edu.degree || "", ctx.margin, 10, ctx.boldFont, navy);
       ctx.y -= 13;
-      drawTextLine(ctx, `${edu.school}  •  ${edu.year}`, ctx.margin, 9, ctx.font, body);
+      drawTextLine(ctx, `${edu.school || ""} - ${edu.year || ""}`, ctx.margin, 9, ctx.font, body);
       ctx.y -= 18;
     }
   }
 
-  // Skills
-  if (content.skills.length > 0) {
+  if ((content.skills || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + 120, y: ctx.y }, thickness: 0.5, color: gold });
     ctx.y -= 14;
     drawTextLine(ctx, "Core Competencies", ctx.margin, 12, ctx.boldFont, navy);
     ctx.y -= 14;
-    ctx = drawWrappedBlock(ctx, content.skills.join("  •  "), 9, 0, body);
+    ctx = drawWrappedBlock(ctx, content.skills.join("  -  "), 9, 0, body);
   }
 
   return ctx;
@@ -300,57 +293,51 @@ function renderMinimal(ctx: DrawContext, content: ResumeContent): DrawContext {
   const light = rgb(0.55, 0.55, 0.55);
   const lineColor = rgb(0.85, 0.85, 0.85);
 
-  // Name — lowercase elegant
   drawTextLine(ctx, content.name, ctx.margin, 20, ctx.boldFont, dark);
   ctx.y -= 15;
-  drawTextLine(ctx, `${content.email}${content.phone ? `  ·  ${content.phone}` : ""}`, ctx.margin, 8.5, ctx.font, light);
+  drawTextLine(ctx, `${content.email}${content.phone ? `  -  ${content.phone}` : ""}`, ctx.margin, 8.5, ctx.font, light);
   ctx.y -= 16;
 
-  // Thin full-width line
   ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.3, color: lineColor });
   ctx.y -= 20;
 
-  // Summary — no header, just text
   ctx = drawWrappedBlock(ctx, content.summary, 9, 0, dark);
   ctx.y -= 16;
 
-  // Experience
-  if (content.experience.length > 0) {
+  if ((content.experience || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.3, color: lineColor });
     ctx.y -= 14;
     drawTextLine(ctx, "Experience", ctx.margin, 9, ctx.boldFont, light);
     ctx.y -= 16;
     for (const exp of content.experience) {
       ctx = ensureSpace(ctx, 80);
-      drawTextLine(ctx, exp.title, ctx.margin, 10, ctx.boldFont, dark);
+      drawTextLine(ctx, exp.title || "", ctx.margin, 10, ctx.boldFont, dark);
       ctx.y -= 12;
-      drawTextLine(ctx, `${exp.company}`, ctx.margin, 8.5, ctx.font, light);
-      const durW = ctx.font.widthOfTextAtSize(exp.duration, 8);
-      drawTextLine(ctx, exp.duration, ctx.margin + ctx.width - durW, 8, ctx.font, light);
+      drawTextLine(ctx, exp.company || "", ctx.margin, 8.5, ctx.font, light);
+      const durW = ctx.font.widthOfTextAtSize(exp.duration || "", 8);
+      drawTextLine(ctx, exp.duration || "", ctx.margin + ctx.width - durW, 8, ctx.font, light);
       ctx.y -= 14;
-      for (const bullet of exp.bullets) {
+      for (const bullet of (exp.bullets || [])) {
         ctx = ensureSpace(ctx, 50);
-        ctx = drawWrappedBlock(ctx, `· ${bullet}`, 8.5, 6, dark);
+        ctx = drawWrappedBlock(ctx, `- ${bullet}`, 8.5, 6, dark);
       }
       ctx.y -= 8;
     }
   }
 
-  // Education
-  if (content.education.length > 0) {
+  if ((content.education || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.3, color: lineColor });
     ctx.y -= 14;
     drawTextLine(ctx, "Education", ctx.margin, 9, ctx.boldFont, light);
     ctx.y -= 16;
     for (const edu of content.education) {
       ctx = ensureSpace(ctx, 50);
-      drawTextLine(ctx, `${edu.degree}, ${edu.school} — ${edu.year}`, ctx.margin, 9, ctx.font, dark);
+      drawTextLine(ctx, `${edu.degree || ""}, ${edu.school || ""} - ${edu.year || ""}`, ctx.margin, 9, ctx.font, dark);
       ctx.y -= 14;
     }
   }
 
-  // Skills — inline, no header emphasis
-  if (content.skills.length > 0) {
+  if ((content.skills || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.3, color: lineColor });
     ctx.y -= 14;
     drawTextLine(ctx, "Skills", ctx.margin, 9, ctx.boldFont, light);
@@ -380,65 +367,64 @@ function renderImpact(ctx: DrawContext, content: ResumeContent): DrawContext {
   ctx = drawWrappedBlock(ctx, content.summary, 9.5, 0, dark);
   ctx.y -= 10;
 
-  // Key achievements extracted from first few bullets
-  const topAchievements = content.experience.flatMap(e => e.bullets).slice(0, 3);
+  // Key achievements — FIXED: ensureSpace before rectangle, replaced ★ with *
+  const topAchievements = (content.experience || []).flatMap(e => e.bullets || []).slice(0, 3);
   if (topAchievements.length > 0) {
-    ctx.page.drawRectangle({ x: ctx.margin, y: ctx.y - (topAchievements.length * 16) - 8, width: ctx.width, height: topAchievements.length * 16 + 20, color: rgb(0.95, 0.97, 0.95) });
+    const blockHeight = topAchievements.length * 16 + 20;
+    ctx = ensureSpace(ctx, blockHeight + 20);
+    ctx.page.drawRectangle({ x: ctx.margin, y: ctx.y - blockHeight + 12, width: ctx.width, height: blockHeight, color: rgb(0.95, 0.97, 0.95) });
     drawTextLine(ctx, "KEY ACHIEVEMENTS", ctx.margin + 8, 10, ctx.boldFont, accent);
     ctx.y -= 16;
     for (const ach of topAchievements) {
       ctx = ensureSpace(ctx, 50);
-      // Bold numbers in achievement by rendering the whole line with bold font
-      drawTextLine(ctx, `★  ${ach}`, ctx.margin + 8, 9, ctx.boldFont, dark);
+      drawTextLine(ctx, `*  ${ach}`, ctx.margin + 8, 9, ctx.boldFont, dark);
       ctx.y -= 15;
     }
     ctx.y -= 10;
   }
 
-  // Experience — results-first formatting
-  if (content.experience.length > 0) {
+  // Experience — FIXED: replaced ▶ with -
+  if ((content.experience || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 1, color: accent });
     ctx.y -= 14;
     drawTextLine(ctx, "CAREER PROGRESSION", ctx.margin, 10, ctx.boldFont, accent);
     ctx.y -= 18;
     for (const exp of content.experience) {
       ctx = ensureSpace(ctx, 80);
-      drawTextLine(ctx, exp.title, ctx.margin, 10, ctx.boldFont, dark);
-      const durW = ctx.font.widthOfTextAtSize(exp.duration, 8);
-      drawTextLine(ctx, exp.duration, ctx.margin + ctx.width - durW, 8, ctx.font, mid);
+      drawTextLine(ctx, exp.title || "", ctx.margin, 10, ctx.boldFont, dark);
+      const durW = ctx.font.widthOfTextAtSize(exp.duration || "", 8);
+      drawTextLine(ctx, exp.duration || "", ctx.margin + ctx.width - durW, 8, ctx.font, mid);
       ctx.y -= 13;
-      drawTextLine(ctx, exp.company, ctx.margin, 9, ctx.font, accent);
+      drawTextLine(ctx, exp.company || "", ctx.margin, 9, ctx.font, accent);
       ctx.y -= 14;
-      for (const bullet of exp.bullets) {
+      for (const bullet of (exp.bullets || [])) {
         ctx = ensureSpace(ctx, 50);
-        ctx = drawWrappedBlock(ctx, `▶ ${bullet}`, 9, 8, dark);
+        ctx = drawWrappedBlock(ctx, `- ${bullet}`, 9, 8, dark);
       }
       ctx.y -= 8;
     }
   }
 
-  // Education
-  if (content.education.length > 0) {
+  if ((content.education || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.5, color: accent });
     ctx.y -= 14;
     drawTextLine(ctx, "EDUCATION", ctx.margin, 10, ctx.boldFont, accent);
     ctx.y -= 16;
     for (const edu of content.education) {
       ctx = ensureSpace(ctx, 50);
-      drawTextLine(ctx, edu.degree, ctx.margin, 10, ctx.boldFont, dark);
+      drawTextLine(ctx, edu.degree || "", ctx.margin, 10, ctx.boldFont, dark);
       ctx.y -= 12;
-      drawTextLine(ctx, `${edu.school} — ${edu.year}`, ctx.margin, 9, ctx.font, mid);
+      drawTextLine(ctx, `${edu.school || ""} - ${edu.year || ""}`, ctx.margin, 9, ctx.font, mid);
       ctx.y -= 16;
     }
   }
 
-  // Skills
-  if (content.skills.length > 0) {
+  if ((content.skills || []).length > 0) {
     ctx.page.drawLine({ start: { x: ctx.margin, y: ctx.y }, end: { x: ctx.margin + ctx.width, y: ctx.y }, thickness: 0.5, color: accent });
     ctx.y -= 14;
     drawTextLine(ctx, "CORE SKILLS", ctx.margin, 10, ctx.boldFont, accent);
     ctx.y -= 14;
-    ctx = drawWrappedBlock(ctx, content.skills.join("  ·  "), 9, 0, dark);
+    ctx = drawWrappedBlock(ctx, content.skills.join("  -  "), 9, 0, dark);
   }
 
   return ctx;
@@ -453,12 +439,17 @@ export async function generateResumePdf(content: ResumeContent, template: Templa
 
   let ctx: DrawContext = { doc, page, font, boldFont, y: 750, margin: 50, width: 512 };
 
-  switch (template) {
-    case "classic": ctx = renderClassic(ctx, content); break;
-    case "modern": ctx = renderModern(ctx, content); break;
-    case "executive": ctx = renderExecutive(ctx, content); break;
-    case "minimal": ctx = renderMinimal(ctx, content); break;
-    case "impact": ctx = renderImpact(ctx, content); break;
+  try {
+    switch (template) {
+      case "classic": ctx = renderClassic(ctx, content); break;
+      case "modern": ctx = renderModern(ctx, content); break;
+      case "executive": ctx = renderExecutive(ctx, content); break;
+      case "minimal": ctx = renderMinimal(ctx, content); break;
+      case "impact": ctx = renderImpact(ctx, content); break;
+    }
+  } catch (err) {
+    console.error(`PDF template "${template}" render error:`, err);
+    throw err;
   }
 
   return doc.save();

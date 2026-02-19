@@ -6,11 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const AI_MODEL = Deno.env.get("AI_MODEL") || "google/gemini-2.5-flash";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Authentication
     const authHeader = req.headers.get("authorization");
     if (!authHeader) throw new Error("No authorization header");
 
@@ -23,18 +24,11 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    // Input validation
     const { resumeText, analysisResult } = await req.json();
 
-    if (!resumeText || typeof resumeText !== "string") {
-      throw new Error("Invalid resume text");
-    }
-    if (resumeText.length > 50000) {
-      throw new Error("Resume text exceeds maximum size");
-    }
-    if (!analysisResult || typeof analysisResult !== "object") {
-      throw new Error("Invalid analysis result");
-    }
+    if (!resumeText || typeof resumeText !== "string") throw new Error("Invalid resume text");
+    if (resumeText.length > 50000) throw new Error("Resume text exceeds maximum size");
+    if (!analysisResult || typeof analysisResult !== "object") throw new Error("Invalid analysis result");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
@@ -62,7 +56,7 @@ RULES:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: AI_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -134,6 +128,12 @@ RULES:
     }
 
     const aiData = await aiResponse.json();
+    
+    // Log token usage for cost monitoring
+    if (aiData.usage) {
+      console.log("Token usage:", JSON.stringify(aiData.usage));
+    }
+
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall?.function?.arguments) throw new Error("No structured output");
 
