@@ -1,129 +1,192 @@
 
 
-# SUPER HIRE AI – Resume Intelligence Platform
+# Super Hire AI -- Stability, Scoring, and UX Enhancement Plan
 
-## Overview
-A premium, dark-themed AI-powered Resume Intelligence System that analyzes resumes through 5 layers (structural, keyword, quantification, recruiter psychology, ATS simulation), provides detailed scored feedback, and offers automated resume fixing with downloadable PDF templates.
+## Summary
 
----
-
-## Pages & Navigation
-
-### 1. Landing Page
-- Hero section with bold headline, animated gradient accents, and CTA to get started
-- Feature highlights: ATS Score, Recruiter Scan, Fix My Resume, PDF Export
-- Social proof section and pricing teaser
-- Dark premium aesthetic (Vercel-inspired) with glassmorphism cards
-
-### 2. Auth Pages (Login / Sign Up)
-- Email + password authentication via Supabase
-- Clean dark-themed auth forms
-- Redirect to dashboard after login
-
-### 3. Dashboard
-- Overview of past analyses with scores at a glance
-- Quick upload area for new resume analysis
-- Resume history list with timestamps and scores
-- User greeting and stats summary
-
-### 4. Resume Analysis Page
-- **Upload Section**: Drag-and-drop PDF upload with file parsing
-- **Score Overview**: Animated circular/radial score meters for:
-  - ATS Score
-  - Recruiter Scan Score
-  - Keyword Strength Score
-  - Quantification Score
-  - Structure Score
-  - Interview Probability
-- **Market Competitiveness Badge**: Below Average / Competitive / Strong / Elite
-- **Categorized Feedback Panels** (card-based, color-coded):
-  - 🔴 Critical Issues (with impact level, why it matters, fix recommendation)
-  - 🟡 Strategic Warnings
-  - 💡 Impact Optimizations
-  - ✅ Advanced Refinements
-- **AI-Rewritten Summary** and **Strong Bullets** preview
-- **Missing High-Impact Keywords** list
-- **Recruiter Psychology Insight** narrative
-- **Final Verdict** with clear actionable statement
-
-### 5. Fix My Resume Page
-- Triggered from analysis results via "Fix My Resume" button
-- AI auto-generates improved resume content based on analysis
-- **Template Selection**: 3 ATS-friendly templates
-  - Classic ATS (clean, traditional)
-  - Modern Tech ATS (developer/tech focused)
-  - Executive Professional (senior/leadership)
-- Live preview of selected template with improved content
-- Download as PDF button
-
-### 6. Profile / Settings
-- User profile management
-- Analysis history with ability to revisit past results
+This plan addresses 11 enhancement areas across scoring reliability, template bugs, editing, scanning animation, dashboard UX, UI polish, AI model flexibility, and production readiness -- all without rebuilding core architecture.
 
 ---
 
-## Backend Architecture
+## 1. Score Regression Fix (Backend)
 
-### Supabase Database
-- **profiles** table: user info, linked to auth.users
-- **user_roles** table: role management
-- **resume_analyses** table: stored analysis results (JSON), file reference, scores, timestamps, content hash for caching
-- **resumes** table: uploaded resume metadata and storage references
+**File:** `supabase/functions/analyze-resume/index.ts`
 
-### Supabase Storage
-- **resumes** bucket: uploaded PDF files
+**Problem:** The current regression prevention only constrains AI-returned scores to `prev - 2` floor. It still relies purely on the LLM for scoring, which is non-deterministic.
 
-### Edge Functions
-- **analyze-resume**: Receives parsed resume text, sends to Lovable AI (Gemini) with multi-layer prompt engineering, returns structured JSON scores and feedback. Includes:
-  - SHA-256 hash-based deduplication (check DB before calling AI)
-  - Only cache successful, validated JSON responses
-  - Retry logic on AI failures
-  - Rate limit (429) and payment (402) error handling
-- **fix-resume**: Takes analysis results + original content, generates improved resume content via AI with template-specific formatting
+**Solution -- Backend Weighted Score Computation:**
+- After receiving AI scores, compute a **deterministic measurable metrics delta** by analyzing the actual resume text:
+  - Count quantified metrics (regex: numbers, percentages, dollar amounts)
+  - Count strong action verbs vs weak verbs
+  - Count keyword density
+  - Count section headers
+- Compare these counts against the previous analysis's resume text (fetch `resume_text` alongside scores from `previousAnalysisId`)
+- If measurable metrics improved or stayed equal, enforce: `finalScore = max(aiScore, previousScore)`
+- If measurable metrics declined, allow reduction
+- This makes scoring **deterministic based on measurable content**, not just LLM output
 
-### AI Prompt Engineering
-- System role: "Senior Technical Recruiter + ATS Evaluation Engine"
-- Forces internal multi-layer reasoning before scoring
-- Explicit instruction: no generic advice
-- Structured JSON output via tool calling
-- Temperature 0.2 for consistency
+**File:** `src/pages/Dashboard.tsx`
+- When re-analyzing a fixed resume, pass the latest analysis ID as `previousAnalysisId` to the edge function (currently only passed from client but not wired from Dashboard upload flow)
 
 ---
 
-## Key Features
+## 2. Template Download Fix (Modern Tech and Impact Focused)
 
-### Resume Parsing
-- Client-side PDF text extraction from uploaded files
-- Text sent to edge function for analysis
+**File:** `src/lib/pdf-generator.ts`
 
-### Caching & Deduplication
-- SHA-256 hash of resume content
-- Check database before calling AI
-- Only store validated successful responses
-- Error responses never cached
+**Problem:** The Modern Tech template uses special characters (triangle `▸`) and the Impact template uses a star (`★`) and rectangle backgrounds that can cause pdf-lib rendering failures when text metrics are miscalculated.
 
-### Premium UI Elements
-- Dark theme with subtle gradients and glassmorphism
-- Animated score meters (circular progress indicators)
-- Card-based categorized feedback with color-coded severity
-- Smooth transitions and micro-animations
-- Fully mobile responsive
-- Clean typography with proper spacing
-
-### PDF Generation
-- Client-side PDF generation for fixed resumes
-- 3 template layouts with proper formatting
-- ATS-compatible output (clean structure, standard fonts)
+**Fixes:**
+- **Modern Tech (`renderModern`):** Replace `▸` with standard ASCII dash `-` for bullet prefix since pdf-lib's Helvetica font may not support all Unicode glyphs. Validate tag grid rectangle positioning doesn't go negative on y-axis.
+- **Impact (`renderImpact`):** Replace `★` with `*` and `▶` with `-`. Fix the key achievements background rectangle calculation -- currently it draws the rectangle *before* checking if there's enough space, potentially drawing off-page. Add `ensureSpace` check before the rectangle drawing.
+- **All templates:** Wrap each template render call in a try-catch with console.error logging so failures are traceable.
+- **Null safety:** Add defensive checks for empty/undefined arrays before iterating (e.g., `content.experience || []`)
 
 ---
 
-## User Flow
-1. User signs up / logs in
-2. Uploads resume PDF on dashboard
-3. System parses PDF → sends to AI analysis engine
-4. Receives detailed multi-layer scores and feedback
-5. Views animated score dashboard with categorized issues
-6. Clicks "Fix My Resume" → AI generates improved content
-7. Selects template → previews → downloads PDF
-8. Analysis saved to history for future reference
+## 3. Full Editable Preview Support
+
+**File:** `src/components/fix-resume/ResumePreview.tsx`
+
+**Current state:** Name, summary, experience titles, and bullets are editable. Education, skills, phone, email, company, and duration are NOT editable.
+
+**Enhancement:**
+- Make `email`, `phone` editable via `EditableText` inputs
+- Make `education` fields (degree, school, year) editable
+- Make `skills` individually editable with add/remove capability
+- Make `company` and `duration` fields in experience editable
+- Apply across all 5 template previews (ClassicPreview, ModernPreview, ExecutivePreview, MinimalPreview, ImpactPreview)
+- Add helper methods to `useEditor`: `updateEdu`, `removeSkill`, `updateSkill`, `addSkill`
+
+---
+
+## 4. Dashboard UX -- Show Last 3 + View All
+
+**File:** `src/pages/Dashboard.tsx`
+
+**Changes:**
+- Add state `showAll` (default false)
+- When `showAll` is false, display only the first 3 analyses
+- Add "View All (N)" button below the 3 items when more exist
+- Add prominent "Analyze New Resume" button at the top of the page, above the upload zone
+- Already sorted by `created_at DESC` -- no change needed there
+
+---
+
+## 5. Premium Scanning Animation
+
+**File:** `src/components/ScanningAnimation.tsx` (rewrite)
+
+**Current state:** Shows a fake document with scan line and stage dots. Decent but basic.
+
+**Enhancement -- Multi-layer premium animation:**
+
+1. **AI Scan Visualizer:** Keep the document outline but add:
+   - Soft glow effect on the scan line (via box-shadow CSS)
+   - Pulsing border around document (CSS animation)
+   - Slightly blurred fake text lines that "resolve" as scan passes
+
+2. **Live Phase Indicator:** Expand the stages list:
+   - "Parsing document structure..."
+   - "Extracting measurable impact metrics..."
+   - "Evaluating keyword density..."
+   - "Simulating ATS parsing behavior..."
+   - "Running recruiter 6-second scan..."
+   - "Calculating interview probability..."
+   - "Optimizing scoring model..."
+   - Add blinking cursor character after each message
+
+3. **Real-time Metric Counters:** Below the stage text, show 4 animated counters that increment from 0 to random target values using CSS/requestAnimationFrame:
+   - Structure Score: 0 -> ~75
+   - Keyword Strength: 0 -> ~68
+   - Impact Density: 0 -> ~72
+   - ATS Probability: "Calculating..."
+
+4. **AI Engine Badge:** Small pulsing badge "AI Engine Running" with subtle gradient shimmer
+
+All animations use CSS keyframes and Framer Motion (already installed). No new libraries.
+
+---
+
+## 6. UI Polish
+
+**Files:** `src/pages/Landing.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Analysis.tsx`, `src/pages/FixResume.tsx`, `src/index.css`
+
+**Enhancements:**
+- Add consistent `animate-fade-in` class usage for page entry transitions
+- Add hover scale effects on interactive cards (`.hover-scale` already defined in tailwind config)
+- Ensure consistent spacing (py-8 for main sections, gap-6 for grids)
+- Verify mobile responsiveness -- ensure template selection grid collapses properly on small screens
+- Add subtle card hover border transitions
+- Clean up any visual clutter in the Analysis page
+
+---
+
+## 7. Response Optimization -- Impact Mode
+
+**File:** `supabase/functions/analyze-resume/index.ts`
+
+**Current state:** Prompt already says "Top 3-5 critical issues" and "2-3 strategic improvements." But the AI may still return more.
+
+**Enhancement:**
+- Add hard enforcement in the backend: after parsing AI response, truncate arrays:
+  - `criticalIssues`: max 5
+  - `warnings`: max 3
+  - `optimizationOpportunities`: max 3
+  - `advancedRefinements`: max 2
+- This ensures output is always concise regardless of AI behavior
+
+---
+
+## 8. Production Readiness
+
+**Current state:** No localhost hardcoding found. CORS is configured with `*`. Environment variables use `import.meta.env`.
+
+**Checks and fixes:**
+- Verify no `localhost` references exist in edge functions or client code (none found)
+- CORS already uses `Access-Control-Allow-Origin: *` -- acceptable for this app type
+- Ensure all API calls use `import.meta.env.VITE_SUPABASE_URL` (already the case)
+- No changes needed -- the app is already production-configuration ready
+
+---
+
+## 9. AI Model Flexibility
+
+**File:** `supabase/functions/analyze-resume/index.ts` and `supabase/functions/fix-resume/index.ts`
+
+**Enhancement:**
+- Extract model selection to a constant at the top of each function: `const AI_MODEL = Deno.env.get("AI_MODEL") || "google/gemini-2.5-flash";`
+- Use this constant in the fetch body instead of hardcoded model string
+- This allows switching models via environment variable without code changes
+- Both edge functions get this treatment
+
+Note: Since the Lovable AI Gateway abstracts providers, switching between Gemini and OpenAI models only requires changing the model string. No provider strategy pattern needed -- the gateway handles it.
+
+---
+
+## 10. Performance Optimization
+
+**Current state:** SHA-256 caching already prevents duplicate AI calls for identical content.
+
+**Enhancements:**
+- Already implemented: content hash check before AI call
+- Add token usage logging in edge functions: log `aiData.usage` (tokens used) after AI response for cost monitoring
+- No other changes needed -- the caching system is solid
+
+---
+
+## 11. Files Changed Summary
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/analyze-resume/index.ts` | Deterministic scoring engine, model flexibility, response truncation, token logging |
+| `supabase/functions/fix-resume/index.ts` | Model flexibility, token logging |
+| `src/lib/pdf-generator.ts` | Fix Unicode characters, null safety, rectangle positioning, try-catch per template |
+| `src/components/fix-resume/ResumePreview.tsx` | Full section editability (education, skills, contact, company, duration) |
+| `src/components/ScanningAnimation.tsx` | Premium multi-layer animation with counters and phase indicators |
+| `src/pages/Dashboard.tsx` | Show last 3 + View All, prominent Analyze New button |
+| `src/pages/Landing.tsx` | Minor UI polish |
+| `src/pages/Analysis.tsx` | Minor UI polish |
+
+No database schema changes. No new dependencies. No core logic disruption.
 
