@@ -51,7 +51,8 @@ export default function Dashboard() {
         .maybeSingle();
 
       if (cached) {
-        toast({ title: "Already analyzed", description: "Navigating to existing analysis." });
+        // Simulate brief analysis to maintain consistent UX
+        await new Promise((resolve) => setTimeout(resolve, 1800));
         navigate(`/analysis/${cached.id}`);
         return;
       }
