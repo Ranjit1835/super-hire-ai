@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2 } from "lucide-react";
+import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
 
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [analyses, setAnalyses] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const fetchAnalyses = useCallback(async () => {
     if (!user) return;
@@ -55,8 +56,11 @@ export default function Dashboard() {
         return;
       }
 
+      // Pass latest analysis ID for score regression prevention
+      const previousAnalysisId = analyses.length > 0 ? analyses[0].id : undefined;
+
       const { data, error } = await supabase.functions.invoke("analyze-resume", {
-        body: { resumeText: text, fileName: file.name, contentHash },
+        body: { resumeText: text, fileName: file.name, contentHash, previousAnalysisId },
       });
 
       if (error) throw error;
@@ -90,6 +94,8 @@ export default function Dashboard() {
       default: return "text-destructive";
     }
   };
+
+  const displayedAnalyses = showAll ? analyses : analyses.slice(0, 3);
 
   if (uploading) {
     return (
@@ -128,7 +134,12 @@ export default function Dashboard() {
 
       <main className="container py-8 max-w-5xl">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <Button size="sm" onClick={() => document.getElementById("file-input")?.click()}>
+              <Upload className="h-4 w-4 mr-1" /> Analyze New Resume
+            </Button>
+          </div>
           <p className="text-muted-foreground mb-8">Upload a resume to get your AI-powered analysis</p>
         </motion.div>
 
@@ -165,7 +176,7 @@ export default function Dashboard() {
               <Clock className="h-5 w-5 text-muted-foreground" /> Analysis History
             </h2>
             <div className="space-y-3">
-              {analyses.map((a, i) => (
+              {displayedAnalyses.map((a, i) => (
                 <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <Card className="glass hover:border-primary/30 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
                     <CardContent className="flex items-center justify-between py-4">
@@ -199,6 +210,14 @@ export default function Dashboard() {
                 </motion.div>
               ))}
             </div>
+            {analyses.length > 3 && (
+              <div className="text-center mt-4">
+                <Button variant="ghost" size="sm" onClick={() => setShowAll(!showAll)}>
+                  <ChevronDown className={`h-4 w-4 mr-1 transition-transform ${showAll ? "rotate-180" : ""}`} />
+                  {showAll ? "Show Less" : `View All (${analyses.length})`}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </main>
