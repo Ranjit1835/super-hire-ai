@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,19 @@ import { motion } from "framer-motion";
 export default function Auth() {
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
+  const returnTo = searchParams.get("returnTo");
+
   if (user) {
-    navigate("/dashboard", { replace: true });
+    // If user is already logged in and there's a pending analysis, go to dashboard with autoAnalyze
+    if (returnTo === "analyze" && sessionStorage.getItem("pendingResume")) {
+      navigate("/dashboard?autoAnalyze=true", { replace: true });
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
     return null;
   }
 
@@ -29,7 +37,6 @@ export default function Auth() {
     const password = form.get("password") as string;
 
     try {
-      // Step 1: Validate credentials & send OTP via edge function
       const { data, error } = await supabase.functions.invoke("send-otp", {
         body: { email, password },
       });
@@ -48,13 +55,14 @@ export default function Auth() {
 
       toast({ title: "OTP Sent", description: "A verification code has been sent to your registered email." });
 
-      // Redirect to OTP verification page
+      // Pass returnTo intent through to OTP verification
       navigate("/verify-otp", {
         state: {
           email,
           password,
           maskedEmail: data?.email,
           expiresAt: data?.expiresAt,
+          returnTo,
         },
       });
     } catch (err: any) {
@@ -104,7 +112,9 @@ export default function Auth() {
               <Zap className="h-6 w-6 text-primary-foreground" />
             </motion.div>
             <CardTitle className="text-2xl">Super Hire AI</CardTitle>
-            <CardDescription>Resume Intelligence Platform</CardDescription>
+            <CardDescription>
+              {returnTo === "analyze" ? "Sign in to see your analysis results" : "Resume Intelligence Platform"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin">

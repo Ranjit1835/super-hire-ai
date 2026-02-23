@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 30;
-const OTP_EXPIRY = 5 * 60; // 5 minutes in seconds
+const OTP_EXPIRY = 5 * 60;
 
 export default function OtpVerification() {
   const navigate = useNavigate();
@@ -25,6 +25,7 @@ export default function OtpVerification() {
   const email = location.state?.email;
   const password = location.state?.password;
   const maskedEmail = location.state?.maskedEmail;
+  const returnTo = location.state?.returnTo;
 
   useEffect(() => {
     if (!email || !password) {
@@ -101,13 +102,18 @@ export default function OtpVerification() {
       }
 
       if (data?.session) {
-        // Set the session in the client
         await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
         toast({ title: "Welcome back!", description: "Successfully authenticated." });
-        navigate("/dashboard", { replace: true });
+
+        // If there's a pending analysis, redirect with autoAnalyze flag
+        if (returnTo === "analyze" && sessionStorage.getItem("pendingResume")) {
+          navigate("/dashboard?autoAnalyze=true", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
       }
     } catch (err: any) {
       const msg = err?.message || "Verification failed";
@@ -134,11 +140,6 @@ export default function OtpVerification() {
         return;
       }
       toast({ title: "OTP sent", description: "A new code has been sent to your email." });
-      
-      // In dev mode, show the OTP
-      if (data?.otpCode) {
-        toast({ title: "Dev Mode OTP", description: `Your code: ${data.otpCode}`, duration: 15000 });
-      }
     } catch {
       toast({ title: "Failed to resend", variant: "destructive" });
     }
