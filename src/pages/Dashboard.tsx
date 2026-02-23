@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,13 @@ import { ScanningAnimation } from "@/components/ScanningAnimation";
 export default function Dashboard() {
   const { user, signOut, session } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [analyses, setAnalyses] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const autoAnalyzeTriggered = useRef(false);
 
   const fetchAnalyses = useCallback(async () => {
     if (!user) return;
@@ -30,6 +32,56 @@ export default function Dashboard() {
   }, [user]);
 
   useEffect(() => { fetchAnalyses(); }, [fetchAnalyses]);
+
+  // Auto-analyze from guest upload flow
+  useEffect(() => {
+    if (autoAnalyzeTriggered.current) return;
+    if (searchParams.get("autoAnalyze") !== "true") return;
+    const pendingRaw = sessionStorage.getItem("pendingResume");
+    if (!pendingRaw || !user) return;
+
+    autoAnalyzeTriggered.current = true;
+    // Clear query param
+    setSearchParams({}, { replace: true });
+
+    const pending = JSON.parse(pendingRaw);
+    sessionStorage.removeItem("pendingResume");
+
+    // Trigger analysis with stored data
+    handlePendingAnalysis(pending.resumeText, pending.fileName, pending.contentHash);
+  }, [searchParams, user]);
+
+  const handlePendingAnalysis = async (resumeText: string, fileName: string, contentHash: string) => {
+    setUploading(true);
+    try {
+      // Check user-specific cache first
+      const { data: cached } = await supabase
+        .from("resume_analyses")
+        .select("id")
+        .eq("user_id", user!.id)
+        .eq("content_hash", contentHash)
+        .maybeSingle();
+
+      if (cached) {
+        await new Promise((resolve) => setTimeout(resolve, 1800));
+        navigate(`/analysis/${cached.id}`);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("analyze-resume", {
+        body: { resumeText, fileName, contentHash },
+      });
+
+      if (error) throw error;
+      if (data?.id) {
+        navigate(`/analysis/${data.id}`);
+      }
+    } catch (err: any) {
+      toast({ title: "Analysis failed", description: err.message || "Something went wrong", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") {
@@ -51,13 +103,11 @@ export default function Dashboard() {
         .maybeSingle();
 
       if (cached) {
-        // Simulate brief analysis to maintain consistent UX
         await new Promise((resolve) => setTimeout(resolve, 1800));
         navigate(`/analysis/${cached.id}`);
         return;
       }
 
-      // Pass latest analysis ID for score regression prevention
       const previousAnalysisId = analyses.length > 0 ? analyses[0].id : undefined;
 
       const { data, error } = await supabase.functions.invoke("analyze-resume", {
@@ -129,7 +179,6 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={async () => {
-              // Invalidate session record in DB
               if (session?.access_token) {
                 const tokenSuffix = session.access_token.slice(-16);
                 await supabase.from("user_sessions").delete().eq("session_token", tokenSuffix);

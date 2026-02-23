@@ -25,7 +25,6 @@ function computeTextMetrics(text: string) {
   if (!text) return { quantCount: 0, strongVerbCount: 0, weakVerbCount: 0, keywordDensity: 0, sectionCount: 0 };
   const quantRegex = /\d+[\.,]?\d*\s*[%$€£]|\$\s*\d+[\.,]?\d*[KMBkmb]?|\d+[\.,]?\d*\s*(percent|million|billion|thousand|users|customers|teams|people|projects|years|months|revenue|growth|savings|reduction|improvement|increase|decrease)/gi;
   const quantCount = (text.match(quantRegex) || []).length;
-  // Also count standalone numbers that look like metrics (e.g. "150+", "3x", "$2M")
   const metricNumbers = (text.match(/\b\d+[+x%]|\$[\d,.]+[KMBkmb]?/g) || []).length;
   
   const words = text.toLowerCase().split(/\s+/);
@@ -59,8 +58,26 @@ function metricsImproved(current: ReturnType<typeof computeTextMetrics>, previou
   else if (current.weakVerbCount > previous.weakVerbCount) declines++;
   if (current.sectionCount >= previous.sectionCount) improvements++;
   else declines++;
-  // Improved or equal = improvements >= declines
   return improvements >= declines;
+}
+
+// ─── Deterministic Scoring Formula ──────────────────────────────────────────
+function computeDeterministicAtsScore(aiScores: Record<string, number>, textMetrics: ReturnType<typeof computeTextMetrics>): number {
+  // Compute action verb score (0-100) from text metrics
+  const totalVerbs = textMetrics.strongVerbCount + textMetrics.weakVerbCount;
+  const actionVerbScore = totalVerbs > 0
+    ? Math.round((textMetrics.strongVerbCount / totalVerbs) * 100)
+    : 50; // neutral if no verbs detected
+
+  const finalScore = Math.round(
+    0.30 * (aiScores.keywordStrengthScore ?? 0) +
+    0.25 * (aiScores.quantificationScore ?? 0) +
+    0.20 * (aiScores.structureScore ?? 0) +
+    0.15 * actionVerbScore +
+    0.10 * (aiScores.recruiterScanScore ?? 0)
+  );
+
+  return Math.max(0, Math.min(100, finalScore));
 }
 
 const SYSTEM_PROMPT = `You are a Senior Technical Recruiter with 10+ years of hiring experience combined with an ATS Evaluation Engine. You must perform multi-layer internal reasoning before producing scores.
@@ -119,6 +136,12 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // Service role client for global cache (bypasses RLS)
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
@@ -143,7 +166,7 @@ serve(async (req) => {
       }
     }
 
-    // Check cache
+    // ─── Step 1: Check user-specific cache ───────────────────────────
     const { data: cached } = await supabase
       .from("resume_analyses")
       .select("id")
@@ -152,10 +175,48 @@ serve(async (req) => {
       .maybeSingle();
 
     if (cached) {
-      return new Response(JSON.stringify({ id: cached.id, cached: true }), {
+      // Return silently — no cached flag
+      return new Response(JSON.stringify({ id: cached.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // ─── Step 2: Check global score cache ────────────────────────────
+    const { data: globalCached } = await serviceClient
+      .from("resume_score_cache")
+      .select("*")
+      .eq("content_hash", contentHash)
+      .maybeSingle();
+
+    if (globalCached) {
+      // Insert user-specific record with canonical scores
+      const { data: inserted, error: insertError } = await supabase
+        .from("resume_analyses")
+        .insert({
+          user_id: user.id,
+          file_name: fileName,
+          content_hash: contentHash,
+          resume_text: resumeText,
+          ats_score: globalCached.ats_score,
+          recruiter_scan_score: globalCached.recruiter_scan_score,
+          keyword_strength_score: globalCached.keyword_strength_score,
+          quantification_score: globalCached.quantification_score,
+          structure_score: globalCached.structure_score,
+          interview_probability: globalCached.interview_probability,
+          market_competitiveness: globalCached.market_competitiveness,
+          analysis_result: globalCached.analysis_result,
+        })
+        .select("id")
+        .single();
+
+      if (insertError) throw insertError;
+
+      return new Response(JSON.stringify({ id: inserted.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Step 3: No cache — run AI analysis ──────────────────────────
 
     // Fetch previous analysis for score regression prevention
     let previousScores: Record<string, number> | null = null;
@@ -183,7 +244,6 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
 
-    // Build user message with previous scores context if available
     let userMessage = `Analyze this resume thoroughly using all 5 layers:\n\n${resumeText}`;
     if (previousScores) {
       userMessage += `\n\nIMPORTANT CONTEXT: This is a RE-ANALYSIS of a previously fixed/improved resume. The previous version scored: ATS=${previousScores.atsScore}, RecruiterScan=${previousScores.recruiterScanScore}, Keywords=${previousScores.keywordStrengthScore}, Quantification=${previousScores.quantificationScore}, Structure=${previousScores.structureScore}. If the resume has measurably improved (more metrics, better verbs, better structure, more keywords), scores MUST NOT decrease — they should logically increase. Only reduce scores if specific measurable components have genuinely degraded.`;
@@ -313,7 +373,6 @@ serve(async (req) => {
 
     const aiData = await aiResponse.json();
     
-    // Log token usage for cost monitoring
     if (aiData.usage) {
       console.log("Token usage:", JSON.stringify(aiData.usage));
     }
@@ -336,7 +395,11 @@ serve(async (req) => {
     if (analysisResult.optimizationOpportunities?.length > 3) analysisResult.optimizationOpportunities = analysisResult.optimizationOpportunities.slice(0, 3);
     if (analysisResult.advancedRefinements?.length > 2) analysisResult.advancedRefinements = analysisResult.advancedRefinements.slice(0, 2);
 
-    // ─── Deterministic Score Regression Prevention ───────────────────
+    // ─── Deterministic ATS Score ─────────────────────────────────────
+    const textMetrics = computeTextMetrics(resumeText);
+    analysisResult.atsScore = computeDeterministicAtsScore(analysisResult, textMetrics);
+
+    // ─── Score Regression Prevention ─────────────────────────────────
     if (previousScores && previousResumeText) {
       const currentMetrics = computeTextMetrics(resumeText);
       const previousMetrics = computeTextMetrics(previousResumeText);
@@ -347,7 +410,6 @@ serve(async (req) => {
       const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
       
       if (improved) {
-        // Metrics improved or equal — scores must NOT decrease
         for (const key of scoreKeys) {
           const prev = previousScores[key];
           const curr = analysisResult[key];
@@ -356,7 +418,6 @@ serve(async (req) => {
           }
         }
       } else {
-        // Metrics declined — allow reduction but cap at prev - 2 variance
         for (const key of scoreKeys) {
           const prev = previousScores[key];
           const curr = analysisResult[key];
@@ -366,7 +427,6 @@ serve(async (req) => {
         }
       }
     } else if (previousScores) {
-      // No previous resume text available — fall back to simple floor
       const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
       for (const key of scoreKeys) {
         const prev = previousScores[key];
@@ -377,7 +437,22 @@ serve(async (req) => {
       }
     }
 
-    // Store in database
+    // ─── Step 4: Store in global score cache ─────────────────────────
+    await serviceClient
+      .from("resume_score_cache")
+      .upsert({
+        content_hash: contentHash,
+        ats_score: analysisResult.atsScore,
+        recruiter_scan_score: analysisResult.recruiterScanScore,
+        keyword_strength_score: analysisResult.keywordStrengthScore,
+        quantification_score: analysisResult.quantificationScore,
+        structure_score: analysisResult.structureScore,
+        interview_probability: analysisResult.interviewProbability,
+        market_competitiveness: analysisResult.marketCompetitivenessLevel,
+        analysis_result: analysisResult,
+      });
+
+    // ─── Step 5: Store user-specific record ──────────────────────────
     const { data: inserted, error: insertError } = await supabase
       .from("resume_analyses")
       .insert({

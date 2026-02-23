@@ -128,6 +128,45 @@ export type Database = {
         }
         Relationships: []
       }
+      resume_score_cache: {
+        Row: {
+          analysis_result: Json
+          ats_score: number
+          content_hash: string
+          created_at: string
+          interview_probability: number
+          keyword_strength_score: number
+          market_competitiveness: string | null
+          quantification_score: number
+          recruiter_scan_score: number
+          structure_score: number
+        }
+        Insert: {
+          analysis_result: Json
+          ats_score: number
+          content_hash: string
+          created_at?: string
+          interview_probability: number
+          keyword_strength_score: number
+          market_competitiveness?: string | null
+          quantification_score: number
+          recruiter_scan_score: number
+          structure_score: number
+        }
+        Update: {
+          analysis_result?: Json
+          ats_score?: number
+          content_hash?: string
+          created_at?: string
+          interview_probability?: number
+          keyword_strength_score?: number
+          market_competitiveness?: string | null
+          quantification_score?: number
+          recruiter_scan_score?: number
+          structure_score?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
