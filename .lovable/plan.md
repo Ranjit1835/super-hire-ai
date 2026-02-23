@@ -1,192 +1,124 @@
 
 
-# Super Hire AI -- Stability, Scoring, and UX Enhancement Plan
+# Refactor Plan: Guest Upload, Deterministic Scoring, and Cache Improvements
 
-## Summary
+## Overview
 
-This plan addresses 11 enhancement areas across scoring reliability, template bugs, editing, scanning animation, dashboard UX, UI polish, AI model flexibility, and production readiness -- all without rebuilding core architecture.
-
----
-
-## 1. Score Regression Fix (Backend)
-
-**File:** `supabase/functions/analyze-resume/index.ts`
-
-**Problem:** The current regression prevention only constrains AI-returned scores to `prev - 2` floor. It still relies purely on the LLM for scoring, which is non-deterministic.
-
-**Solution -- Backend Weighted Score Computation:**
-- After receiving AI scores, compute a **deterministic measurable metrics delta** by analyzing the actual resume text:
-  - Count quantified metrics (regex: numbers, percentages, dollar amounts)
-  - Count strong action verbs vs weak verbs
-  - Count keyword density
-  - Count section headers
-- Compare these counts against the previous analysis's resume text (fetch `resume_text` alongside scores from `previousAnalysisId`)
-- If measurable metrics improved or stayed equal, enforce: `finalScore = max(aiScore, previousScore)`
-- If measurable metrics declined, allow reduction
-- This makes scoring **deterministic based on measurable content**, not just LLM output
-
-**File:** `src/pages/Dashboard.tsx`
-- When re-analyzing a fixed resume, pass the latest analysis ID as `previousAnalysisId` to the edge function (currently only passed from client but not wired from Dashboard upload flow)
+This plan enhances three areas without rebuilding the project: (1) allow guests to upload before logging in, (2) make scoring identical for the same resume across all accounts, and (3) make caching fully invisible.
 
 ---
 
-## 2. Template Download Fix (Modern Tech and Impact Focused)
+## 1. Guest Upload Flow (Login After Analysis Trigger)
 
-**File:** `src/lib/pdf-generator.ts`
+**Current:** All upload functionality lives in `/dashboard`, which is behind `ProtectedRoute`. Users must log in first.
 
-**Problem:** The Modern Tech template uses special characters (triangle `▸`) and the Impact template uses a star (`★`) and rectangle backgrounds that can cause pdf-lib rendering failures when text metrics are miscalculated.
+**New Flow:** Upload happens on the Landing page. Login is requested only when results are ready.
 
-**Fixes:**
-- **Modern Tech (`renderModern`):** Replace `▸` with standard ASCII dash `-` for bullet prefix since pdf-lib's Helvetica font may not support all Unicode glyphs. Validate tag grid rectangle positioning doesn't go negative on y-axis.
-- **Impact (`renderImpact`):** Replace `★` with `*` and `▶` with `-`. Fix the key achievements background rectangle calculation -- currently it draws the rectangle *before* checking if there's enough space, potentially drawing off-page. Add `ensureSpace` check before the rectangle drawing.
-- **All templates:** Wrap each template render call in a try-catch with console.error logging so failures are traceable.
-- **Null safety:** Add defensive checks for empty/undefined arrays before iterating (e.g., `content.experience || []`)
+### Changes
 
----
+**Landing.tsx** -- Add a resume upload zone (drag-and-drop + file picker) to the hero section. When a guest uploads a PDF:
+- Extract text and compute SHA-256 hash client-side (using existing `pdf-parser` utilities)
+- Store `{ resumeText, fileName, contentHash }` in `sessionStorage`
+- Redirect to `/auth` with a query parameter `?returnTo=analyze`
 
-## 3. Full Editable Preview Support
+**Auth.tsx** -- After successful OTP verification and login:
+- Check `sessionStorage` for pending analysis data
+- If found, automatically trigger the analysis flow (call the edge function, navigate to results)
+- Clear `sessionStorage` after use
 
-**File:** `src/components/fix-resume/ResumePreview.tsx`
+**OtpVerification.tsx** -- After successful OTP verification:
+- Preserve the `returnTo=analyze` intent through the redirect to dashboard
+- Navigate to `/dashboard?autoAnalyze=true` instead of plain `/dashboard`
 
-**Current state:** Name, summary, experience titles, and bullets are editable. Education, skills, phone, email, company, and duration are NOT editable.
+**Dashboard.tsx** -- On mount:
+- Check for `autoAnalyze=true` query param AND `sessionStorage` pending data
+- If both present, automatically call `handleFile` logic with the stored data
+- Clear the query param and sessionStorage after processing
 
-**Enhancement:**
-- Make `email`, `phone` editable via `EditableText` inputs
-- Make `education` fields (degree, school, year) editable
-- Make `skills` individually editable with add/remove capability
-- Make `company` and `duration` fields in experience editable
-- Apply across all 5 template previews (ClassicPreview, ModernPreview, ExecutivePreview, MinimalPreview, ImpactPreview)
-- Add helper methods to `useEditor`: `updateEdu`, `removeSkill`, `updateSkill`, `addSkill`
-
----
-
-## 4. Dashboard UX -- Show Last 3 + View All
-
-**File:** `src/pages/Dashboard.tsx`
-
-**Changes:**
-- Add state `showAll` (default false)
-- When `showAll` is false, display only the first 3 analyses
-- Add "View All (N)" button below the 3 items when more exist
-- Add prominent "Analyze New Resume" button at the top of the page, above the upload zone
-- Already sorted by `created_at DESC` -- no change needed there
+**Security:**
+- Resume data stays in browser `sessionStorage` only (never sent to server before auth)
+- `sessionStorage` is cleared on tab close automatically
+- No temporary DB entries needed -- simpler and more secure
 
 ---
 
-## 5. Premium Scanning Animation
+## 2. Deterministic Cross-Account Scoring
 
-**File:** `src/components/ScanningAnimation.tsx` (rewrite)
+**Root Cause:** The cache lookup filters by `user_id`, so the same resume analyzed by two different accounts runs through the AI twice and may get different scores due to LLM variance.
 
-**Current state:** Shows a fake document with scan line and stage dots. Decent but basic.
+### Changes
 
-**Enhancement -- Multi-layer premium animation:**
+**New DB table: `resume_score_cache`**
+- `content_hash` (text, PRIMARY KEY) -- the SHA-256 hash
+- `ats_score`, `recruiter_scan_score`, `keyword_strength_score`, `quantification_score`, `structure_score`, `interview_probability` (integer columns)
+- `analysis_result` (jsonb) -- the full structured analysis
+- `created_at` (timestamptz)
 
-1. **AI Scan Visualizer:** Keep the document outline but add:
-   - Soft glow effect on the scan line (via box-shadow CSS)
-   - Pulsing border around document (CSS animation)
-   - Slightly blurred fake text lines that "resolve" as scan passes
+RLS: No user access needed. This table is only accessed by the edge function using the service role key.
 
-2. **Live Phase Indicator:** Expand the stages list:
-   - "Parsing document structure..."
-   - "Extracting measurable impact metrics..."
-   - "Evaluating keyword density..."
-   - "Simulating ATS parsing behavior..."
-   - "Running recruiter 6-second scan..."
-   - "Calculating interview probability..."
-   - "Optimizing scoring model..."
-   - Add blinking cursor character after each message
+**analyze-resume/index.ts** -- Updated flow:
 
-3. **Real-time Metric Counters:** Below the stage text, show 4 animated counters that increment from 0 to random target values using CSS/requestAnimationFrame:
-   - Structure Score: 0 -> ~75
-   - Keyword Strength: 0 -> ~68
-   - Impact Density: 0 -> ~72
-   - ATS Probability: "Calculating..."
+```text
+1. Validate input
+2. Check user-specific cache (resume_analyses) -- if found, return silently
+3. Check global score cache (resume_score_cache by content_hash)
+   - If found: use those scores and analysis_result
+   - Insert into resume_analyses for this user with the canonical scores
+   - Return the new analysis ID
+4. If no global cache: call AI, compute scores
+5. Insert into resume_score_cache (global canonical record)
+6. Insert into resume_analyses (user-specific record)
+```
 
-4. **AI Engine Badge:** Small pulsing badge "AI Engine Running" with subtle gradient shimmer
+This guarantees: same hash = same scores, regardless of account, session, or date.
 
-All animations use CSS keyframes and Framer Motion (already installed). No new libraries.
+**Backend scoring formula** -- Add a deterministic scoring layer after AI returns raw metrics. The edge function already has `computeTextMetrics()`. Enhance it:
 
----
+```text
+finalAtsScore = round(
+  0.30 * aiResult.keywordStrengthScore +
+  0.25 * aiResult.quantificationScore +
+  0.20 * aiResult.structureScore +
+  0.15 * actionVerbScore (from computeTextMetrics) +
+  0.10 * aiResult.recruiterScanScore
+)
+```
 
-## 6. UI Polish
-
-**Files:** `src/pages/Landing.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Analysis.tsx`, `src/pages/FixResume.tsx`, `src/index.css`
-
-**Enhancements:**
-- Add consistent `animate-fade-in` class usage for page entry transitions
-- Add hover scale effects on interactive cards (`.hover-scale` already defined in tailwind config)
-- Ensure consistent spacing (py-8 for main sections, gap-6 for grids)
-- Verify mobile responsiveness -- ensure template selection grid collapses properly on small screens
-- Add subtle card hover border transitions
-- Clean up any visual clutter in the Analysis page
+The deterministic formula blends AI judgment with measurable text metrics, reducing variance. The blended score is stored in the global cache.
 
 ---
 
-## 7. Response Optimization -- Impact Mode
+## 3. Cache Disclosure Removal
 
-**File:** `supabase/functions/analyze-resume/index.ts`
+**Backend (analyze-resume/index.ts):**
+- Remove `cached: true` from the JSON response -- always return just `{ id: "..." }`
+- The frontend already handles the delay (1.8s) for cached results from the user-specific check
 
-**Current state:** Prompt already says "Top 3-5 critical issues" and "2-3 strategic improvements." But the AI may still return more.
-
-**Enhancement:**
-- Add hard enforcement in the backend: after parsing AI response, truncate arrays:
-  - `criticalIssues`: max 5
-  - `warnings`: max 3
-  - `optimizationOpportunities`: max 3
-  - `advancedRefinements`: max 2
-- This ensures output is always concise regardless of AI behavior
+**Frontend (Dashboard.tsx):**
+- Already cleaned up in previous change (no toast, 1.8s delay). No further changes needed.
 
 ---
 
-## 8. Production Readiness
+## 4. Fix-Cycle Score Regression Prevention
 
-**Current state:** No localhost hardcoding found. CORS is configured with `*`. Environment variables use `import.meta.env`.
+**Current:** Already partially implemented with `metricsImproved()` function and score floor logic.
 
-**Checks and fixes:**
-- Verify no `localhost` references exist in edge functions or client code (none found)
-- CORS already uses `Access-Control-Allow-Origin: *` -- acceptable for this app type
-- Ensure all API calls use `import.meta.env.VITE_SUPABASE_URL` (already the case)
-- No changes needed -- the app is already production-configuration ready
-
----
-
-## 9. AI Model Flexibility
-
-**File:** `supabase/functions/analyze-resume/index.ts` and `supabase/functions/fix-resume/index.ts`
-
-**Enhancement:**
-- Extract model selection to a constant at the top of each function: `const AI_MODEL = Deno.env.get("AI_MODEL") || "google/gemini-2.5-flash";`
-- Use this constant in the fetch body instead of hardcoded model string
-- This allows switching models via environment variable without code changes
-- Both edge functions get this treatment
-
-Note: Since the Lovable AI Gateway abstracts providers, switching between Gemini and OpenAI models only requires changing the model string. No provider strategy pattern needed -- the gateway handles it.
+**Enhancement in analyze-resume/index.ts:**
+- When `previousAnalysisId` is provided, compare `computeTextMetrics()` of old vs new resume
+- If metrics improved: scores must not decrease (already in place)
+- If metrics declined: allow decrease capped at -2 (already in place)
+- No changes needed here -- current logic is sound
 
 ---
 
-## 10. Performance Optimization
+## Technical Summary of File Changes
 
-**Current state:** SHA-256 caching already prevents duplicate AI calls for identical content.
-
-**Enhancements:**
-- Already implemented: content hash check before AI call
-- Add token usage logging in edge functions: log `aiData.usage` (tokens used) after AI response for cost monitoring
-- No other changes needed -- the caching system is solid
-
----
-
-## 11. Files Changed Summary
-
-| File | Changes |
-|------|---------|
-| `supabase/functions/analyze-resume/index.ts` | Deterministic scoring engine, model flexibility, response truncation, token logging |
-| `supabase/functions/fix-resume/index.ts` | Model flexibility, token logging |
-| `src/lib/pdf-generator.ts` | Fix Unicode characters, null safety, rectangle positioning, try-catch per template |
-| `src/components/fix-resume/ResumePreview.tsx` | Full section editability (education, skills, contact, company, duration) |
-| `src/components/ScanningAnimation.tsx` | Premium multi-layer animation with counters and phase indicators |
-| `src/pages/Dashboard.tsx` | Show last 3 + View All, prominent Analyze New button |
-| `src/pages/Landing.tsx` | Minor UI polish |
-| `src/pages/Analysis.tsx` | Minor UI polish |
-
-No database schema changes. No new dependencies. No core logic disruption.
+| File | Change |
+|------|--------|
+| `src/pages/Landing.tsx` | Add upload zone for guests, store data in sessionStorage, redirect to auth |
+| `src/pages/Auth.tsx` | Pass `returnTo` intent through OTP flow |
+| `src/pages/OtpVerification.tsx` | Redirect with `autoAnalyze` flag after verification |
+| `src/pages/Dashboard.tsx` | Auto-trigger analysis from sessionStorage on mount |
+| `supabase/functions/analyze-resume/index.ts` | Global score cache lookup, remove `cached: true` flag, deterministic scoring formula |
+| New migration | Create `resume_score_cache` table (no RLS -- service role only) |
 
