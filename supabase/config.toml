@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.verify-otp]
 verify_jwt = false
+
+[functions.create-payment-order]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
+
+[functions.check-fix-access]
+verify_jwt = false
+
+[functions.razorpay-webhook]
+verify_jwt = false

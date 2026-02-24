@@ -31,19 +31,41 @@ export default function FixResume() {
 
   useEffect(() => {
     if (!id || !user) return;
-    supabase
-      .from("resume_analyses")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          generateFix(data);
-        } else {
-          setLoading(false);
+
+    // Check payment access first
+    const checkAccess = async () => {
+      try {
+        const session = (await supabase.auth.getSession()).data.session;
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-fix-access?resumeAnalysisId=${id}`,
+          { headers: { Authorization: `Bearer ${session?.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+        );
+        const accessData = await res.json();
+        if (!accessData.canAccess) {
+          toast({ title: "Payment required", description: "Please unlock this resume fix first.", variant: "destructive" });
+          navigate(`/analysis/${id}`);
+          return;
         }
-      });
+      } catch {
+        toast({ title: "Access check failed", variant: "destructive" });
+        navigate(`/analysis/${id}`);
+        return;
+      }
+
+      // Proceed to load analysis
+      const { data } = await supabase
+        .from("resume_analyses")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .single();
+      if (data) {
+        generateFix(data);
+      } else {
+        setLoading(false);
+      }
+    };
+    checkAccess();
   }, [id, user]);
 
   const generateFix = async (analysisData: any) => {
