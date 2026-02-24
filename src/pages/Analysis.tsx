@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Zap, AlertTriangle, Lightbulb, CheckCircle2,
   XCircle, Wrench, TrendingUp, Brain, Target, ChevronDown, ChevronUp, Home, Upload,
+  GraduationCap,
 } from "lucide-react";
 import type { AnalysisResult, AnalysisIssue } from "@/lib/analysis-types";
 
@@ -376,6 +377,30 @@ export default function Analysis() {
                 </CardTitle>
               </CardHeader>
               <CardContent><p className="text-sm font-medium leading-relaxed">{result.finalVerdict}</p></CardContent>
+            </Card>
+          </motion.section>
+        )}
+
+        {/* Student Growth Recommendations */}
+        {result.resumeType === "STUDENT" && result.studentGrowthRecommendations && result.studentGrowthRecommendations.length > 0 && (
+          <motion.section className="mb-8" {...fadeUp(0.47)}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <GraduationCap className="h-5 w-5" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground">Student Growth Recommendations</h3>
+            </div>
+            <Card className="glass border-primary/20 bg-primary/5">
+              <CardContent className="pt-6">
+                <ul className="space-y-3">
+                  {result.studentGrowthRecommendations.map((tip, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm">
+                      <span className="text-primary font-bold mt-0.5">✦</span>
+                      <span className="leading-relaxed">{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
             </Card>
           </motion.section>
         )}

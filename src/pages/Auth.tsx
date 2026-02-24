@@ -111,7 +111,7 @@ export default function Auth() {
             >
               <Zap className="h-6 w-6 text-primary-foreground" />
             </motion.div>
-            <CardTitle className="text-2xl">Super Hire AI</CardTitle>
+            <CardTitle className="text-2xl">HireResume</CardTitle>
             <CardDescription>
               {returnTo === "analyze" ? "Sign in to see your analysis results" : "Resume Intelligence Platform"}
             </CardDescription>

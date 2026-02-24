@@ -61,6 +61,36 @@ function metricsImproved(current: ReturnType<typeof computeTextMetrics>, previou
   return improvements >= declines;
 }
 
+// ─── Student Detection ──────────────────────────────────────────────────────
+function detectResumeType(text: string): "STUDENT" | "PROFESSIONAL" {
+  const lower = text.toLowerCase();
+  const studentKeywords = ["student", "fresher", "undergraduate", "b.tech", "b.e.", "b.e ", "final year", "internship", "semester", "cgpa", "gpa", "college", "university project"];
+  const studentKeywordCount = studentKeywords.filter(kw => lower.includes(kw)).length;
+
+  // Check for professional experience section with substantial content
+  const expMatch = lower.match(/\b(experience|employment|work history)\b/g);
+  const hasExpSection = (expMatch?.length ?? 0) > 0;
+
+  // Check for year ranges indicating professional experience (e.g., "2019 - 2023", "2020 – Present")
+  const yearRanges = text.match(/20\d{2}\s*[-–—]\s*(20\d{2}|present|current)/gi) || [];
+  let totalYears = 0;
+  for (const range of yearRanges) {
+    const years = range.match(/20\d{2}/g);
+    if (years && years.length === 2) {
+      totalYears += parseInt(years[1]) - parseInt(years[0]);
+    } else if (/present|current/i.test(range) && years?.length === 1) {
+      totalYears += new Date().getFullYear() - parseInt(years[0]);
+    }
+  }
+
+  // Student if: many student keywords, or no real experience, or <1 year total
+  if (studentKeywordCount >= 3) return "STUDENT";
+  if (!hasExpSection && studentKeywordCount >= 1) return "STUDENT";
+  if (totalYears < 1 && studentKeywordCount >= 1) return "STUDENT";
+
+  return "PROFESSIONAL";
+}
+
 // ─── Deterministic Scoring Formula ──────────────────────────────────────────
 function computeDeterministicAtsScore(aiScores: Record<string, number>, textMetrics: ReturnType<typeof computeTextMetrics>): number {
   // Compute action verb score (0-100) from text metrics
@@ -80,7 +110,7 @@ function computeDeterministicAtsScore(aiScores: Record<string, number>, textMetr
   return Math.max(0, Math.min(100, finalScore));
 }
 
-const SYSTEM_PROMPT = `You are a Senior Technical Recruiter with 10+ years of hiring experience combined with an ATS Evaluation Engine. You must perform multi-layer internal reasoning before producing scores.
+const SYSTEM_PROMPT = `You are HireResume – AI Resume Intelligence Engine. A Senior Technical Recruiter with 10+ years of hiring experience combined with an ATS Evaluation Engine. You must perform multi-layer internal reasoning before producing scores.
 
 ANALYSIS LAYERS (perform internally before scoring):
 
@@ -244,6 +274,21 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
 
+    const resumeType = detectResumeType(resumeText);
+    console.log("Detected resume type:", resumeType);
+
+    let systemPrompt = SYSTEM_PROMPT;
+    if (resumeType === "STUDENT") {
+      systemPrompt += `\n\nSTUDENT/FRESHER MODE ACTIVE:
+This resume belongs to a student or fresh graduate. Apply these rules:
+- Do NOT penalize for lack of professional work experience. This is expected.
+- Focus scoring on: project quality, technical skills clarity, internship impact, certifications, GitHub/portfolio presence.
+- Replace references to "Professional Experience Impact" with "Project & Skill Strength Analysis".
+- Add a "studentGrowthRecommendations" field with 3-5 encouraging, actionable growth tips (e.g., "Add measurable results to your projects", "Include your tech stack depth").
+- Tone must be encouraging, direct, and actionable — never demotivating.
+- Score floors: A well-structured student resume with clear projects and skills should score at least 55.`;
+    }
+
     let userMessage = `Analyze this resume thoroughly using all 5 layers:\n\n${resumeText}`;
     if (previousScores) {
       userMessage += `\n\nIMPORTANT CONTEXT: This is a RE-ANALYSIS of a previously fixed/improved resume. The previous version scored: ATS=${previousScores.atsScore}, RecruiterScan=${previousScores.recruiterScanScore}, Keywords=${previousScores.keywordStrengthScore}, Quantification=${previousScores.quantificationScore}, Structure=${previousScores.structureScore}. If the resume has measurably improved (more metrics, better verbs, better structure, more keywords), scores MUST NOT decrease — they should logically increase. Only reduce scores if specific measurable components have genuinely degraded.`;
@@ -258,7 +303,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: AI_MODEL,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
         tools: [{
@@ -336,6 +381,8 @@ serve(async (req) => {
                 keywordEnrichmentSuggestions: { type: "array", items: { type: "string" }, description: "Specific phrases to weave into the resume for better keyword matching" },
                 recruiterPsychologyInsight: { type: "string" },
                 finalVerdict: { type: "string" },
+                resumeType: { type: "string", enum: ["STUDENT", "PROFESSIONAL"], description: "Detected resume type" },
+                studentGrowthRecommendations: { type: "array", items: { type: "string" }, description: "3-5 encouraging growth tips for student resumes. Only populate for STUDENT type." },
               },
               required: [
                 "atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore",
@@ -343,7 +390,8 @@ serve(async (req) => {
                 "performanceLevelTag", "contextStatement",
                 "criticalIssues", "warnings", "optimizationOpportunities", "advancedRefinements",
                 "rewrittenSummary", "rewrittenStrongBullets", "missingHighImpactKeywords",
-                "keywordEnrichmentSuggestions", "recruiterPsychologyInsight", "finalVerdict"
+                "keywordEnrichmentSuggestions", "recruiterPsychologyInsight", "finalVerdict",
+                "resumeType"
               ],
               additionalProperties: false,
             },
@@ -388,6 +436,9 @@ serve(async (req) => {
     }
 
     if (typeof analysisResult.atsScore !== "number") throw new Error("Invalid analysis result");
+
+    // ─── Force resume type from detection ──────────────────────────
+    analysisResult.resumeType = resumeType;
 
     // ─── Response Truncation (Impact Mode enforcement) ───────────────
     if (analysisResult.criticalIssues?.length > 5) analysisResult.criticalIssues = analysisResult.criticalIssues.slice(0, 5);
@@ -450,6 +501,7 @@ serve(async (req) => {
         interview_probability: analysisResult.interviewProbability,
         market_competitiveness: analysisResult.marketCompetitivenessLevel,
         analysis_result: analysisResult,
+        resume_type: resumeType,
       });
 
     // ─── Step 5: Store user-specific record ──────────────────────────
@@ -468,6 +520,7 @@ serve(async (req) => {
         interview_probability: analysisResult.interviewProbability,
         market_competitiveness: analysisResult.marketCompetitivenessLevel,
         analysis_result: analysisResult,
+        resume_type: resumeType,
       })
       .select("id")
       .single();

@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown } from "lucide-react";
+import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown, FileEdit, Mic } from "lucide-react";
 import { motion } from "framer-motion";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
   const { user, signOut, session } = useAuth();
@@ -157,7 +158,7 @@ export default function Dashboard() {
               <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
                 <Zap className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-bold text-foreground">Super Hire AI</span>
+              <span className="font-bold text-foreground">HireResume</span>
             </div>
           </div>
         </header>
@@ -174,7 +175,7 @@ export default function Dashboard() {
             <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-bold text-foreground">Super Hire AI</span>
+            <span className="font-bold text-foreground">HireResume</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
@@ -280,6 +281,40 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        {/* Coming Soon Feature Cards */}
+        <div className="mt-12 grid md:grid-cols-2 gap-6">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Card className="glass relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+              <CardContent className="flex flex-col items-center text-center py-10 px-6">
+                <Badge variant="secondary" className="absolute top-4 right-4 text-xs">Coming Soon</Badge>
+                <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <FileEdit className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">Create Resume From Scratch With HireResume</h3>
+                <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Build a recruiter-ready resume step-by-step using AI guidance.</p>
+                <Button disabled className="pointer-events-none opacity-60">
+                  Create Resume From Scratch
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <Card className="glass relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+              <CardContent className="flex flex-col items-center text-center py-10 px-6">
+                <Badge variant="secondary" className="absolute top-4 right-4 text-xs">Coming Soon</Badge>
+                <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <Mic className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">Get Interview Training With AI</h3>
+                <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Practice real interview questions powered by AI simulation.</p>
+                <Button disabled className="pointer-events-none opacity-60">
+                  Get Interview With AI
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
       </main>
     </div>
   );

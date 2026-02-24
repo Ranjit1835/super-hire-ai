@@ -1,0 +1,2 @@
+ALTER TABLE public.resume_analyses ADD COLUMN IF NOT EXISTS resume_type text DEFAULT 'PROFESSIONAL';
+ALTER TABLE public.resume_score_cache ADD COLUMN IF NOT EXISTS resume_type text DEFAULT 'PROFESSIONAL';

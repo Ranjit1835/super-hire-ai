@@ -91,6 +91,7 @@ export type Database = {
           quantification_score: number | null
           recruiter_scan_score: number | null
           resume_text: string | null
+          resume_type: string | null
           structure_score: number | null
           user_id: string
         }
@@ -107,6 +108,7 @@ export type Database = {
           quantification_score?: number | null
           recruiter_scan_score?: number | null
           resume_text?: string | null
+          resume_type?: string | null
           structure_score?: number | null
           user_id: string
         }
@@ -123,6 +125,7 @@ export type Database = {
           quantification_score?: number | null
           recruiter_scan_score?: number | null
           resume_text?: string | null
+          resume_type?: string | null
           structure_score?: number | null
           user_id?: string
         }
@@ -139,6 +142,7 @@ export type Database = {
           market_competitiveness: string | null
           quantification_score: number
           recruiter_scan_score: number
+          resume_type: string | null
           structure_score: number
         }
         Insert: {
@@ -151,6 +155,7 @@ export type Database = {
           market_competitiveness?: string | null
           quantification_score: number
           recruiter_scan_score: number
+          resume_type?: string | null
           structure_score: number
         }
         Update: {
@@ -163,6 +168,7 @@ export type Database = {
           market_competitiveness?: string | null
           quantification_score?: number
           recruiter_scan_score?: number
+          resume_type?: string | null
           structure_score?: number
         }
         Relationships: []

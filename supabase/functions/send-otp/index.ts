@@ -35,9 +35,9 @@ async function sendOtpEmail(toEmail: string, otp: string): Promise<boolean> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Super Hire AI <onboarding@resend.dev>",
+        from: "HireResume <onboarding@resend.dev>",
         to: [toEmail],
-        subject: "Your Super Hire AI Login OTP",
+        subject: "Your HireResume Login OTP",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
             <h2 style="color: #1a1a2e; margin-bottom: 16px;">Your Verification Code</h2>
