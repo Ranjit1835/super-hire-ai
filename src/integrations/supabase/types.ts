@@ -47,13 +47,69 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          payment_type: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          razorpay_signature: string | null
+          resume_analysis_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          payment_type: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
+          resume_analysis_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          payment_type?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
+          resume_analysis_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_resume_analysis_id_fkey"
+            columns: ["resume_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "resume_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          early_bird_active: boolean | null
+          early_bird_expiry_date: string | null
           email: string | null
           id: string
+          total_payments: number | null
           updated_at: string
           user_id: string
         }
@@ -61,8 +117,11 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          early_bird_active?: boolean | null
+          early_bird_expiry_date?: string | null
           email?: string | null
           id?: string
+          total_payments?: number | null
           updated_at?: string
           user_id: string
         }
@@ -70,8 +129,11 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          early_bird_active?: boolean | null
+          early_bird_expiry_date?: string | null
           email?: string | null
           id?: string
+          total_payments?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -86,8 +148,10 @@ export type Database = {
           file_name: string
           id: string
           interview_probability: number | null
+          is_paid_fix_unlocked: boolean | null
           keyword_strength_score: number | null
           market_competitiveness: string | null
+          paid_fix_unlocked_at: string | null
           quantification_score: number | null
           recruiter_scan_score: number | null
           resume_text: string | null
@@ -103,8 +167,10 @@ export type Database = {
           file_name: string
           id?: string
           interview_probability?: number | null
+          is_paid_fix_unlocked?: boolean | null
           keyword_strength_score?: number | null
           market_competitiveness?: string | null
+          paid_fix_unlocked_at?: string | null
           quantification_score?: number | null
           recruiter_scan_score?: number | null
           resume_text?: string | null
@@ -120,8 +186,10 @@ export type Database = {
           file_name?: string
           id?: string
           interview_probability?: number | null
+          is_paid_fix_unlocked?: boolean | null
           keyword_strength_score?: number | null
           market_competitiveness?: string | null
+          paid_fix_unlocked_at?: string | null
           quantification_score?: number | null
           recruiter_scan_score?: number | null
           resume_text?: string | null
