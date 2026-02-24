@@ -1,124 +1,100 @@
 
 
-# Refactor Plan: Guest Upload, Deterministic Scoring, and Cache Improvements
+# Plan: Rebrand to HireResume, Student Detection, and Coming Soon Cards
 
-## Overview
+## 1. Complete Rebranding — "Super Hire AI" to "HireResume"
 
-This plan enhances three areas without rebuilding the project: (1) allow guests to upload before logging in, (2) make scoring identical for the same resume across all accounts, and (3) make caching fully invisible.
+All occurrences of "Super Hire AI" will be replaced with "HireResume" across the following files:
 
----
+| File | Changes |
+|------|---------|
+| `index.html` | Title, meta descriptions (og, twitter), replace "Super Hire AI" and tagline |
+| `src/pages/Landing.tsx` | Navbar brand text (line 81), footer copyright (line 208) |
+| `src/pages/Dashboard.tsx` | Header brand text in both uploading state (line 160) and main view (line 177) |
+| `src/pages/Auth.tsx` | CardTitle (line 114) |
+| `supabase/functions/send-otp/index.ts` | Email "from" field (line 38), subject line (line 40) |
+| `supabase/functions/analyze-resume/index.ts` | No brand references found in system prompt -- no changes needed |
 
-## 1. Guest Upload Flow (Login After Analysis Trigger)
-
-**Current:** All upload functionality lives in `/dashboard`, which is behind `ProtectedRoute`. Users must log in first.
-
-**New Flow:** Upload happens on the Landing page. Login is requested only when results are ready.
-
-### Changes
-
-**Landing.tsx** -- Add a resume upload zone (drag-and-drop + file picker) to the hero section. When a guest uploads a PDF:
-- Extract text and compute SHA-256 hash client-side (using existing `pdf-parser` utilities)
-- Store `{ resumeText, fileName, contentHash }` in `sessionStorage`
-- Redirect to `/auth` with a query parameter `?returnTo=analyze`
-
-**Auth.tsx** -- After successful OTP verification and login:
-- Check `sessionStorage` for pending analysis data
-- If found, automatically trigger the analysis flow (call the edge function, navigate to results)
-- Clear `sessionStorage` after use
-
-**OtpVerification.tsx** -- After successful OTP verification:
-- Preserve the `returnTo=analyze` intent through the redirect to dashboard
-- Navigate to `/dashboard?autoAnalyze=true` instead of plain `/dashboard`
-
-**Dashboard.tsx** -- On mount:
-- Check for `autoAnalyze=true` query param AND `sessionStorage` pending data
-- If both present, automatically call `handleFile` logic with the stored data
-- Clear the query param and sessionStorage after processing
-
-**Security:**
-- Resume data stays in browser `sessionStorage` only (never sent to server before auth)
-- `sessionStorage` is cleared on tab close automatically
-- No temporary DB entries needed -- simpler and more secure
+No other files contain old brand references.
 
 ---
 
-## 2. Deterministic Cross-Account Scoring
+## 2. Student Resume Detection + Special Analysis Mode
 
-**Root Cause:** The cache lookup filters by `user_id`, so the same resume analyzed by two different accounts runs through the AI twice and may get different scores due to LLM variance.
+### Backend Changes (`supabase/functions/analyze-resume/index.ts`)
 
-### Changes
+**Add student detection function** that checks the resume text for:
+- Keywords: "student", "fresher", "undergraduate", "b.tech", "b.e", "final year", "internship" (case-insensitive)
+- Absence of "experience" section with substantial content
+- Total experience mentions < 1 year
 
-**New DB table: `resume_score_cache`**
-- `content_hash` (text, PRIMARY KEY) -- the SHA-256 hash
-- `ats_score`, `recruiter_scan_score`, `keyword_strength_score`, `quantification_score`, `structure_score`, `interview_probability` (integer columns)
-- `analysis_result` (jsonb) -- the full structured analysis
-- `created_at` (timestamptz)
+**Modify the system prompt** to include a conditional section when `resumeType === "STUDENT"`:
+- Instruct the AI not to penalize for lack of work experience
+- Focus scoring on projects, technical skills, internships, certifications, GitHub/portfolio
+- Replace "Professional Experience Impact" with "Project & Skill Strength Analysis" in output
+- Add "Student Growth Recommendations" section
+- Use encouraging, actionable tone
 
-RLS: No user access needed. This table is only accessed by the edge function using the service role key.
+**Add to the AI function call schema:**
+- `resumeType`: string enum `["STUDENT", "PROFESSIONAL"]`
+- `studentGrowthRecommendations`: optional array of strings (only for student resumes)
 
-**analyze-resume/index.ts** -- Updated flow:
+**Store `resume_type`** in both `resume_analyses` and `resume_score_cache` tables (new column via migration).
 
-```text
-1. Validate input
-2. Check user-specific cache (resume_analyses) -- if found, return silently
-3. Check global score cache (resume_score_cache by content_hash)
-   - If found: use those scores and analysis_result
-   - Insert into resume_analyses for this user with the canonical scores
-   - Return the new analysis ID
-4. If no global cache: call AI, compute scores
-5. Insert into resume_score_cache (global canonical record)
-6. Insert into resume_analyses (user-specific record)
+### Frontend Changes (`src/pages/Analysis.tsx`)
+
+- Conditionally render "Project & Skill Strength Analysis" instead of section titles when `resumeType === "STUDENT"`
+- Show "Student Growth Recommendations" section with encouraging styling when present in the analysis result
+
+### Type Updates (`src/lib/analysis-types.ts`)
+
+- Add `resumeType?: "STUDENT" | "PROFESSIONAL"` to `AnalysisResult`
+- Add `studentGrowthRecommendations?: string[]` to `AnalysisResult`
+
+---
+
+## 3. Dashboard Coming Soon Feature Cards
+
+### Changes (`src/pages/Dashboard.tsx`)
+
+Add two large feature cards below the analysis history section:
+
+**Card 1 — "Create Resume From Scratch With HireResume"**
+- Description: "Build a recruiter-ready resume step-by-step using AI guidance."
+- Button: "Create Resume From Scratch" (disabled)
+- Badge: "Coming Soon"
+
+**Card 2 — "Get Interview Training With AI"**
+- Description: "Practice real interview questions powered by AI simulation."
+- Button: "Get Interview With AI" (disabled)
+- Badge: "Coming Soon"
+
+UI: Large cards, center-aligned content, soft shadow, premium spacing, smooth hover animation (scale + shadow), pointer-events disabled on buttons, glass styling consistent with existing design.
+
+---
+
+## Database Migration
+
+New migration to add `resume_type` column:
+
+```sql
+ALTER TABLE public.resume_analyses ADD COLUMN IF NOT EXISTS resume_type text DEFAULT 'PROFESSIONAL';
+ALTER TABLE public.resume_score_cache ADD COLUMN IF NOT EXISTS resume_type text DEFAULT 'PROFESSIONAL';
 ```
 
-This guarantees: same hash = same scores, regardless of account, session, or date.
-
-**Backend scoring formula** -- Add a deterministic scoring layer after AI returns raw metrics. The edge function already has `computeTextMetrics()`. Enhance it:
-
-```text
-finalAtsScore = round(
-  0.30 * aiResult.keywordStrengthScore +
-  0.25 * aiResult.quantificationScore +
-  0.20 * aiResult.structureScore +
-  0.15 * actionVerbScore (from computeTextMetrics) +
-  0.10 * aiResult.recruiterScanScore
-)
-```
-
-The deterministic formula blends AI judgment with measurable text metrics, reducing variance. The blended score is stored in the global cache.
-
 ---
 
-## 3. Cache Disclosure Removal
+## Files Modified
 
-**Backend (analyze-resume/index.ts):**
-- Remove `cached: true` from the JSON response -- always return just `{ id: "..." }`
-- The frontend already handles the delay (1.8s) for cached results from the user-specific check
-
-**Frontend (Dashboard.tsx):**
-- Already cleaned up in previous change (no toast, 1.8s delay). No further changes needed.
-
----
-
-## 4. Fix-Cycle Score Regression Prevention
-
-**Current:** Already partially implemented with `metricsImproved()` function and score floor logic.
-
-**Enhancement in analyze-resume/index.ts:**
-- When `previousAnalysisId` is provided, compare `computeTextMetrics()` of old vs new resume
-- If metrics improved: scores must not decrease (already in place)
-- If metrics declined: allow decrease capped at -2 (already in place)
-- No changes needed here -- current logic is sound
-
----
-
-## Technical Summary of File Changes
-
-| File | Change |
-|------|--------|
-| `src/pages/Landing.tsx` | Add upload zone for guests, store data in sessionStorage, redirect to auth |
-| `src/pages/Auth.tsx` | Pass `returnTo` intent through OTP flow |
-| `src/pages/OtpVerification.tsx` | Redirect with `autoAnalyze` flag after verification |
-| `src/pages/Dashboard.tsx` | Auto-trigger analysis from sessionStorage on mount |
-| `supabase/functions/analyze-resume/index.ts` | Global score cache lookup, remove `cached: true` flag, deterministic scoring formula |
-| New migration | Create `resume_score_cache` table (no RLS -- service role only) |
+| File | Change Type |
+|------|-------------|
+| `index.html` | Edit — rebrand |
+| `src/pages/Landing.tsx` | Edit — rebrand |
+| `src/pages/Dashboard.tsx` | Edit — rebrand + Coming Soon cards |
+| `src/pages/Auth.tsx` | Edit — rebrand |
+| `src/pages/Analysis.tsx` | Edit — student mode UI |
+| `src/lib/analysis-types.ts` | Edit — new types |
+| `supabase/functions/send-otp/index.ts` | Edit — rebrand email |
+| `supabase/functions/analyze-resume/index.ts` | Edit — student detection + prompt |
+| New migration | Create — add resume_type column |
 
