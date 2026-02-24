@@ -1,0 +1,117 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing authorization");
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) throw new Error("Unauthorized");
+
+    const { paymentType, resumeAnalysisId } = await req.json();
+
+    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS"].includes(paymentType)) {
+      throw new Error("Invalid paymentType");
+    }
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Idempotency checks
+    if (paymentType === "ONE_TIME_FIX") {
+      if (!resumeAnalysisId) throw new Error("resumeAnalysisId required for ONE_TIME_FIX");
+      const { data: resume } = await admin
+        .from("resume_analyses")
+        .select("id, user_id, is_paid_fix_unlocked")
+        .eq("id", resumeAnalysisId)
+        .single();
+      if (!resume || resume.user_id !== user.id) throw new Error("Resume not found");
+      if (resume.is_paid_fix_unlocked) {
+        return new Response(JSON.stringify({ alreadyUnlocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    if (paymentType === "EARLY_BIRD_ACCESS") {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("early_bird_active, early_bird_expiry_date")
+        .eq("user_id", user.id)
+        .single();
+      if (profile?.early_bird_active && profile.early_bird_expiry_date && new Date(profile.early_bird_expiry_date) > new Date()) {
+        return new Response(JSON.stringify({ alreadyUnlocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const amount = paymentType === "ONE_TIME_FIX" ? 29900 : 149900;
+    const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
+    const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
+
+    // Create Razorpay order
+    const rpRes = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Basic " + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`),
+      },
+      body: JSON.stringify({
+        amount,
+        currency: "INR",
+        receipt: crypto.randomUUID(),
+        payment_capture: 1,
+      }),
+    });
+
+    if (!rpRes.ok) {
+      const errText = await rpRes.text();
+      throw new Error(`Razorpay order failed: ${errText}`);
+    }
+    const rpOrder = await rpRes.json();
+
+    // Save payment record
+    const { data: payment, error: insertErr } = await admin.from("payments").insert({
+      user_id: user.id,
+      resume_analysis_id: resumeAnalysisId || null,
+      payment_type: paymentType,
+      amount,
+      currency: "INR",
+      razorpay_order_id: rpOrder.id,
+      status: "INITIATED",
+    }).select("id").single();
+
+    if (insertErr) throw insertErr;
+
+    return new Response(JSON.stringify({
+      orderId: rpOrder.id,
+      keyId: RAZORPAY_KEY_ID,
+      amount,
+      currency: "INR",
+      paymentId: payment.id,
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

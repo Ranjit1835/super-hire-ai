@@ -149,6 +149,17 @@ export default function Dashboard() {
 
   const displayedAnalyses = showAll ? analyses : analyses.slice(0, 3);
 
+  // Fetch early bird status
+  const [earlyBirdActive, setEarlyBirdActive] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("early_bird_active, early_bird_expiry_date").eq("user_id", user.id).single().then(({ data }: any) => {
+      if (data?.early_bird_active && data.early_bird_expiry_date && new Date(data.early_bird_expiry_date) > new Date()) {
+        setEarlyBirdActive(true);
+      }
+    });
+  }, [user]);
+
   if (uploading) {
     return (
       <div className="min-h-screen bg-background">
@@ -176,6 +187,7 @@ export default function Dashboard() {
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="font-bold text-foreground">HireResume</span>
+            {earlyBirdActive && <Badge className="bg-primary/20 text-primary border-primary/30 text-xs ml-2">Early Bird ✦</Badge>}
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>

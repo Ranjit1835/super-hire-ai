@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import PaymentDialog from "@/components/PaymentDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScoreMeter } from "@/components/ScoreMeter";
@@ -150,6 +151,8 @@ export default function Analysis() {
   const [analysis, setAnalysis] = useState<any>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -220,7 +223,32 @@ export default function Analysis() {
             <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
               <Upload className="h-4 w-4 mr-1" /> Analyze New
             </Button>
-            <Button onClick={() => navigate(`/fix/${id}`)} size="sm">
+            <Button disabled={checkingAccess} onClick={async () => {
+              setCheckingAccess(true);
+              try {
+                const { data } = await supabase.functions.invoke("check-fix-access", {
+                  body: null,
+                  headers: {},
+                  method: "GET",
+                });
+                // Use fetch directly for GET with query params
+                const session = (await supabase.auth.getSession()).data.session;
+                const res = await fetch(
+                  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-fix-access?resumeAnalysisId=${id}`,
+                  { headers: { Authorization: `Bearer ${session?.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+                );
+                const accessData = await res.json();
+                if (accessData.canAccess) {
+                  navigate(`/fix/${id}`);
+                } else {
+                  setPaymentOpen(true);
+                }
+              } catch {
+                setPaymentOpen(true);
+              } finally {
+                setCheckingAccess(false);
+              }
+            }} size="sm">
               <Zap className="h-4 w-4 mr-1" /> Fix My Resume
             </Button>
           </div>
@@ -406,11 +434,38 @@ export default function Analysis() {
         )}
 
         <motion.div className="text-center pt-4 pb-8" {...fadeUp(0.5)}>
-          <Button size="lg" onClick={() => navigate(`/fix/${id}`)} className="px-8">
+          <Button size="lg" disabled={checkingAccess} onClick={async () => {
+            setCheckingAccess(true);
+            try {
+              const session = (await supabase.auth.getSession()).data.session;
+              const res = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-fix-access?resumeAnalysisId=${id}`,
+                { headers: { Authorization: `Bearer ${session?.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+              );
+              const accessData = await res.json();
+              if (accessData.canAccess) {
+                navigate(`/fix/${id}`);
+              } else {
+                setPaymentOpen(true);
+              }
+            } catch {
+              setPaymentOpen(true);
+            } finally {
+              setCheckingAccess(false);
+            }
+          }} className="px-8">
             <Zap className="h-4 w-4 mr-2" /> Fix My Resume Now
           </Button>
           <p className="text-xs text-muted-foreground mt-3">AI will generate an optimized version based on this analysis</p>
         </motion.div>
+
+        <PaymentDialog
+          open={paymentOpen}
+          onOpenChange={setPaymentOpen}
+          resumeAnalysisId={id || ""}
+          userEmail={user?.email || ""}
+          onSuccess={() => { setPaymentOpen(false); navigate(`/fix/${id}`); }}
+        />
       </main>
     </div>
   );
