@@ -25,4 +25,6 @@ export interface AnalysisResult {
   keywordEnrichmentSuggestions: string[];
   recruiterPsychologyInsight: string;
   finalVerdict: string;
+  resumeType?: "STUDENT" | "PROFESSIONAL";
+  studentGrowthRecommendations?: string[];
 }

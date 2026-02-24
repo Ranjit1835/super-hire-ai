@@ -78,7 +78,7 @@ export default function Landing() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg text-foreground">Super Hire AI</span>
+            <span className="font-bold text-lg text-foreground">HireResume</span>
           </div>
           <Button onClick={() => navigate(user ? "/dashboard" : "/auth")} size="sm">
             {user ? "Dashboard" : "Get Started"}
@@ -205,7 +205,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="py-8 border-t border-border">
         <div className="container text-center text-sm text-muted-foreground">
-          © 2026 Super Hire AI. All rights reserved.
+          © 2026 HireResume. All rights reserved.
         </div>
       </footer>
     </div>
