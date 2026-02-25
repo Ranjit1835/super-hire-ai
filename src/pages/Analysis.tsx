@@ -226,12 +226,6 @@ export default function Analysis() {
             <Button disabled={checkingAccess} onClick={async () => {
               setCheckingAccess(true);
               try {
-                const { data } = await supabase.functions.invoke("check-fix-access", {
-                  body: null,
-                  headers: {},
-                  method: "GET",
-                });
-                // Use fetch directly for GET with query params
                 const session = (await supabase.auth.getSession()).data.session;
                 const res = await fetch(
                   `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-fix-access?resumeAnalysisId=${id}`,
