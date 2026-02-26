@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://super-hire-ai.lovable.app/sitemap.xml
+Sitemap: https://hiresume.in/sitemap.xml
