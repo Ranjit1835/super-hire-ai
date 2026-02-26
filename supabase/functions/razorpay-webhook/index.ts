@@ -73,12 +73,22 @@ serve(async (req) => {
 
       const { data: profile } = await admin
         .from("profiles")
-        .select("total_payments")
+        .select("total_payments, first_time_fix_used, first_time_early_bird_used")
         .eq("user_id", payment.user_id)
         .single();
-      await admin.from("profiles").update({
+
+      const profileUpdate: Record<string, unknown> = {
         total_payments: (profile?.total_payments || 0) + 1,
-      }).eq("user_id", payment.user_id);
+      };
+      if (payment.payment_type === "ONE_TIME_FIX" && !profile?.first_time_fix_used) {
+        profileUpdate.first_time_fix_used = true;
+      }
+      if (payment.payment_type === "EARLY_BIRD_ACCESS" && !profile?.first_time_early_bird_used) {
+        profileUpdate.first_time_early_bird_used = true;
+      }
+      await admin.from("profiles").update(profileUpdate).eq("user_id", payment.user_id);
+
+      console.log(`[WEBHOOK PAYMENT] user=${payment.user_id} type=${payment.payment_type} amount=${payment.amount}`);
     }
 
     if (eventType === "payment.failed") {

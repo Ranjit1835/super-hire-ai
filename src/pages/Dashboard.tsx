@@ -33,6 +33,7 @@ export default function Dashboard() {
   }, [user]);
 
   useEffect(() => { fetchAnalyses(); }, [fetchAnalyses]);
+  useEffect(() => { document.title = "Dashboard – HireResume"; }, []);
 
   // Auto-analyze from guest upload flow
   useEffect(() => {

@@ -108,6 +108,8 @@ export type Database = {
           early_bird_active: boolean | null
           early_bird_expiry_date: string | null
           email: string | null
+          first_time_early_bird_used: boolean | null
+          first_time_fix_used: boolean | null
           id: string
           total_payments: number | null
           updated_at: string
@@ -120,6 +122,8 @@ export type Database = {
           early_bird_active?: boolean | null
           early_bird_expiry_date?: string | null
           email?: string | null
+          first_time_early_bird_used?: boolean | null
+          first_time_fix_used?: boolean | null
           id?: string
           total_payments?: number | null
           updated_at?: string
@@ -132,6 +136,8 @@ export type Database = {
           early_bird_active?: boolean | null
           early_bird_expiry_date?: string | null
           email?: string | null
+          first_time_early_bird_used?: boolean | null
+          first_time_fix_used?: boolean | null
           id?: string
           total_payments?: number | null
           updated_at?: string

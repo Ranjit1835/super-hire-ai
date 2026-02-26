@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Zap, Crown, CheckCircle2, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 declare global {
   interface Window {
@@ -25,6 +26,41 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<{ orderId: string; paymentId: string; plan: string } | null>(null);
+  const [discountInfo, setDiscountInfo] = useState<{ isStudent: boolean; firstFix: boolean; firstEarlyBird: boolean } | null>(null);
+
+  // Fetch discount eligibility when dialog opens
+  useEffect(() => {
+    if (!open || !resumeAnalysisId) return;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const [resumeRes, profileRes] = await Promise.all([
+          supabase.from("resume_analyses").select("resume_type").eq("id", resumeAnalysisId).single(),
+          supabase.from("profiles").select("first_time_fix_used, first_time_early_bird_used").eq("user_id", user.id).single(),
+        ]);
+
+        setDiscountInfo({
+          isStudent: resumeRes.data?.resume_type === "STUDENT",
+          firstFix: !profileRes.data?.first_time_fix_used,
+          firstEarlyBird: !profileRes.data?.first_time_early_bird_used,
+        });
+      } catch {
+        setDiscountInfo(null);
+      }
+    })();
+  }, [open, resumeAnalysisId]);
+
+  const getFixPrice = () => {
+    if (discountInfo?.isStudent && discountInfo?.firstFix) return { price: "₹149", original: "₹299", discount: true };
+    return { price: "₹299", original: null, discount: false };
+  };
+
+  const getEarlyBirdPrice = () => {
+    if (discountInfo?.isStudent && discountInfo?.firstEarlyBird) return { price: "₹1,049", original: "₹1,499", discount: true };
+    return { price: "₹1,499", original: null, discount: false };
+  };
 
   const handlePayment = async (paymentType: "ONE_TIME_FIX" | "EARLY_BIRD_ACCESS") => {
     setLoading(paymentType);
@@ -68,10 +104,11 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
               },
             });
             if (verifyErr) throw verifyErr;
+            const displayAmount = data.amount / 100;
             setReceipt({
               orderId: response.razorpay_order_id,
               paymentId: response.razorpay_payment_id,
-              plan: paymentType === "ONE_TIME_FIX" ? "Resume Fix (₹299)" : "Early Bird Access (₹1,499)",
+              plan: paymentType === "ONE_TIME_FIX" ? `Resume Fix (₹${displayAmount})` : `Early Bird Access (₹${displayAmount})`,
             });
             toast({ title: "Payment successful!" });
           } catch (err: any) {
@@ -103,22 +140,28 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-success" /> Payment Successful
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300 }}>
+                <CheckCircle2 className="h-5 w-5 text-success" />
+              </motion.div>
+              Payment Successful
             </DialogTitle>
             <DialogDescription>Your payment has been verified.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 text-sm">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono text-xs">{receipt.orderId}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Payment ID</span><span className="font-mono text-xs">{receipt.paymentId}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Plan</span><span className="font-medium">{receipt.plan}</span></div>
-          </div>
-          <Button className="w-full mt-4" onClick={() => { setReceipt(null); onSuccess(); }}>
+          </motion.div>
+          <Button className="w-full mt-4 transition-transform hover:scale-[1.02]" onClick={() => { setReceipt(null); onSuccess(); }}>
             Continue to Fix Resume
           </Button>
         </DialogContent>
       </Dialog>
     );
   }
+
+  const fixPrice = getFixPrice();
+  const earlyBirdPrice = getEarlyBirdPrice();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -128,7 +171,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
           <DialogDescription>Choose a plan to fix your resume with AI</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 mt-2">
-          <Card className="border-2 hover:border-primary/50 transition-colors cursor-pointer" onClick={() => !loading && handlePayment("ONE_TIME_FIX")}>
+          <Card className="border-2 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:shadow-md hover:-translate-y-0.5" onClick={() => !loading && handlePayment("ONE_TIME_FIX")}>
             <CardContent className="flex items-start gap-4 py-5">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Zap className="h-5 w-5 text-primary" />
@@ -136,14 +179,22 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <p className="font-semibold">Unlock This Resume Fix</p>
-                  <span className="text-lg font-bold">₹299</span>
+                  <div className="text-right">
+                    {fixPrice.discount && fixPrice.original && (
+                      <span className="text-sm text-muted-foreground line-through mr-2">{fixPrice.original}</span>
+                    )}
+                    <span className="text-lg font-bold">{fixPrice.price}</span>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">One-time payment for this resume only. No expiry.</p>
+                {fixPrice.discount && (
+                  <Badge className="mt-2 bg-success/20 text-success border-success/30 text-xs">🎓 Student Discount Applied</Badge>
+                )}
               </div>
               {loading === "ONE_TIME_FIX" && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
             </CardContent>
           </Card>
-          <Card className="border-2 border-primary/30 bg-primary/5 hover:border-primary/60 transition-colors cursor-pointer relative" onClick={() => !loading && handlePayment("EARLY_BIRD_ACCESS")}>
+          <Card className="border-2 border-primary/30 bg-primary/5 hover:border-primary/60 transition-all duration-200 cursor-pointer relative hover:shadow-md hover:-translate-y-0.5" onClick={() => !loading && handlePayment("EARLY_BIRD_ACCESS")}>
             <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-xs">BEST VALUE</Badge>
             <CardContent className="flex items-start gap-4 py-5">
               <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
@@ -152,9 +203,17 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <p className="font-semibold">Early Bird Access</p>
-                  <span className="text-lg font-bold">₹1,499<span className="text-xs font-normal text-muted-foreground">/year</span></span>
+                  <div className="text-right">
+                    {earlyBirdPrice.discount && earlyBirdPrice.original && (
+                      <span className="text-sm text-muted-foreground line-through mr-2">{earlyBirdPrice.original}</span>
+                    )}
+                    <span className="text-lg font-bold">{earlyBirdPrice.price}<span className="text-xs font-normal text-muted-foreground">/year</span></span>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">Unlimited resume fixes + premium features for 365 days.</p>
+                {earlyBirdPrice.discount && (
+                  <Badge className="mt-2 bg-success/20 text-success border-success/30 text-xs">🎓 Student Discount Applied</Badge>
+                )}
               </div>
               {loading === "EARLY_BIRD_ACCESS" && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
             </CardContent>
