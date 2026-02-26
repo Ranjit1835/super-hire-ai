@@ -106,6 +106,16 @@ export default function OtpVerification() {
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
+
+        // Wait for session to fully propagate before navigating
+        let retries = 0;
+        while (retries < 10) {
+          const { data: { user: confirmedUser } } = await supabase.auth.getUser();
+          if (confirmedUser) break;
+          await new Promise(r => setTimeout(r, 100));
+          retries++;
+        }
+
         toast({ title: "Welcome back!", description: "Successfully authenticated." });
 
         // If there's a pending analysis, redirect with autoAnalyze flag

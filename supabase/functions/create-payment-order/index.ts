@@ -61,7 +61,57 @@ serve(async (req) => {
       }
     }
 
-    const amount = paymentType === "ONE_TIME_FIX" ? 29900 : 149900;
+    // --- Student discount logic ---
+    let baseAmount = paymentType === "ONE_TIME_FIX" ? 29900 : 149900;
+    let amount = baseAmount;
+    let discountApplied = false;
+    let isStudent = false;
+
+    // Check resume type for student detection
+    if (resumeAnalysisId) {
+      const { data: resumeData } = await admin
+        .from("resume_analyses")
+        .select("resume_type")
+        .eq("id", resumeAnalysisId)
+        .single();
+      if (resumeData?.resume_type === "STUDENT") {
+        isStudent = true;
+      }
+    }
+
+    // If no resumeAnalysisId (EARLY_BIRD), check user's latest analysis
+    if (!resumeAnalysisId && paymentType === "EARLY_BIRD_ACCESS") {
+      const { data: latestResume } = await admin
+        .from("resume_analyses")
+        .select("resume_type")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latestResume?.resume_type === "STUDENT") {
+        isStudent = true;
+      }
+    }
+
+    if (isStudent) {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("first_time_fix_used, first_time_early_bird_used")
+        .eq("user_id", user.id)
+        .single();
+
+      if (paymentType === "ONE_TIME_FIX" && profile && !profile.first_time_fix_used) {
+        amount = 14900; // ₹149 (50% off)
+        discountApplied = true;
+      }
+      if (paymentType === "EARLY_BIRD_ACCESS" && profile && !profile.first_time_early_bird_used) {
+        amount = 104900; // ₹1,049 (30% off)
+        discountApplied = true;
+      }
+    }
+
+    console.log(`[PAYMENT AUDIT] user=${user.id} type=${paymentType} baseAmount=${baseAmount} finalAmount=${amount} isStudent=${isStudent} discountApplied=${discountApplied}`);
+
     const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
     const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 
@@ -105,6 +155,9 @@ serve(async (req) => {
       amount,
       currency: "INR",
       paymentId: payment.id,
+      discountApplied,
+      isStudent,
+      originalAmount: baseAmount,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

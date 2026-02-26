@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -29,6 +29,10 @@ export default function Landing() {
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    document.title = "HireResume – AI Resume Analyzer & ATS Score Checker";
+  }, []);
 
   const handleGuestUpload = async (file: File) => {
     if (!file || file.type !== "application/pdf") {

@@ -166,6 +166,7 @@ export default function Analysis() {
         if (data) {
           setAnalysis(data);
           setResult(data.analysis_result as unknown as AnalysisResult);
+          document.title = `${data.file_name} – Analysis – HireResume`;
         }
         setLoading(false);
       });
