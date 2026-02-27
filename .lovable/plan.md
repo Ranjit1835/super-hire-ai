@@ -1,170 +1,223 @@
 
 
-# Implementation Plan: HireResume Enhancements
+# Implementation Plan: HireResume Enhancements (Round 2)
 
-This is a large request with 9 items. Some are straightforward, some need careful consideration. I'll address each honestly, noting what can be done, what should be deferred, and what doesn't apply to this stack.
+## Stack Clarification
 
----
-
-## Important Note on Item 3 (Groq AI Switch)
-
-The request mentions switching to Groq with `application.yml` configuration. **This project is a React + Supabase Edge Functions stack, not a Spring Boot/Java application.** There is no `application.yml`, `AuthController`, `SecurityConfig`, `PaymentService`, `UserEntity`, or `AIService` class. The request appears to mix in Spring Boot terminology.
-
-The AI model is already configurable via the `AI_MODEL` environment variable in edge functions, using the Lovable AI Gateway. **Switching to Groq directly is not recommended** because:
-- Lovable AI Gateway already provides access to multiple models without requiring a separate API key
-- Adding Groq would require a new API key secret and bypass the integrated gateway
-- The current `AI_MODEL` env var already allows model switching
-
-**Recommendation:** Keep using Lovable AI Gateway. The `AI_MODEL` variable already supports model switching. No changes needed here.
+This is a React + Supabase Edge Functions project. References to `AuthController`, `GuestAnalysisController`, `GuestAnalysisService`, Spring entities, and `application.yml` do not apply. All backend logic lives in edge functions and database tables.
 
 ---
 
-## 1. Remove "Edit with Lovable" Branding
+## 1. Analyze Without Login + Blurred Result Flow
 
-**Assessment:** The Lovable badge is injected by the platform in the preview/published build. It is **not** in the project source code — there's no such branding in `Landing.tsx`, `Dashboard.tsx`, or any component. The footer already says "© 2026 HireResume. All rights reserved."
+### Current behavior
+Guest uploads on Landing → stores text in `sessionStorage` → redirects to `/auth` → after login, auto-analyzes on Dashboard.
 
-**Action:** No code changes needed. The badge is a platform-level feature that appears in preview but is controlled by the Lovable platform settings, not project code.
+### New behavior
+Guest uploads on Landing → calls `analyze-resume` edge function **without auth** → navigates to `/analysis/guest/:token` → shows blurred results → login/signup overlay → after auth, binds analysis to user → reveals full results.
 
----
+### Database changes
+New `guest_analyses` table:
+```sql
+CREATE TABLE public.guest_analyses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_token text NOT NULL UNIQUE,
+  analysis_result jsonb NOT NULL,
+  resume_text text,
+  file_name text NOT NULL,
+  content_hash text NOT NULL,
+  ats_score integer,
+  resume_type text DEFAULT 'PROFESSIONAL',
+  created_at timestamptz DEFAULT now(),
+  expires_at timestamptz DEFAULT (now() + interval '30 minutes'),
+  claimed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
+);
+-- RLS: deny all direct user access (edge functions use service role)
+ALTER TABLE public.guest_analyses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Deny all" ON public.guest_analyses FOR ALL USING (false);
+```
 
-## 2. Fix OTP Double Login Bug
+### Edge function changes
+- `analyze-resume/index.ts`: If no auth header, generate a `session_token` (UUID), store result in `guest_analyses` instead of `resume_analyses`, return `{ guestToken, atsScore, resumeType }`.
+- New `claim-guest-analysis/index.ts`: Authenticated endpoint that takes `guestToken`, validates it exists and isn't expired/claimed, copies data to `resume_analyses` for the authenticated user, marks `claimed_by`, returns the new analysis ID.
 
-**Root Cause Analysis:**
+### Frontend changes
+- `Landing.tsx`: On guest upload, call `analyze-resume` without auth token. On success, navigate to `/analysis/guest/${guestToken}`.
+- New route `/analysis/guest/:token` in `App.tsx`.
+- `Analysis.tsx`: Add guest mode. If route is `/analysis/guest/:token`, fetch guest analysis data from a new `get-guest-analysis` edge function (returns analysis with scores partially). Show blurred overlay on all sections below the performance header. Overlay contains "Sign in to unlock full analysis" + Sign In / Create Account buttons.
+- After login (from overlay), call `claim-guest-analysis` with the token, then redirect to `/analysis/:newId`.
+- Blur implementation: CSS `filter: blur(8px)` + `user-select: none` on content sections. Overlay uses `position: absolute` over the blurred content. Content IS in DOM but blurred — for extra security, the guest edge function returns truncated data (scores only, no detailed issues/recommendations).
 
-Looking at the flow:
-1. `send-otp/index.ts` line 94: **Signs the user in with password to verify credentials**, then immediately signs out (line 102)
-2. `verify-otp/index.ts` line 117-120: After OTP verification, signs in again with `signInWithPassword` using an anon client on the server
-3. `OtpVerification.tsx` line 104-108: Takes the session from the response and calls `supabase.auth.setSession()`
-
-**The bug:** The `send-otp` function creates a real auth session on the server-side anon client (line 94), which may trigger `onAuthStateChange` on the frontend client if the anon key matches. Then it signs out. This sign-in/sign-out cycle on the same anon key could cause a race condition with the frontend's auth state listener.
-
-More critically, the `verify-otp` function creates a session using a **separate** anon client instance on the server. The returned session tokens are then set on the **frontend** client via `setSession()`. This should work, but there may be a timing issue where `onAuthStateChange` fires with the session, then the navigation happens, then `onAuthStateChange` fires again from the `setSession` call.
-
-**Fix:**
-- In `send-otp/index.ts`: Use the **admin client** (`listUsers` + password verification via admin API) instead of `signInWithPassword` to avoid creating/destroying sessions. Use `admin.auth.admin.listUsers()` to find the user, then verify the password without creating a session.
-- Actually, the admin API doesn't have a "verify password" method. The alternative: use `signInWithPassword` but on a completely isolated client that won't affect the frontend. The current approach already does this on a server-side anon client, but we should ensure the sign-out is awaited properly.
-- Simplest fix: In `send-otp`, after verifying credentials, ensure we `await` the sign-out. Currently it already does `await anonClient.auth.signOut()` — this looks correct.
-- The real issue may be in `OtpVerification.tsx`: after `setSession`, the `AuthContext`'s `onAuthStateChange` fires asynchronously. The `navigate()` call at line 115 may execute before the auth state is fully propagated.
-- **Fix in `OtpVerification.tsx`:** After `setSession`, wait for the auth state to update before navigating. Add a small delay or listen for the auth state change event.
-
-**Changes:**
-- `src/pages/OtpVerification.tsx`: After `setSession`, add `await new Promise(r => setTimeout(r, 100))` before navigating, or better: check that `supabase.auth.getUser()` returns successfully before navigating.
-
----
-
-## 3. AI Model Switch (Groq)
-
-**Action:** As explained above, no changes. The existing `AI_MODEL` env var already provides configurability. If a different model is desired, change the secret value — no code changes needed.
-
----
-
-## 4. Student Detection + Discount Logic
-
-**Database Changes:**
-- Add `first_time_fix_used` (boolean, default false) and `first_time_early_bird_used` (boolean, default false) to `profiles` table
-- Add `resume_type` column to `resume_analyses` if not tracking already (it exists but only in the analysis edge function, not stored from analysis — actually checking: `resume_type` column exists in the table schema)
-
-**Edge Function Changes:**
-- `create-payment-order/index.ts`: Before creating Razorpay order, check:
-  1. Get the user's latest resume analysis to detect `resume_type`
-  2. Get `first_time_fix_used` / `first_time_early_bird_used` from profiles
-  3. If `resume_type === 'STUDENT'` AND `first_time_fix_used === false` AND `paymentType === 'ONE_TIME_FIX'`: amount = 14900 (₹149)
-  4. If `resume_type === 'STUDENT'` AND `first_time_early_bird_used === false` AND `paymentType === 'EARLY_BIRD_ACCESS'`: amount = 104900 (₹1,049)
-  5. Log original and discounted amounts
-
-- `verify-payment/index.ts`: After successful payment, update the corresponding first-time flag:
-  - If `ONE_TIME_FIX`: set `first_time_fix_used = true`
-  - If `EARLY_BIRD_ACCESS`: set `first_time_early_bird_used = true`
-
-- `razorpay-webhook/index.ts`: Same flag updates for server-to-server path
-
-**Frontend Changes:**
-- `PaymentDialog.tsx`: Fetch discount info from a new query param or pass resume type + first-time status to show discounted prices with strikethrough
+### Cleanup
+- Add a scheduled cleanup: use `pg_cron` to delete expired guest analyses every 15 minutes:
+```sql
+SELECT cron.schedule('cleanup-guest-analyses', '*/15 * * * *', $$
+  DELETE FROM public.guest_analyses WHERE expires_at < now();
+$$);
+```
 
 ---
 
-## 5. SEO Optimization
+## 2. Proper Error Messages for Login
 
-**Changes:**
-- `index.html`: Update `<title>` and meta tags with target SEO content
-- Add JSON-LD structured data script in `index.html`
-- `public/robots.txt`: Already exists and is permissive — add `Sitemap:` directive
-- `public/sitemap.xml`: Create static sitemap with known routes
-- Add `<link rel="canonical">` tags
-- Per-page metadata: Use `useEffect` + `document.title` in each page component for dynamic titles
+### Current behavior
+`send-otp/index.ts` uses `signInWithPassword` which returns generic "Invalid login credentials" from Supabase Auth for both wrong email and wrong password.
+
+### Fix
+Supabase Auth intentionally does NOT distinguish between "wrong email" and "wrong password" for security (prevents email enumeration). This is an industry-standard security practice.
+
+**Recommendation:** Keep the current generic message but improve the UX:
+- Change error text to: "Invalid email or password. Please check your credentials and try again."
+- Add a "Forgot Password?" link below the error message.
+- This is the secure approach — exposing whether an email exists is a vulnerability.
+
+If the user explicitly wants to distinguish (against security best practice), we can use the admin API to check if the email exists first, but this is NOT recommended.
+
+### Changes
+- `send-otp/index.ts`: Update error message text to be more helpful.
+- `Auth.tsx`: Show error inline (not just toast) with a "Forgot Password?" link.
+
+---
+
+## 3. Forgot Password Flow
+
+Supabase Auth has built-in password reset via `resetPasswordForEmail()`. No need for custom token tables — Supabase handles token generation, expiry, and validation.
+
+### Flow
+1. Auth page → "Forgot Password?" link → shows email input form
+2. Calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: origin + '/reset-password' })`
+3. User receives email with magic link
+4. Link redirects to `/reset-password` page
+5. Page detects `type=recovery` in URL hash, shows new password form
+6. Calls `supabase.auth.updateUser({ password: newPassword })`
+
+### Changes
+- `Auth.tsx`: Add "Forgot Password?" link on sign-in tab. When clicked, show email-only form that calls `resetPasswordForEmail`.
+- New `src/pages/ResetPassword.tsx`: Form with "New Password" + "Confirm Password". Validates match, min 8 chars, 1 uppercase, 1 number. Calls `updateUser`.
+- `App.tsx`: Add route `/reset-password` (public, not protected).
+
+### Email
+Password reset emails are sent by the built-in auth system. For custom branding, we can use Lovable auth email templates later.
+
+---
+
+## 4. Signup Password Validation
+
+### Changes
+- `Auth.tsx` signup form: Add "Confirm Password" field. Add client-side validation:
+  - Min 8 characters (up from 6)
+  - At least 1 uppercase letter
+  - At least 1 number
+  - Passwords must match
+  - Show inline validation errors with specific messages
+- The backend (Supabase Auth) already enforces minimum password length. Update the Supabase auth config to require 8 chars minimum.
+
+---
+
+## 5. Blurred Optimized Resume Preview (Pre-Payment)
+
+### Current behavior
+Analysis page has "Fix My Resume" button → checks payment → if unpaid, shows PaymentDialog.
+
+### New behavior
+On the Analysis page, add a "Preview: Your Optimized Resume" section at the bottom. Show first 3 lines of the rewritten summary visible, rest blurred. This uses data already in the analysis result (`rewrittenSummary`, `rewrittenStrongBullets`).
+
+### Changes
+- `Analysis.tsx`: Add a new section after "Improved Version Preview" showing a mock resume preview card with:
+  - First ~100 chars of `rewrittenSummary` visible
+  - Rest blurred with CSS `filter: blur(6px)` + `user-select: none`
+  - Watermark overlay: "Upgrade to unlock full optimized resume"
+  - CTA button: "Unlock Resume Fix – ₹299" (or discounted price)
+- Content protection: The full fixed resume content is NOT loaded until payment. The preview uses only the already-available `rewrittenSummary` and `rewrittenStrongBullets` from the analysis result, so there's nothing extra to protect via inspect element.
+- Only show this section if `is_paid_fix_unlocked` is false.
 
 ---
 
 ## 6. UI Polish
 
-**Changes:**
-- Add CSS transitions for page transitions (fade-in already exists via framer-motion)
-- Add button hover scale animations via Tailwind `hover:scale-[1.02]`
-- Add shimmer loading skeleton for analysis loading state
-- Add Framer Motion success animation for payment receipt
-- Minor spacing/typography tweaks
+### Changes
+- `src/index.css`: Add page transition animation utility
+- Button hover: Already have `hover:scale-[1.02]` on some buttons — standardize across all CTAs
+- Modal animations: Already using Framer Motion `AnimatePresence` — ensure PaymentDialog and auth modals use entry/exit animations
+- Blur overlay animation: Use `motion.div` with `initial={{ opacity: 0 }}` for the guest analysis overlay
+- Success animation after login: Add a brief checkmark animation on OTP verification success before redirect
+- Premium gradient accents: Add subtle gradient borders to key cards on Analysis page
 
 ---
 
-## 7. Live Mode Switch Preparation
+## 7. Conversion Optimization — Sticky Bottom Bar
 
-**Changes:**
-- `create-payment-order/index.ts`: Already uses `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` from env. To switch to live: just update the secrets. No code changes needed.
-- Add a `PAYMENT_MODE` secret (optional) that edge functions check to decide key prefix validation, but this is unnecessary — Razorpay test vs live is determined entirely by which keys are configured.
-
-**Action:** No code changes needed. Document that switching keys in secrets switches modes.
+### Changes
+- `Analysis.tsx`: Add a sticky bottom bar (`fixed bottom-0`) that appears after scrolling past the header:
+  - If guest (on guest analysis page): "Sign up to unlock full recruiter-grade analysis" + [Create Account] button
+  - If logged-in but fix not purchased: "Ready to fix your resume?" + [Fix My Resume – ₹299] button
+  - If fix already purchased: Don't show bar
+- Use `IntersectionObserver` or scroll position to show/hide
 
 ---
 
 ## 8. Security Hardening
 
-**Already implemented:**
-- Duplicate OTP usage prevented (OTP marked `used` after verification)
-- Duplicate payment verification prevented (idempotent check for `status === "SUCCESS"`)
-- Resume ownership validated in `check-fix-access`
+### Already implemented
+- OTP single-use ✓
+- Payment idempotency ✓ 
+- Resume ownership validation ✓
 
-**Additional changes:**
-- `create-payment-order/index.ts`: Add discount validation — verify the resume is actually classified as STUDENT before applying discount
-- Add payment audit logging (console.log with amounts before/after discount)
-- `verify-payment/index.ts`: Verify the payment amount matches expected amount for the payment type
+### Additional changes
+- `analyze-resume/index.ts`: Rate limit guest analyses by IP (add `X-Forwarded-For` header check, max 5 per hour per IP — store in a simple in-memory map or check recent `guest_analyses` count by content hash)
+- `claim-guest-analysis/index.ts`: Validate token not already claimed, not expired
+- Guest analysis: Return only scores + performance tag in guest mode, NOT full issues/recommendations (prevents data leak via network tab)
+- `get-guest-analysis/index.ts`: Return truncated data — scores, performance tag, section counts, but NOT full issue text or fix recommendations
 
 ---
 
-## 9. Summary of All File Changes
+## 9. Email Templates
+
+The OTP email is already sent via Resend API directly in `send-otp/index.ts`. Password reset emails use Supabase's built-in auth emails.
+
+### Changes
+- `send-otp/index.ts`: Already has a professional HTML template — no changes needed
+- Password reset: Uses Supabase default email. Can be customized later with Lovable auth email templates if desired
+- Payment confirmation: Not an auth email, so NOT supported by Lovable's email system. Would require Resend integration in `verify-payment` edge function. Will add a simple HTML confirmation email sent via the existing Resend API key.
+
+---
+
+## Summary of All Changes
 
 ### Database Migration
-```sql
-ALTER TABLE public.profiles 
-  ADD COLUMN IF NOT EXISTS first_time_fix_used boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS first_time_early_bird_used boolean DEFAULT false;
-```
+- New `guest_analyses` table with RLS
+- `pg_cron` job for cleanup
 
-### Files to Modify
+### New Files
+| File | Purpose |
+|------|---------|
+| `supabase/functions/claim-guest-analysis/index.ts` | Bind guest analysis to authenticated user |
+| `supabase/functions/get-guest-analysis/index.ts` | Return truncated guest analysis data |
+| `src/pages/ResetPassword.tsx` | Password reset form |
+| `src/pages/GuestAnalysis.tsx` | Guest analysis view with blur overlay |
 
-| File | Change |
-|------|--------|
-| `src/pages/OtpVerification.tsx` | Fix double-login: verify session established before navigating |
-| `supabase/functions/create-payment-order/index.ts` | Student discount logic, audit logging |
-| `supabase/functions/verify-payment/index.ts` | Update first-time flags after success |
-| `supabase/functions/razorpay-webhook/index.ts` | Update first-time flags after success |
-| `src/components/PaymentDialog.tsx` | Show discounted prices for students |
-| `index.html` | SEO meta tags, JSON-LD, canonical URL |
-| `public/sitemap.xml` | New file — static sitemap |
-| `public/robots.txt` | Add Sitemap directive |
-| `src/pages/Landing.tsx` | Dynamic page title, minor UI polish |
-| `src/pages/Dashboard.tsx` | Dynamic page title |
-| `src/pages/Analysis.tsx` | Dynamic page title, button hover polish |
-| `src/index.css` | Add shimmer animation utility class |
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/App.tsx` | Add `/reset-password` and `/analysis/guest/:token` routes |
+| `src/pages/Landing.tsx` | Guest upload calls analyze-resume without auth, navigates to guest analysis |
+| `src/pages/Auth.tsx` | Forgot password link/form, confirm password field, stronger validation, inline errors |
+| `src/pages/Analysis.tsx` | Blurred resume preview section, sticky bottom conversion bar |
+| `supabase/functions/analyze-resume/index.ts` | Support unauthenticated calls, store in guest_analyses |
+| `supabase/functions/send-otp/index.ts` | Improved error message text |
+| `supabase/functions/verify-payment/index.ts` | Send payment confirmation email via Resend |
+| `src/index.css` | Page transition utilities, blur overlay styles |
+| `supabase/config.toml` | Add new edge functions config |
 
-### Files NOT Changed (no action needed)
-- `supabase/config.toml` — auto-managed
-- `.env` — auto-managed
-- `src/integrations/supabase/client.ts` — auto-managed
-- AI model config — already configurable via env var
-- Lovable branding — platform-level, not in source
+### Not Changed
+- Payment system (Razorpay flow untouched)
+- AI analysis logic (same prompts, same scoring)
+- Fix resume flow (unchanged)
+- Student discount logic (already implemented)
 
-### Items Deferred/Not Applicable
-- Groq integration — not recommended, existing gateway sufficient
-- `application.yml` — not applicable to this stack
-- `AuthController`, `SecurityConfig`, `UserEntity`, `AIService` — Spring Boot concepts, not applicable
+### Items Deferred
+- `GuestAnalysisEntity`, `GuestAnalysisService`, `GuestAnalysisController` — Spring concepts; equivalent is the `guest_analyses` table + edge functions
+- `PasswordResetTokenEntity` — handled by Supabase Auth natively
+- `ForgotPasswordController` — handled by `resetPasswordForEmail` client method
+- Custom email templates for password reset — can be added later via Lovable auth email templates
 
