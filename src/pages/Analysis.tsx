@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Zap, AlertTriangle, Lightbulb, CheckCircle2,
   XCircle, Wrench, TrendingUp, Brain, Target, ChevronDown, ChevronUp, Home, Upload,
-  GraduationCap,
+  GraduationCap, Lock, Eye,
 } from "lucide-react";
 import type { AnalysisResult, AnalysisIssue } from "@/lib/analysis-types";
 
@@ -153,6 +153,7 @@ export default function Analysis() {
   const [loading, setLoading] = useState(true);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(false);
+  const [showStickyBar, setShowStickyBar] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -171,6 +172,36 @@ export default function Analysis() {
         setLoading(false);
       });
   }, [id, user]);
+
+  // Show sticky bar after scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowStickyBar(window.scrollY > 400);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleFixResume = async () => {
+    setCheckingAccess(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-fix-access?resumeAnalysisId=${id}`,
+        { headers: { Authorization: `Bearer ${session?.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+      );
+      const accessData = await res.json();
+      if (accessData.canAccess) {
+        navigate(`/fix/${id}`);
+      } else {
+        setPaymentOpen(true);
+      }
+    } catch {
+      setPaymentOpen(true);
+    } finally {
+      setCheckingAccess(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -191,6 +222,8 @@ export default function Analysis() {
     );
   }
 
+  const isFixUnlocked = analysis.is_paid_fix_unlocked;
+
   const badgeColor = {
     "Elite": "bg-primary/20 text-primary border-primary/30",
     "Strong": "bg-success/20 text-success border-success/30",
@@ -205,7 +238,7 @@ export default function Analysis() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       <header className="border-b border-border glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-3">
@@ -224,26 +257,7 @@ export default function Analysis() {
             <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
               <Upload className="h-4 w-4 mr-1" /> Analyze New
             </Button>
-            <Button disabled={checkingAccess} onClick={async () => {
-              setCheckingAccess(true);
-              try {
-                const session = (await supabase.auth.getSession()).data.session;
-                const res = await fetch(
-                  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-fix-access?resumeAnalysisId=${id}`,
-                  { headers: { Authorization: `Bearer ${session?.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
-                );
-                const accessData = await res.json();
-                if (accessData.canAccess) {
-                  navigate(`/fix/${id}`);
-                } else {
-                  setPaymentOpen(true);
-                }
-              } catch {
-                setPaymentOpen(true);
-              } finally {
-                setCheckingAccess(false);
-              }
-            }} size="sm">
+            <Button disabled={checkingAccess} onClick={handleFixResume} size="sm" className="transition-transform hover:scale-[1.02]">
               <Zap className="h-4 w-4 mr-1" /> Fix My Resume
             </Button>
           </div>
@@ -374,6 +388,47 @@ export default function Analysis() {
           </div>
         </motion.section>
 
+        {/* Blurred Optimized Resume Preview (pre-payment) */}
+        {!isFixUnlocked && result.rewrittenSummary && (
+          <motion.section className="mb-8" {...fadeUp(0.37)}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Eye className="h-5 w-5" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground">Your Optimized Resume</h3>
+            </div>
+            <Card className="glass relative overflow-hidden">
+              <CardContent className="py-6">
+                {/* Visible first 3 lines */}
+                <p className="text-sm leading-relaxed mb-2">
+                  {result.rewrittenSummary.split(". ").slice(0, 2).join(". ")}.
+                </p>
+                {/* Blurred rest */}
+                <div className="filter blur-[6px] select-none pointer-events-none">
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {result.rewrittenSummary.split(". ").slice(2).join(". ")}
+                  </p>
+                  {result.rewrittenStrongBullets?.slice(0, 3).map((b, i) => (
+                    <p key={i} className="text-sm leading-relaxed mt-2">• {b}</p>
+                  ))}
+                </div>
+                {/* Watermark overlay */}
+                <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-background/90 via-background/40 to-transparent">
+                  <div className="text-center pb-6">
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <Lock className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Upgrade to unlock full optimized resume</span>
+                    </div>
+                    <Button onClick={handleFixResume} disabled={checkingAccess} className="transition-transform hover:scale-[1.02]">
+                      <Zap className="h-4 w-4 mr-1" /> Unlock Resume Fix – ₹299
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.section>
+        )}
+
         {/* Recruiter Psychology */}
         {result.recruiterPsychologyInsight && (
           <motion.section className="mb-8" {...fadeUp(0.4)}>
@@ -429,26 +484,7 @@ export default function Analysis() {
         )}
 
         <motion.div className="text-center pt-4 pb-8" {...fadeUp(0.5)}>
-          <Button size="lg" disabled={checkingAccess} onClick={async () => {
-            setCheckingAccess(true);
-            try {
-              const session = (await supabase.auth.getSession()).data.session;
-              const res = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-fix-access?resumeAnalysisId=${id}`,
-                { headers: { Authorization: `Bearer ${session?.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
-              );
-              const accessData = await res.json();
-              if (accessData.canAccess) {
-                navigate(`/fix/${id}`);
-              } else {
-                setPaymentOpen(true);
-              }
-            } catch {
-              setPaymentOpen(true);
-            } finally {
-              setCheckingAccess(false);
-            }
-          }} className="px-8">
+          <Button size="lg" disabled={checkingAccess} onClick={handleFixResume} className="px-8 transition-transform hover:scale-[1.02]">
             <Zap className="h-4 w-4 mr-2" /> Fix My Resume Now
           </Button>
           <p className="text-xs text-muted-foreground mt-3">AI will generate an optimized version based on this analysis</p>
@@ -462,6 +498,24 @@ export default function Analysis() {
           onSuccess={() => { setPaymentOpen(false); navigate(`/fix/${id}`); }}
         />
       </main>
+
+      {/* Sticky bottom conversion bar */}
+      {!isFixUnlocked && showStickyBar && (
+        <motion.div
+          className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border py-3"
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
+          <div className="container flex items-center justify-between max-w-5xl">
+            <p className="text-sm font-medium hidden sm:block">Ready to fix your resume?</p>
+            <p className="text-sm font-medium sm:hidden">Fix your resume</p>
+            <Button size="sm" onClick={handleFixResume} disabled={checkingAccess} className="gap-2 transition-transform hover:scale-[1.02]">
+              <Zap className="h-4 w-4" /> Fix My Resume – ₹299
+            </Button>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

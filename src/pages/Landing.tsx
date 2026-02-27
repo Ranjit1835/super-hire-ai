@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScanningAnimation } from "@/components/ScanningAnimation";
 
 const features = [
   { icon: Shield, title: "ATS Simulation", desc: "Simulates Taleo, Greenhouse, Lever & Workday parsing. Know exactly how your resume is read by machines." },
@@ -45,19 +46,37 @@ export default function Landing() {
       if (!text.trim()) throw new Error("Could not extract text from PDF");
       const contentHash = await hashContent(text);
 
-      // Store in sessionStorage for post-login pickup
-      sessionStorage.setItem("pendingResume", JSON.stringify({
-        resumeText: text,
-        fileName: file.name,
-        contentHash,
-      }));
-
       if (user) {
-        // Already logged in — go straight to dashboard with auto-analyze
+        // Already logged in — store in session and go to dashboard
+        sessionStorage.setItem("pendingResume", JSON.stringify({
+          resumeText: text,
+          fileName: file.name,
+          contentHash,
+        }));
         navigate("/dashboard?autoAnalyze=true");
-      } else {
-        // Not logged in — send to auth with returnTo
-        navigate("/auth?returnTo=analyze");
+        return;
+      }
+
+      // Guest flow — call analyze-resume without auth
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-resume`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ resumeText: text, fileName: file.name, contentHash, guestMode: true }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Analysis failed");
+
+      if (data.guestToken) {
+        navigate(`/analysis/guest/${data.guestToken}`);
+      } else if (data.id) {
+        // Fallback: shouldn't happen for guest but handle gracefully
+        navigate(`/analysis/${data.id}`);
       }
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message || "Could not process PDF", variant: "destructive" });
@@ -72,6 +91,24 @@ export default function Landing() {
     const file = e.dataTransfer.files[0];
     if (file) handleGuestUpload(file);
   };
+
+  if (processing) {
+    return (
+      <div className="min-h-screen bg-background">
+        <nav className="fixed top-0 w-full z-50 glass-strong">
+          <div className="container flex items-center justify-between h-16">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                <Zap className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <span className="font-bold text-lg text-foreground">HireResume</span>
+            </div>
+          </div>
+        </nav>
+        <ScanningAnimation />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,13 +160,9 @@ export default function Landing() {
               >
                 <CardContent className="flex flex-col items-center justify-center py-10">
                   <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                    {processing ? (
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    ) : (
-                      <Upload className="h-6 w-6 text-primary" />
-                    )}
+                    <Upload className="h-6 w-6 text-primary" />
                   </div>
-                  <p className="font-medium mb-1">{processing ? "Processing resume..." : "Drop your resume PDF here"}</p>
+                  <p className="font-medium mb-1">Drop your resume PDF here</p>
                   <p className="text-sm text-muted-foreground">or click to browse — no account needed</p>
                   <input
                     ref={fileInputRef}

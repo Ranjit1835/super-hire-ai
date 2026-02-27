@@ -67,11 +67,9 @@ function detectResumeType(text: string): "STUDENT" | "PROFESSIONAL" {
   const studentKeywords = ["student", "fresher", "undergraduate", "b.tech", "b.e.", "b.e ", "final year", "internship", "semester", "cgpa", "gpa", "college", "university project"];
   const studentKeywordCount = studentKeywords.filter(kw => lower.includes(kw)).length;
 
-  // Check for professional experience section with substantial content
   const expMatch = lower.match(/\b(experience|employment|work history)\b/g);
   const hasExpSection = (expMatch?.length ?? 0) > 0;
 
-  // Check for year ranges indicating professional experience (e.g., "2019 - 2023", "2020 – Present")
   const yearRanges = text.match(/20\d{2}\s*[-–—]\s*(20\d{2}|present|current)/gi) || [];
   let totalYears = 0;
   for (const range of yearRanges) {
@@ -83,7 +81,6 @@ function detectResumeType(text: string): "STUDENT" | "PROFESSIONAL" {
     }
   }
 
-  // Student if: many student keywords, or no real experience, or <1 year total
   if (studentKeywordCount >= 3) return "STUDENT";
   if (!hasExpSection && studentKeywordCount >= 1) return "STUDENT";
   if (totalYears < 1 && studentKeywordCount >= 1) return "STUDENT";
@@ -93,11 +90,10 @@ function detectResumeType(text: string): "STUDENT" | "PROFESSIONAL" {
 
 // ─── Deterministic Scoring Formula ──────────────────────────────────────────
 function computeDeterministicAtsScore(aiScores: Record<string, number>, textMetrics: ReturnType<typeof computeTextMetrics>): number {
-  // Compute action verb score (0-100) from text metrics
   const totalVerbs = textMetrics.strongVerbCount + textMetrics.weakVerbCount;
   const actionVerbScore = totalVerbs > 0
     ? Math.round((textMetrics.strongVerbCount / totalVerbs) * 100)
-    : 50; // neutral if no verbs detected
+    : 50;
 
   const finalScore = Math.round(
     0.30 * (aiScores.keywordStrengthScore ?? 0) +
@@ -153,33 +149,229 @@ CRITICAL OUTPUT RULES:
 - Scores must reflect genuine multi-layer analysis, not default values.
 - The contextStatement must be a single sentence describing the candidate's position relative to competitors in their field.`;
 
+const AI_TOOL_SCHEMA = {
+  type: "function",
+  function: {
+    name: "submit_analysis",
+    description: "Submit the complete resume analysis results",
+    parameters: {
+      type: "object",
+      properties: {
+        atsScore: { type: "number", description: "ATS compatibility score 0-100" },
+        recruiterScanScore: { type: "number", description: "Recruiter 6-second scan score 0-100" },
+        keywordStrengthScore: { type: "number", description: "Keyword relevance and density score 0-100" },
+        quantificationScore: { type: "number", description: "Metrics and quantification score 0-100" },
+        structureScore: { type: "number", description: "Resume structure and formatting score 0-100" },
+        interviewProbability: { type: "number", description: "Probability of getting interview 0-100" },
+        marketCompetitivenessLevel: { type: "string", enum: ["Below Average", "Competitive", "Strong", "Elite"] },
+        criticalIssues: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              issue: { type: "string" },
+              impactLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+              whyItMatters: { type: "string" },
+              fixRecommendation: { type: "string" },
+            },
+            required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
+          },
+        },
+        warnings: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              issue: { type: "string" },
+              impactLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+              whyItMatters: { type: "string" },
+              fixRecommendation: { type: "string" },
+            },
+            required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
+          },
+        },
+        optimizationOpportunities: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              issue: { type: "string" },
+              impactLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+              whyItMatters: { type: "string" },
+              fixRecommendation: { type: "string" },
+            },
+            required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
+          },
+        },
+        advancedRefinements: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              issue: { type: "string" },
+              impactLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+              whyItMatters: { type: "string" },
+              fixRecommendation: { type: "string" },
+            },
+            required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
+          },
+        },
+        performanceLevelTag: { type: "string", description: "One of: High Risk – Immediate Fix Required, Needs Strategic Improvement, Competitive but Optimizable, Strong & Market Ready" },
+        contextStatement: { type: "string", description: "One sentence describing candidate's position relative to competitors in their field" },
+        rewrittenSummary: { type: "string" },
+        rewrittenStrongBullets: { type: "array", items: { type: "string" }, description: "Top 3-5 improved bullet points demonstrating impact-first structure" },
+        missingHighImpactKeywords: { type: "array", items: { type: "string" } },
+        keywordEnrichmentSuggestions: { type: "array", items: { type: "string" }, description: "Specific phrases to weave into the resume for better keyword matching" },
+        recruiterPsychologyInsight: { type: "string" },
+        finalVerdict: { type: "string" },
+        resumeType: { type: "string", enum: ["STUDENT", "PROFESSIONAL"], description: "Detected resume type" },
+        studentGrowthRecommendations: { type: "array", items: { type: "string" }, description: "3-5 encouraging growth tips for student resumes. Only populate for STUDENT type." },
+      },
+      required: [
+        "atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore",
+        "structureScore", "interviewProbability", "marketCompetitivenessLevel",
+        "performanceLevelTag", "contextStatement",
+        "criticalIssues", "warnings", "optimizationOpportunities", "advancedRefinements",
+        "rewrittenSummary", "rewrittenStrongBullets", "missingHighImpactKeywords",
+        "keywordEnrichmentSuggestions", "recruiterPsychologyInsight", "finalVerdict",
+        "resumeType"
+      ],
+      additionalProperties: false,
+    },
+  },
+};
+
+// ─── Run AI Analysis (shared between guest & authenticated) ─────────────────
+async function runAiAnalysis(
+  resumeText: string,
+  resumeType: "STUDENT" | "PROFESSIONAL",
+  previousScores: Record<string, number> | null,
+  previousResumeText: string | null,
+) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
+
+  let systemPrompt = SYSTEM_PROMPT;
+  if (resumeType === "STUDENT") {
+    systemPrompt += `\n\nSTUDENT/FRESHER MODE ACTIVE:
+This resume belongs to a student or fresh graduate. Apply these rules:
+- Do NOT penalize for lack of professional work experience. This is expected.
+- Focus scoring on: project quality, technical skills clarity, internship impact, certifications, GitHub/portfolio presence.
+- Replace references to "Professional Experience Impact" with "Project & Skill Strength Analysis".
+- Add a "studentGrowthRecommendations" field with 3-5 encouraging, actionable growth tips.
+- Tone must be encouraging, direct, and actionable — never demotivating.
+- Score floors: A well-structured student resume with clear projects and skills should score at least 55.`;
+  }
+
+  let userMessage = `Analyze this resume thoroughly using all 5 layers:\n\n${resumeText}`;
+  if (previousScores) {
+    userMessage += `\n\nIMPORTANT CONTEXT: This is a RE-ANALYSIS of a previously fixed/improved resume. The previous version scored: ATS=${previousScores.atsScore}, RecruiterScan=${previousScores.recruiterScanScore}, Keywords=${previousScores.keywordStrengthScore}, Quantification=${previousScores.quantificationScore}, Structure=${previousScores.structureScore}. If the resume has measurably improved, scores MUST NOT decrease.`;
+  }
+
+  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: AI_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+      tools: [AI_TOOL_SCHEMA],
+      tool_choice: { type: "function", function: { name: "submit_analysis" } },
+      temperature: 0.2,
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    const status = aiResponse.status;
+    if (status === 429) throw new Error("Rate limit exceeded. Please try again later.");
+    if (status === 402) throw new Error("AI credits exhausted. Please add credits.");
+    const text = await aiResponse.text();
+    console.error("AI error:", status, text);
+    throw new Error("AI analysis failed");
+  }
+
+  const aiData = await aiResponse.json();
+  if (aiData.usage) console.log("Token usage:", JSON.stringify(aiData.usage));
+
+  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
+
+  let analysisResult;
+  try {
+    analysisResult = JSON.parse(toolCall.function.arguments);
+  } catch {
+    throw new Error("Invalid AI response format");
+  }
+
+  if (typeof analysisResult.atsScore !== "number") throw new Error("Invalid analysis result");
+
+  // Force resume type from detection
+  analysisResult.resumeType = resumeType;
+
+  // Truncation
+  if (analysisResult.criticalIssues?.length > 5) analysisResult.criticalIssues = analysisResult.criticalIssues.slice(0, 5);
+  if (analysisResult.warnings?.length > 3) analysisResult.warnings = analysisResult.warnings.slice(0, 3);
+  if (analysisResult.optimizationOpportunities?.length > 3) analysisResult.optimizationOpportunities = analysisResult.optimizationOpportunities.slice(0, 3);
+  if (analysisResult.advancedRefinements?.length > 2) analysisResult.advancedRefinements = analysisResult.advancedRefinements.slice(0, 2);
+
+  // Deterministic ATS Score
+  const textMetrics = computeTextMetrics(resumeText);
+  analysisResult.atsScore = computeDeterministicAtsScore(analysisResult, textMetrics);
+
+  // Score Regression Prevention
+  if (previousScores && previousResumeText) {
+    const currentMetrics = computeTextMetrics(resumeText);
+    const previousMetrics = computeTextMetrics(previousResumeText);
+    const improved = metricsImproved(currentMetrics, previousMetrics);
+    const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
+    
+    if (improved) {
+      for (const key of scoreKeys) {
+        const prev = previousScores[key];
+        const curr = analysisResult[key];
+        if (typeof prev === "number" && typeof curr === "number" && curr < prev) {
+          analysisResult[key] = Math.max(curr, prev);
+        }
+      }
+    } else {
+      for (const key of scoreKeys) {
+        const prev = previousScores[key];
+        const curr = analysisResult[key];
+        if (typeof prev === "number" && typeof curr === "number" && curr < prev - 2) {
+          analysisResult[key] = Math.max(curr, prev - 2);
+        }
+      }
+    }
+  } else if (previousScores) {
+    const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
+    for (const key of scoreKeys) {
+      const prev = previousScores[key];
+      const curr = analysisResult[key];
+      if (typeof prev === "number" && typeof curr === "number" && curr < prev - 2) {
+        analysisResult[key] = Math.max(curr, prev - 2);
+      }
+    }
+  }
+
+  return analysisResult;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) throw new Error("No authorization header");
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // Service role client for global cache (bypasses RLS)
-    const serviceClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error("Unauthorized");
-
     const body = await req.json();
     const resumeText = body.resumeText;
     const fileName = body.fileName;
     const contentHash = body.contentHash;
     const previousAnalysisId = body.previousAnalysisId;
+    const guestMode = body.guestMode === true;
 
     // ─── Input Validation ────────────────────────────────────────────
     if (!resumeText || typeof resumeText !== "string") throw new Error("Invalid resume text");
@@ -190,13 +382,101 @@ serve(async (req) => {
     if (!/^[\w\s.\-()]+\.pdf$/i.test(fileName)) throw new Error("Invalid file name format");
     if (!contentHash || typeof contentHash !== "string") throw new Error("Invalid content hash");
     if (!/^[a-f0-9]{64}$/.test(contentHash)) throw new Error("Invalid content hash format");
+
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // ─── GUEST MODE ──────────────────────────────────────────────────
+    if (guestMode || !authHeader) {
+      console.log("[GUEST] Starting guest analysis for:", fileName);
+
+      // Rate limit: max 5 guest analyses per content hash to prevent abuse
+      const { count } = await serviceClient
+        .from("guest_analyses")
+        .select("*", { count: "exact", head: true })
+        .eq("content_hash", contentHash)
+        .gte("created_at", new Date(Date.now() - 3600000).toISOString());
+
+      if ((count ?? 0) >= 5) {
+        return new Response(JSON.stringify({ error: "Too many analyses. Please try again later." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check global cache first
+      const { data: globalCached } = await serviceClient
+        .from("resume_score_cache")
+        .select("*")
+        .eq("content_hash", contentHash)
+        .maybeSingle();
+
+      let analysisResult;
+      const resumeType = detectResumeType(resumeText);
+
+      if (globalCached) {
+        analysisResult = globalCached.analysis_result;
+      } else {
+        analysisResult = await runAiAnalysis(resumeText, resumeType, null, null);
+
+        // Store in global cache
+        await serviceClient.from("resume_score_cache").upsert({
+          content_hash: contentHash,
+          ats_score: analysisResult.atsScore,
+          recruiter_scan_score: analysisResult.recruiterScanScore,
+          keyword_strength_score: analysisResult.keywordStrengthScore,
+          quantification_score: analysisResult.quantificationScore,
+          structure_score: analysisResult.structureScore,
+          interview_probability: analysisResult.interviewProbability,
+          market_competitiveness: analysisResult.marketCompetitivenessLevel,
+          analysis_result: analysisResult,
+          resume_type: resumeType,
+        });
+      }
+
+      // Generate session token and store in guest_analyses
+      const sessionToken = crypto.randomUUID();
+      await serviceClient.from("guest_analyses").insert({
+        session_token: sessionToken,
+        analysis_result: analysisResult,
+        resume_text: resumeText,
+        file_name: fileName,
+        content_hash: contentHash,
+        ats_score: analysisResult.atsScore,
+        structure_score: analysisResult.structureScore,
+        keyword_strength_score: analysisResult.keywordStrengthScore,
+        quantification_score: analysisResult.quantificationScore,
+        recruiter_scan_score: analysisResult.recruiterScanScore,
+        interview_probability: analysisResult.interviewProbability,
+        market_competitiveness: analysisResult.marketCompetitivenessLevel,
+        resume_type: resumeType,
+      });
+
+      console.log("[GUEST] Analysis stored with token:", sessionToken);
+
+      return new Response(JSON.stringify({ guestToken: sessionToken, atsScore: analysisResult.atsScore, resumeType }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── AUTHENTICATED MODE (existing logic) ─────────────────────────
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error("Unauthorized");
+
     if (previousAnalysisId !== undefined && previousAnalysisId !== null) {
       if (typeof previousAnalysisId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(previousAnalysisId)) {
         throw new Error("Invalid previous analysis ID format");
       }
     }
 
-    // ─── Step 1: Check user-specific cache ───────────────────────────
+    // Step 1: Check user-specific cache
     const { data: cached } = await supabase
       .from("resume_analyses")
       .select("id")
@@ -205,13 +485,12 @@ serve(async (req) => {
       .maybeSingle();
 
     if (cached) {
-      // Return silently — no cached flag
       return new Response(JSON.stringify({ id: cached.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ─── Step 2: Check global score cache ────────────────────────────
+    // Step 2: Check global score cache
     const { data: globalCached } = await serviceClient
       .from("resume_score_cache")
       .select("*")
@@ -219,7 +498,6 @@ serve(async (req) => {
       .maybeSingle();
 
     if (globalCached) {
-      // Insert user-specific record with canonical scores
       const { data: inserted, error: insertError } = await supabase
         .from("resume_analyses")
         .insert({
@@ -240,15 +518,12 @@ serve(async (req) => {
         .single();
 
       if (insertError) throw insertError;
-
       return new Response(JSON.stringify({ id: inserted.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ─── Step 3: No cache — run AI analysis ──────────────────────────
-
-    // Fetch previous analysis for score regression prevention
+    // Step 3: Run AI analysis
     let previousScores: Record<string, number> | null = null;
     let previousResumeText: string | null = null;
     if (previousAnalysisId) {
@@ -271,240 +546,26 @@ serve(async (req) => {
       }
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
-
     const resumeType = detectResumeType(resumeText);
     console.log("Detected resume type:", resumeType);
 
-    let systemPrompt = SYSTEM_PROMPT;
-    if (resumeType === "STUDENT") {
-      systemPrompt += `\n\nSTUDENT/FRESHER MODE ACTIVE:
-This resume belongs to a student or fresh graduate. Apply these rules:
-- Do NOT penalize for lack of professional work experience. This is expected.
-- Focus scoring on: project quality, technical skills clarity, internship impact, certifications, GitHub/portfolio presence.
-- Replace references to "Professional Experience Impact" with "Project & Skill Strength Analysis".
-- Add a "studentGrowthRecommendations" field with 3-5 encouraging, actionable growth tips (e.g., "Add measurable results to your projects", "Include your tech stack depth").
-- Tone must be encouraging, direct, and actionable — never demotivating.
-- Score floors: A well-structured student resume with clear projects and skills should score at least 55.`;
-    }
+    const analysisResult = await runAiAnalysis(resumeText, resumeType, previousScores, previousResumeText);
 
-    let userMessage = `Analyze this resume thoroughly using all 5 layers:\n\n${resumeText}`;
-    if (previousScores) {
-      userMessage += `\n\nIMPORTANT CONTEXT: This is a RE-ANALYSIS of a previously fixed/improved resume. The previous version scored: ATS=${previousScores.atsScore}, RecruiterScan=${previousScores.recruiterScanScore}, Keywords=${previousScores.keywordStrengthScore}, Quantification=${previousScores.quantificationScore}, Structure=${previousScores.structureScore}. If the resume has measurably improved (more metrics, better verbs, better structure, more keywords), scores MUST NOT decrease — they should logically increase. Only reduce scores if specific measurable components have genuinely degraded.`;
-    }
-
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "submit_analysis",
-            description: "Submit the complete resume analysis results",
-            parameters: {
-              type: "object",
-              properties: {
-                atsScore: { type: "number", description: "ATS compatibility score 0-100" },
-                recruiterScanScore: { type: "number", description: "Recruiter 6-second scan score 0-100" },
-                keywordStrengthScore: { type: "number", description: "Keyword relevance and density score 0-100" },
-                quantificationScore: { type: "number", description: "Metrics and quantification score 0-100" },
-                structureScore: { type: "number", description: "Resume structure and formatting score 0-100" },
-                interviewProbability: { type: "number", description: "Probability of getting interview 0-100" },
-                marketCompetitivenessLevel: { type: "string", enum: ["Below Average", "Competitive", "Strong", "Elite"] },
-                criticalIssues: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      issue: { type: "string" },
-                      impactLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
-                      whyItMatters: { type: "string" },
-                      fixRecommendation: { type: "string" },
-                    },
-                    required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
-                  },
-                },
-                warnings: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      issue: { type: "string" },
-                      impactLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
-                      whyItMatters: { type: "string" },
-                      fixRecommendation: { type: "string" },
-                    },
-                    required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
-                  },
-                },
-                optimizationOpportunities: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      issue: { type: "string" },
-                      impactLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
-                      whyItMatters: { type: "string" },
-                      fixRecommendation: { type: "string" },
-                    },
-                    required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
-                  },
-                },
-                advancedRefinements: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      issue: { type: "string" },
-                      impactLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
-                      whyItMatters: { type: "string" },
-                      fixRecommendation: { type: "string" },
-                    },
-                    required: ["issue", "impactLevel", "whyItMatters", "fixRecommendation"],
-                  },
-                },
-                performanceLevelTag: { type: "string", description: "One of: High Risk – Immediate Fix Required, Needs Strategic Improvement, Competitive but Optimizable, Strong & Market Ready" },
-                contextStatement: { type: "string", description: "One sentence describing candidate's position relative to competitors in their field" },
-                rewrittenSummary: { type: "string" },
-                rewrittenStrongBullets: { type: "array", items: { type: "string" }, description: "Top 3-5 improved bullet points demonstrating impact-first structure" },
-                missingHighImpactKeywords: { type: "array", items: { type: "string" } },
-                keywordEnrichmentSuggestions: { type: "array", items: { type: "string" }, description: "Specific phrases to weave into the resume for better keyword matching" },
-                recruiterPsychologyInsight: { type: "string" },
-                finalVerdict: { type: "string" },
-                resumeType: { type: "string", enum: ["STUDENT", "PROFESSIONAL"], description: "Detected resume type" },
-                studentGrowthRecommendations: { type: "array", items: { type: "string" }, description: "3-5 encouraging growth tips for student resumes. Only populate for STUDENT type." },
-              },
-              required: [
-                "atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore",
-                "structureScore", "interviewProbability", "marketCompetitivenessLevel",
-                "performanceLevelTag", "contextStatement",
-                "criticalIssues", "warnings", "optimizationOpportunities", "advancedRefinements",
-                "rewrittenSummary", "rewrittenStrongBullets", "missingHighImpactKeywords",
-                "keywordEnrichmentSuggestions", "recruiterPsychologyInsight", "finalVerdict",
-                "resumeType"
-              ],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "submit_analysis" } },
-        temperature: 0.2,
-      }),
+    // Step 4: Store in global cache
+    await serviceClient.from("resume_score_cache").upsert({
+      content_hash: contentHash,
+      ats_score: analysisResult.atsScore,
+      recruiter_scan_score: analysisResult.recruiterScanScore,
+      keyword_strength_score: analysisResult.keywordStrengthScore,
+      quantification_score: analysisResult.quantificationScore,
+      structure_score: analysisResult.structureScore,
+      interview_probability: analysisResult.interviewProbability,
+      market_competitiveness: analysisResult.marketCompetitivenessLevel,
+      analysis_result: analysisResult,
+      resume_type: resumeType,
     });
 
-    if (!aiResponse.ok) {
-      const status = aiResponse.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const text = await aiResponse.text();
-      console.error("AI error:", status, text);
-      throw new Error("AI analysis failed");
-    }
-
-    const aiData = await aiResponse.json();
-    
-    if (aiData.usage) {
-      console.log("Token usage:", JSON.stringify(aiData.usage));
-    }
-
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
-
-    let analysisResult;
-    try {
-      analysisResult = JSON.parse(toolCall.function.arguments);
-    } catch {
-      throw new Error("Invalid AI response format");
-    }
-
-    if (typeof analysisResult.atsScore !== "number") throw new Error("Invalid analysis result");
-
-    // ─── Force resume type from detection ──────────────────────────
-    analysisResult.resumeType = resumeType;
-
-    // ─── Response Truncation (Impact Mode enforcement) ───────────────
-    if (analysisResult.criticalIssues?.length > 5) analysisResult.criticalIssues = analysisResult.criticalIssues.slice(0, 5);
-    if (analysisResult.warnings?.length > 3) analysisResult.warnings = analysisResult.warnings.slice(0, 3);
-    if (analysisResult.optimizationOpportunities?.length > 3) analysisResult.optimizationOpportunities = analysisResult.optimizationOpportunities.slice(0, 3);
-    if (analysisResult.advancedRefinements?.length > 2) analysisResult.advancedRefinements = analysisResult.advancedRefinements.slice(0, 2);
-
-    // ─── Deterministic ATS Score ─────────────────────────────────────
-    const textMetrics = computeTextMetrics(resumeText);
-    analysisResult.atsScore = computeDeterministicAtsScore(analysisResult, textMetrics);
-
-    // ─── Score Regression Prevention ─────────────────────────────────
-    if (previousScores && previousResumeText) {
-      const currentMetrics = computeTextMetrics(resumeText);
-      const previousMetrics = computeTextMetrics(previousResumeText);
-      const improved = metricsImproved(currentMetrics, previousMetrics);
-
-      console.log("Metrics comparison:", JSON.stringify({ currentMetrics, previousMetrics, improved }));
-
-      const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
-      
-      if (improved) {
-        for (const key of scoreKeys) {
-          const prev = previousScores[key];
-          const curr = analysisResult[key];
-          if (typeof prev === "number" && typeof curr === "number" && curr < prev) {
-            analysisResult[key] = Math.max(curr, prev);
-          }
-        }
-      } else {
-        for (const key of scoreKeys) {
-          const prev = previousScores[key];
-          const curr = analysisResult[key];
-          if (typeof prev === "number" && typeof curr === "number" && curr < prev - 2) {
-            analysisResult[key] = Math.max(curr, prev - 2);
-          }
-        }
-      }
-    } else if (previousScores) {
-      const scoreKeys = ["atsScore", "recruiterScanScore", "keywordStrengthScore", "quantificationScore", "structureScore", "interviewProbability"] as const;
-      for (const key of scoreKeys) {
-        const prev = previousScores[key];
-        const curr = analysisResult[key];
-        if (typeof prev === "number" && typeof curr === "number" && curr < prev - 2) {
-          analysisResult[key] = Math.max(curr, prev - 2);
-        }
-      }
-    }
-
-    // ─── Step 4: Store in global score cache ─────────────────────────
-    await serviceClient
-      .from("resume_score_cache")
-      .upsert({
-        content_hash: contentHash,
-        ats_score: analysisResult.atsScore,
-        recruiter_scan_score: analysisResult.recruiterScanScore,
-        keyword_strength_score: analysisResult.keywordStrengthScore,
-        quantification_score: analysisResult.quantificationScore,
-        structure_score: analysisResult.structureScore,
-        interview_probability: analysisResult.interviewProbability,
-        market_competitiveness: analysisResult.marketCompetitivenessLevel,
-        analysis_result: analysisResult,
-        resume_type: resumeType,
-      });
-
-    // ─── Step 5: Store user-specific record ──────────────────────────
+    // Step 5: Store user-specific record
     const { data: inserted, error: insertError } = await supabase
       .from("resume_analyses")
       .insert({

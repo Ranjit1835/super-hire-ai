@@ -93,7 +93,7 @@ serve(async (req) => {
 
     const { data: authData, error: authError } = await anonClient.auth.signInWithPassword({ email, password });
     if (authError || !authData.user) {
-      return new Response(JSON.stringify({ error: "Invalid email or password" }), {
+      return new Response(JSON.stringify({ error: "Invalid email or password. Please check your credentials and try again." }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

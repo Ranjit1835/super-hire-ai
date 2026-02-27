@@ -26,6 +26,7 @@ export default function OtpVerification() {
   const password = location.state?.password;
   const maskedEmail = location.state?.maskedEmail;
   const returnTo = location.state?.returnTo;
+  const guestToken = location.state?.guestToken;
 
   useEffect(() => {
     if (!email || !password) {
@@ -118,8 +119,10 @@ export default function OtpVerification() {
 
         toast({ title: "Welcome back!", description: "Successfully authenticated." });
 
-        // If there's a pending analysis, redirect with autoAnalyze flag
-        if (returnTo === "analyze" && sessionStorage.getItem("pendingResume")) {
+        // Route based on returnTo intent
+        if (returnTo === "guest" && guestToken) {
+          navigate(`/analysis/guest/${guestToken}`, { replace: true });
+        } else if (returnTo === "analyze" && sessionStorage.getItem("pendingResume")) {
           navigate("/dashboard?autoAnalyze=true", { replace: true });
         } else {
           navigate("/dashboard", { replace: true });
