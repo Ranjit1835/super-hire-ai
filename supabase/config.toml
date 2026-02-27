@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.razorpay-webhook]
 verify_jwt = false
+
+[functions.get-guest-analysis]
+verify_jwt = false
+
+[functions.claim-guest-analysis]
+verify_jwt = false

@@ -11,6 +11,8 @@ import OtpVerification from "./pages/OtpVerification";
 import Dashboard from "./pages/Dashboard";
 import Analysis from "./pages/Analysis";
 import FixResume from "./pages/FixResume";
+import GuestAnalysis from "./pages/GuestAnalysis";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/verify-otp" element={<OtpVerification />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/analysis/guest/:token" element={<GuestAnalysis />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/analysis/:id" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
             <Route path="/fix/:id" element={<ProtectedRoute><FixResume /></ProtectedRoute>} />

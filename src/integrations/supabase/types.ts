@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      guest_analyses: {
+        Row: {
+          analysis_result: Json
+          ats_score: number | null
+          claimed_by: string | null
+          content_hash: string
+          created_at: string | null
+          expires_at: string | null
+          file_name: string
+          id: string
+          interview_probability: number | null
+          keyword_strength_score: number | null
+          market_competitiveness: string | null
+          quantification_score: number | null
+          recruiter_scan_score: number | null
+          resume_text: string | null
+          resume_type: string | null
+          session_token: string
+          structure_score: number | null
+        }
+        Insert: {
+          analysis_result: Json
+          ats_score?: number | null
+          claimed_by?: string | null
+          content_hash: string
+          created_at?: string | null
+          expires_at?: string | null
+          file_name: string
+          id?: string
+          interview_probability?: number | null
+          keyword_strength_score?: number | null
+          market_competitiveness?: string | null
+          quantification_score?: number | null
+          recruiter_scan_score?: number | null
+          resume_text?: string | null
+          resume_type?: string | null
+          session_token: string
+          structure_score?: number | null
+        }
+        Update: {
+          analysis_result?: Json
+          ats_score?: number | null
+          claimed_by?: string | null
+          content_hash?: string
+          created_at?: string | null
+          expires_at?: string | null
+          file_name?: string
+          id?: string
+          interview_probability?: number | null
+          keyword_strength_score?: number | null
+          market_competitiveness?: string | null
+          quantification_score?: number | null
+          recruiter_scan_score?: number | null
+          resume_text?: string | null
+          resume_type?: string | null
+          session_token?: string
+          structure_score?: number | null
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           attempts: number
