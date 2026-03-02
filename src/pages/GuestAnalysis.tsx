@@ -42,10 +42,22 @@ export default function GuestAnalysis() {
     setClaiming(true);
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("claim-guest-analysis", {
-          body: { guestToken: token },
-        });
-        if (error) throw error;
+        const session = await supabase.auth.getSession();
+        const accessToken = session.data.session?.access_token;
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/claim-guest-analysis`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({ guestToken: token }),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Failed to claim analysis");
         if (data?.id) {
           toast({ title: "Analysis unlocked!", description: "Full results are now available." });
           navigate(`/analysis/${data.id}`, { replace: true });

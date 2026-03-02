@@ -60,18 +60,21 @@ export default function Auth() {
     const password = form.get("password") as string;
 
     try {
-      const { data, error } = await supabase.functions.invoke("send-otp", {
-        body: { email, password },
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-otp`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+      const data = await res.json();
 
-      if (error) throw error;
-      if (data?.locked) {
-        setSignInError(data.error);
-        setLoading(false);
-        return;
-      }
-      if (data?.error) {
-        setSignInError(data.error);
+      if (!res.ok || data?.error) {
+        setSignInError(data?.error || "Something went wrong");
         setLoading(false);
         return;
       }
