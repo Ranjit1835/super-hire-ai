@@ -85,18 +85,26 @@ export default function OtpVerification() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-otp", {
-        body: { email, password, otp: otpString },
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-otp`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ email, password, otp: otpString }),
+        }
+      );
+      const data = await res.json();
 
-      if (error) throw error;
       if (data?.locked) {
         setLocked(true);
         toast({ title: "Account locked", description: data.error, variant: "destructive" });
         return;
       }
-      if (data?.error) {
-        toast({ title: "Verification failed", description: data.error, variant: "destructive" });
+      if (!res.ok || data?.error) {
+        toast({ title: "Verification failed", description: data?.error || "Verification failed", variant: "destructive" });
         setOtp(Array(OTP_LENGTH).fill(""));
         inputRefs.current[0]?.focus();
         return;
@@ -144,12 +152,20 @@ export default function OtpVerification() {
     setLocked(false);
 
     try {
-      const { data, error } = await supabase.functions.invoke("send-otp", {
-        body: { email, password },
-      });
-      if (error) throw error;
-      if (data?.error) {
-        toast({ title: "Resend failed", description: data.error, variant: "destructive" });
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-otp`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        toast({ title: "Resend failed", description: data?.error || "Failed to resend", variant: "destructive" });
         return;
       }
       toast({ title: "OTP sent", description: "A new code has been sent to your email." });
