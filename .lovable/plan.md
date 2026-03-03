@@ -1,54 +1,39 @@
 
 
-# Stabilization Audit Results
+# Stabilization Plan: Email Redirect URLs + OTP Cleanup
 
-## What's Actually Working
+## Root Cause
 
-After thorough examination of every file, edge function, and database configuration:
+Two locations use `window.location.origin` for email redirect URLs:
+1. **AuthContext.tsx line 43** — signup `emailRedirectTo: window.location.origin`
+2. **Auth.tsx line 137** — password reset `redirectTo: window.location.origin + '/reset-password'`
 
-1. **All code is syntactically correct** — no missing imports, no broken references, no compile errors
-2. **Edge functions are deployed and responding correctly**:
-   - `send-otp` → returns 401 for invalid credentials (correct behavior)
-   - `analyze-resume` → returns 500 for "Resume text too short" on test input (correct validation)
-   - `get-guest-analysis` and `claim-guest-analysis` → deployed and configured
-3. **Auth flow** (Auth.tsx → OtpVerification.tsx) uses direct `fetch()` correctly with proper error parsing
-4. **Signup flow** has confirm password + validation
-5. **Guest flow** (Landing.tsx → analyze-resume → GuestAnalysis.tsx) is properly wired
-6. **Database tables** all exist with correct RLS policies
-7. **Config** (`supabase/config.toml`) has all functions with `verify_jwt = false`
+In preview, `window.location.origin` resolves to the Lovable preview domain, so all email links point there instead of production.
 
-## Root Cause Analysis
+## Fix 1: Centralize base URL in a config file
 
-The blank page seen in browser testing is a **dev server HMR connectivity issue** in the sandbox environment, not a code bug. The console errors are all WebSocket/Vite HMR related — no React rendering errors or JavaScript exceptions.
+Create `src/lib/config.ts` with:
+```ts
+export const APP_BASE_URL = "https://super-hire-ai.lovable.app";
+```
 
-The user's reported issues ("edge function errors") are likely one of:
-- **CORS issues in production** — the CORS headers look correct but may need verification on the published URL
-- **`supabase.functions.invoke()` masking errors** — Dashboard.tsx (lines 73, 115) still uses `supabase.functions.invoke()` for authenticated analysis calls, which can mask error details
-- **Session propagation timing** — after OTP verify, the session set + retry loop may not be sufficient in all network conditions
+This single source of truth replaces all `window.location.origin` usage in email link generation. When a custom domain (e.g. hiresume.in) is configured later, only this one file changes.
 
-## Plan: Targeted Fixes Only
+## Fix 2: Update signup redirect (AuthContext.tsx)
 
-### Fix 1: Dashboard.tsx — Switch authenticated `analyze-resume` calls from `supabase.functions.invoke()` to direct `fetch()`
-Lines 73-76 and 115-117 in Dashboard.tsx still use the old invocation pattern that masks errors. Convert these to direct `fetch()` with proper auth header, consistent with the pattern already used in Auth.tsx and OtpVerification.tsx.
+Replace `emailRedirectTo: window.location.origin` with `emailRedirectTo: APP_BASE_URL` on line 43.
 
-### Fix 2: Improve session propagation reliability in OtpVerification.tsx
-The current retry loop (10 retries × 100ms) may not be enough. Increase to 200ms intervals and add a fallback that proceeds even if `getUser()` doesn't confirm immediately, since `setSession()` already stores the tokens locally.
+## Fix 3: Update password reset redirect (Auth.tsx)
 
-### Fix 3: Add error boundary in App.tsx
-Wrap the app in a React error boundary so that if any component throws during render, users see a recovery UI instead of a blank page.
+Replace `redirectTo: \`${window.location.origin}/reset-password\`` with `redirectTo: \`${APP_BASE_URL}/reset-password\`` on line 137.
 
-### Technical Details
+## Fix 4: Update ResetPassword.tsx recovery detection
 
-**Dashboard.tsx changes** (2 locations):
-- `handlePendingAnalysis`: Replace `supabase.functions.invoke("analyze-resume", ...)` with `fetch()` using auth header from session
-- `handleFile`: Same replacement
+The reset password page checks `window.location.hash` for `type=recovery`. This already works correctly regardless of domain since it reads the current page's hash. No change needed.
 
-**OtpVerification.tsx changes**:
-- Increase retry delay from 100ms to 200ms
-- Add maximum wait of 3 seconds then proceed regardless
+## No other changes
 
-**App.tsx changes**:
-- Add ErrorBoundary component wrapping Routes
-
-No database changes. No edge function changes. No payment system changes.
+- Edge functions, OTP flow, session propagation, payment logic — all untouched
+- The OTP flow was already stabilized in previous iterations (direct fetch, 200ms retry, 3s fallback)
+- No database changes needed
 
