@@ -70,11 +70,21 @@ export default function Dashboard() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("analyze-resume", {
-        body: { resumeText, fileName, contentHash },
-      });
-
-      if (error) throw error;
+      const accessToken = session?.access_token;
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-resume`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ resumeText, fileName, contentHash }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Analysis failed");
       if (data?.id) {
         navigate(`/analysis/${data.id}`);
       }
@@ -112,11 +122,21 @@ export default function Dashboard() {
 
       const previousAnalysisId = analyses.length > 0 ? analyses[0].id : undefined;
 
-      const { data, error } = await supabase.functions.invoke("analyze-resume", {
-        body: { resumeText: text, fileName: file.name, contentHash, previousAnalysisId },
-      });
-
-      if (error) throw error;
+      const accessToken = session?.access_token;
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-resume`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ resumeText: text, fileName: file.name, contentHash, previousAnalysisId }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Analysis failed");
       if (data?.id) {
         navigate(`/analysis/${data.id}`);
       }
