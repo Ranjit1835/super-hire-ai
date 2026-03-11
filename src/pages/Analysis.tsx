@@ -41,7 +41,7 @@ function IssueCard({ issue, color, icon: Icon }: { issue: AnalysisIssue; color: 
 
   return (
     <motion.div
-      className={`rounded-xl border p-5 transition-all hover:shadow-lg ${color}`}
+      className={`rounded-xl border p-4 sm:p-5 transition-all hover:shadow-lg ${color}`}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -99,21 +99,21 @@ function PerformanceHeader({ result }: { result: AnalysisResult }) {
 
   return (
     <motion.div
-      className="rounded-2xl border border-border/50 glass-strong p-8 mb-10"
+      className="rounded-2xl border border-border/50 glass-strong p-6 sm:p-8 mb-8 sm:mb-10"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
       <p className="text-sm text-muted-foreground mb-6">
         The analysis is complete. Here's your professional resume performance report.
       </p>
-      <div className="flex flex-col md:flex-row items-center gap-8">
+      <div className="flex flex-col md:flex-row items-center gap-6 sm:gap-8">
         <div className="flex flex-col items-center">
-          <ScoreMeter score={result.atsScore} label="" size={160} />
+          <ScoreMeter score={result.atsScore} label="" size={140} />
           <p className="text-xs text-muted-foreground mt-1">ATS SCORE</p>
         </div>
-        <div className="flex-1 space-y-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className={`text-5xl font-black tabular-nums ${scoreColor}`}>
+        <div className="flex-1 space-y-4 text-center md:text-left">
+          <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start">
+            <span className={`text-4xl sm:text-5xl font-black tabular-nums ${scoreColor}`}>
               <AnimatedScore value={result.atsScore} />
             </span>
             <span className="text-2xl text-muted-foreground font-light">/ 100</span>
@@ -138,7 +138,7 @@ function SectionHeader({ icon: Icon, title, count, color }: { icon: any; title: 
       <div className={`p-2 rounded-lg ${color}`}>
         <Icon className="h-5 w-5" />
       </div>
-      <h3 className="text-lg font-bold text-foreground">{title}</h3>
+      <h3 className="text-base sm:text-lg font-bold text-foreground">{title}</h3>
       <Badge variant="secondary" className="text-xs">{count}</Badge>
     </div>
   );
@@ -173,7 +173,6 @@ export default function Analysis() {
       });
   }, [id, user]);
 
-  // Show sticky bar after scroll
   useEffect(() => {
     const handleScroll = () => {
       setShowStickyBar(window.scrollY > 400);
@@ -213,7 +212,7 @@ export default function Analysis() {
 
   if (!analysis || !result) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Analysis not found</p>
           <Button onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
@@ -240,40 +239,40 @@ export default function Analysis() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="border-b border-border glass-strong sticky top-0 z-50">
-        <div className="container flex items-center justify-between h-14">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+        <div className="container flex items-center justify-between h-14 px-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="shrink-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div>
-              <p className="font-medium text-sm">{analysis.file_name}</p>
+            <div className="min-w-0 hidden sm:block">
+              <p className="font-medium text-sm truncate">{analysis.file_name}</p>
               <p className="text-xs text-muted-foreground">{new Date(analysis.created_at).toLocaleString()}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="hidden sm:inline-flex">
               <Home className="h-4 w-4 mr-1" /> Home
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")} className="hidden md:inline-flex">
               <Upload className="h-4 w-4 mr-1" /> Analyze New
             </Button>
             <Button disabled={checkingAccess} onClick={handleFixResume} size="sm" className="transition-transform hover:scale-[1.02]">
-              <Zap className="h-4 w-4 mr-1" /> Fix My Resume
+              <Zap className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Fix My Resume</span><span className="sm:hidden">Fix</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container py-8 max-w-5xl">
+      <main className="container py-6 sm:py-8 max-w-5xl px-4">
         <PerformanceHeader result={result} />
 
         {/* Score Grid */}
-        <motion.section className="mb-10" {...fadeUp(0.1)}>
+        <motion.section className="mb-8 sm:mb-10" {...fadeUp(0.1)}>
           <div className="flex items-center gap-3 mb-6">
-            <h2 className="text-xl font-bold">Detailed Scores</h2>
+            <h2 className="text-lg sm:text-xl font-bold">Detailed Scores</h2>
             <Badge className={badgeColor}>{result.marketCompetitivenessLevel}</Badge>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 sm:gap-6">
             <ScoreMeter score={result.recruiterScanScore} label="Recruiter Scan" />
             <ScoreMeter score={result.keywordStrengthScore} label="Keyword Strength" />
             <ScoreMeter score={result.quantificationScore} label="Quantification" />
@@ -336,7 +335,7 @@ export default function Analysis() {
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
               <TrendingUp className="h-5 w-5" />
             </div>
-            <h3 className="text-lg font-bold text-foreground">Improved Version Preview</h3>
+            <h3 className="text-base sm:text-lg font-bold text-foreground">Improved Version Preview</h3>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {result.rewrittenSummary && (
@@ -395,15 +394,13 @@ export default function Analysis() {
               <div className="p-2 rounded-lg bg-primary/10 text-primary">
                 <Eye className="h-5 w-5" />
               </div>
-              <h3 className="text-lg font-bold text-foreground">Your Optimized Resume</h3>
+              <h3 className="text-base sm:text-lg font-bold text-foreground">Your Optimized Resume</h3>
             </div>
             <Card className="glass relative overflow-hidden">
               <CardContent className="py-6">
-                {/* Visible first 3 lines */}
                 <p className="text-sm leading-relaxed mb-2">
                   {result.rewrittenSummary.split(". ").slice(0, 2).join(". ")}.
                 </p>
-                {/* Blurred rest */}
                 <div className="filter blur-[6px] select-none pointer-events-none">
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     {result.rewrittenSummary.split(". ").slice(2).join(". ")}
@@ -412,7 +409,6 @@ export default function Analysis() {
                     <p key={i} className="text-sm leading-relaxed mt-2">• {b}</p>
                   ))}
                 </div>
-                {/* Watermark overlay */}
                 <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-background/90 via-background/40 to-transparent">
                   <div className="text-center pb-6">
                     <div className="flex items-center justify-center gap-2 mb-3">
@@ -466,7 +462,7 @@ export default function Analysis() {
               <div className="p-2 rounded-lg bg-primary/10 text-primary">
                 <GraduationCap className="h-5 w-5" />
               </div>
-              <h3 className="text-lg font-bold text-foreground">Student Growth Recommendations</h3>
+              <h3 className="text-base sm:text-lg font-bold text-foreground">Student Growth Recommendations</h3>
             </div>
             <Card className="glass border-primary/20 bg-primary/5">
               <CardContent className="pt-6">
@@ -507,7 +503,7 @@ export default function Analysis() {
           animate={{ y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
-          <div className="container flex items-center justify-between max-w-5xl">
+          <div className="container flex items-center justify-between max-w-5xl px-4">
             <p className="text-sm font-medium hidden sm:block">Ready to fix your resume?</p>
             <p className="text-sm font-medium sm:hidden">Fix your resume</p>
             <Button size="sm" onClick={handleFixResume} disabled={checkingAccess} className="gap-2 transition-transform hover:scale-[1.02]">
