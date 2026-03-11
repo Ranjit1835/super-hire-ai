@@ -11,6 +11,22 @@ import { motion } from "framer-motion";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
 import { Badge } from "@/components/ui/badge";
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function validateFile(file: File): string | null {
+  if (!file) return "No file selected";
+  if (file.type !== "application/pdf") {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext === "docx" || ext === "doc") return "DOCX files are not supported yet. Please convert to PDF and try again.";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "")) return "Image files are not resumes. Please upload a PDF.";
+    if (["exe", "zip", "rar"].includes(ext || "")) return "This file type is not supported. Please upload a PDF.";
+    return "Please upload a PDF file. Other formats are not supported.";
+  }
+  if (file.size > MAX_FILE_SIZE) return `File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 10MB.`;
+  if (file.size === 0) return "This file is empty. Please upload a valid PDF.";
+  return null;
+}
+
 export default function Dashboard() {
   const { user, signOut, session } = useAuth();
   const navigate = useNavigate();
@@ -43,20 +59,17 @@ export default function Dashboard() {
     if (!pendingRaw || !user) return;
 
     autoAnalyzeTriggered.current = true;
-    // Clear query param
     setSearchParams({}, { replace: true });
 
     const pending = JSON.parse(pendingRaw);
     sessionStorage.removeItem("pendingResume");
 
-    // Trigger analysis with stored data
     handlePendingAnalysis(pending.resumeText, pending.fileName, pending.contentHash);
   }, [searchParams, user]);
 
   const handlePendingAnalysis = async (resumeText: string, fileName: string, contentHash: string) => {
     setUploading(true);
     try {
-      // Check user-specific cache first
       const { data: cached } = await supabase
         .from("resume_analyses")
         .select("id")
@@ -89,24 +102,24 @@ export default function Dashboard() {
         navigate(`/analysis/${data.id}`);
       }
     } catch (err: any) {
-      toast({ title: "Analysis failed", description: err.message || "Something went wrong", variant: "destructive" });
+      toast({ title: "Analysis failed", description: err.message || "Something went wrong. Please try again.", variant: "destructive" });
     } finally {
       setUploading(false);
     }
   };
 
   const handleFile = async (file: File) => {
-    if (!file || file.type !== "application/pdf") {
-      toast({ title: "Invalid file", description: "Please upload a PDF", variant: "destructive" });
+    const validationError = validateFile(file);
+    if (validationError) {
+      toast({ title: "Invalid file", description: validationError, variant: "destructive" });
       return;
     }
     setUploading(true);
     try {
       const text = await extractTextFromPdf(file);
-      if (!text.trim()) throw new Error("Could not extract text from PDF");
+      if (!text.trim()) throw new Error("Could not extract text from this PDF. It may be image-based or corrupted. Try a different PDF.");
       const contentHash = await hashContent(text);
 
-      // Check cache
       const { data: cached } = await supabase
         .from("resume_analyses")
         .select("id")
@@ -141,7 +154,7 @@ export default function Dashboard() {
         navigate(`/analysis/${data.id}`);
       }
     } catch (err: any) {
-      toast({ title: "Analysis failed", description: err.message || "Something went wrong", variant: "destructive" });
+      toast({ title: "Analysis failed", description: err.message || "Something went wrong. Please try again.", variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -208,7 +221,7 @@ export default function Dashboard() {
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="font-bold text-foreground">HireResume</span>
-            {earlyBirdActive && <Badge className="bg-primary/20 text-primary border-primary/30 text-xs ml-2">Early Bird ✦</Badge>}
+            {earlyBirdActive && <Badge className="bg-primary/20 text-primary border-primary/30 text-xs ml-2 hidden sm:inline-flex">Early Bird ✦</Badge>}
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
@@ -220,21 +233,21 @@ export default function Dashboard() {
               await signOut();
               navigate("/auth");
             }}>
-              <LogOut className="h-4 w-4 mr-1" /> Sign Out
+              <LogOut className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container py-8 max-w-5xl">
+      <main className="container py-6 sm:py-8 max-w-5xl px-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between mb-1">
-            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
             <Button size="sm" onClick={() => document.getElementById("file-input")?.click()}>
-              <Upload className="h-4 w-4 mr-1" /> Analyze New Resume
+              <Upload className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Analyze New Resume</span><span className="sm:hidden">Upload</span>
             </Button>
           </div>
-          <p className="text-muted-foreground mb-8">Upload a resume to get your AI-powered analysis</p>
+          <p className="text-muted-foreground mb-6 sm:mb-8 text-sm">Upload a resume to get your AI-powered analysis</p>
         </motion.div>
 
         {/* Upload zone */}
@@ -246,25 +259,28 @@ export default function Dashboard() {
             onDrop={handleDrop}
             onClick={() => document.getElementById("file-input")?.click()}
           >
-            <CardContent className="flex flex-col items-center justify-center py-12">
+            <CardContent className="flex flex-col items-center justify-center py-10 sm:py-12">
               <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <Upload className="h-6 w-6 text-primary" />
               </div>
               <p className="font-medium mb-1">Drop your resume PDF here</p>
-              <p className="text-sm text-muted-foreground">or click to browse</p>
+              <p className="text-sm text-muted-foreground">or click to browse · Max 10MB</p>
               <input
                 id="file-input"
                 type="file"
                 accept=".pdf"
                 className="hidden"
-                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) handleFile(e.target.files[0]);
+                  e.target.value = ""; // Reset so same file can be re-selected
+                }}
               />
             </CardContent>
           </Card>
         </motion.div>
 
         {/* History */}
-        {analyses.length > 0 && (
+        {analyses.length > 0 ? (
           <div>
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Clock className="h-5 w-5 text-muted-foreground" /> Analysis History
@@ -274,16 +290,16 @@ export default function Dashboard() {
                 <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <Card className="glass hover:border-primary/30 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
                     <CardContent className="flex items-center justify-between py-4">
-                      <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => navigate(`/analysis/${a.id}`)}>
+                      <div className="flex items-center gap-3 sm:gap-4 cursor-pointer flex-1 min-w-0" onClick={() => navigate(`/analysis/${a.id}`)}>
                         <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
                           <FileText className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium truncate">{a.file_name}</p>
+                          <p className="font-medium truncate text-sm sm:text-base">{a.file_name}</p>
                           <p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 sm:gap-4">
                         {a.ats_score !== null && (
                           <div className="text-right hidden sm:block">
                             <div className="flex items-center gap-1">
@@ -294,6 +310,9 @@ export default function Dashboard() {
                               {a.market_competitiveness}
                             </span>
                           </div>
+                        )}
+                        {a.ats_score !== null && (
+                          <span className="text-sm font-semibold sm:hidden">{a.ats_score}</span>
                         )}
                         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(a.id); }}>
                           <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -313,6 +332,18 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+        ) : (
+          /* Empty state */
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="text-center py-12">
+            <div className="h-16 w-16 rounded-2xl bg-secondary/50 flex items-center justify-center mx-auto mb-4">
+              <FileText className="h-8 w-8 text-muted-foreground/60" />
+            </div>
+            <h3 className="font-semibold text-lg mb-1">No analyses yet</h3>
+            <p className="text-sm text-muted-foreground mb-6">Upload your resume to get started with your first AI analysis</p>
+            <Button onClick={() => document.getElementById("file-input")?.click()}>
+              <Upload className="h-4 w-4 mr-2" /> Upload Your First Resume
+            </Button>
+          </motion.div>
         )}
 
         {/* Coming Soon Feature Cards */}

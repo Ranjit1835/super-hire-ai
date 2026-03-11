@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 const features = [
   { icon: Shield, title: "ATS Simulation", desc: "Simulates Taleo, Greenhouse, Lever & Workday parsing. Know exactly how your resume is read by machines." },
   { icon: Brain, title: "Deep Impact Analysis", desc: "5-layer analysis: structure, keywords, quantification, recruiter psychology, and ATS compatibility." },
@@ -36,18 +38,32 @@ export default function Landing() {
   }, []);
 
   const handleGuestUpload = async (file: File) => {
-    if (!file || file.type !== "application/pdf") {
-      toast({ title: "Invalid file", description: "Please upload a PDF", variant: "destructive" });
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      if (ext === "docx" || ext === "doc") {
+        toast({ title: "Unsupported format", description: "DOCX files are not supported yet. Please convert to PDF.", variant: "destructive" });
+      } else {
+        toast({ title: "Invalid file", description: "Please upload a PDF resume.", variant: "destructive" });
+      }
       return;
     }
+    if (file.size > MAX_FILE_SIZE) {
+      toast({ title: "File too large", description: `Maximum file size is 10MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.`, variant: "destructive" });
+      return;
+    }
+    if (file.size === 0) {
+      toast({ title: "Empty file", description: "This file appears to be empty. Please upload a valid PDF.", variant: "destructive" });
+      return;
+    }
+
     setProcessing(true);
     try {
       const text = await extractTextFromPdf(file);
-      if (!text.trim()) throw new Error("Could not extract text from PDF");
+      if (!text.trim()) throw new Error("Could not extract text from this PDF. It may be image-based or corrupted.");
       const contentHash = await hashContent(text);
 
       if (user) {
-        // Already logged in — store in session and go to dashboard
         sessionStorage.setItem("pendingResume", JSON.stringify({
           resumeText: text,
           fileName: file.name,
@@ -57,7 +73,7 @@ export default function Landing() {
         return;
       }
 
-      // Guest flow — call analyze-resume without auth
+      // Guest flow
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-resume`,
         {
@@ -70,16 +86,15 @@ export default function Landing() {
         }
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Analysis failed");
+      if (!res.ok) throw new Error(data.error || "Analysis failed. Please try again.");
 
       if (data.guestToken) {
         navigate(`/analysis/guest/${data.guestToken}`);
       } else if (data.id) {
-        // Fallback: shouldn't happen for guest but handle gracefully
         navigate(`/analysis/${data.id}`);
       }
     } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message || "Could not process PDF", variant: "destructive" });
+      toast({ title: "Upload failed", description: err.message || "Could not process PDF. Please try again.", variant: "destructive" });
     } finally {
       setProcessing(false);
     }
@@ -114,7 +129,7 @@ export default function Landing() {
     <div className="min-h-screen bg-background">
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 glass-strong">
-        <div className="container flex items-center justify-between h-16">
+        <div className="container flex items-center justify-between h-16 px-4">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
@@ -129,18 +144,18 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <section className="pt-36 pb-24 px-4">
+      <section className="pt-28 sm:pt-36 pb-16 sm:pb-24 px-4">
         <div className="container max-w-4xl text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-secondary/30 text-xs font-medium text-muted-foreground mb-6">
               <CheckCircle2 className="h-3 w-3 text-primary" />
               Recruiter-Grade Intelligence Engine
             </div>
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-[1.1]">
+            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-[1.1]">
               Recruiter-Grade<br />
               <span className="gradient-text">Resume Intelligence</span>
             </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+            <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed">
               Simulate ATS screening, recruiter 6-second scan, and real hiring evaluation before you apply. Know exactly where you stand.
             </p>
 
@@ -158,18 +173,21 @@ export default function Landing() {
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <CardContent className="flex flex-col items-center justify-center py-10">
+                <CardContent className="flex flex-col items-center justify-center py-8 sm:py-10">
                   <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <Upload className="h-6 w-6 text-primary" />
                   </div>
                   <p className="font-medium mb-1">Drop your resume PDF here</p>
-                  <p className="text-sm text-muted-foreground">or click to browse — no account needed</p>
+                  <p className="text-sm text-muted-foreground">or click to browse — no account needed · Max 10MB</p>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".pdf"
                     className="hidden"
-                    onChange={(e) => e.target.files?.[0] && handleGuestUpload(e.target.files[0])}
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleGuestUpload(e.target.files[0]);
+                      e.target.value = "";
+                    }}
                   />
                 </CardContent>
               </Card>
@@ -186,11 +204,11 @@ export default function Landing() {
 
       {/* Stats */}
       <section className="py-14 border-y border-border bg-secondary/20">
-        <div className="container">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="container px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {stats.map((s, i) => (
               <motion.div key={i} className="text-center" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.1 }}>
-                <div className="text-3xl font-bold gradient-text">{s.value}</div>
+                <div className="text-2xl sm:text-3xl font-bold gradient-text">{s.value}</div>
                 <div className="text-sm text-muted-foreground mt-1">{s.label}</div>
               </motion.div>
             ))}
@@ -199,17 +217,17 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 px-4">
+      <section id="features" className="py-16 sm:py-24 px-4">
         <div className="container max-w-5xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Not a Formatting Checker.</h2>
-            <p className="text-muted-foreground text-lg">A recruiter-grade evaluation engine that tells you what recruiters actually think.</p>
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-4xl font-bold mb-4">Not a Formatting Checker.</h2>
+            <p className="text-muted-foreground text-base sm:text-lg">A recruiter-grade evaluation engine that tells you what recruiters actually think.</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
             {features.map((f, i) => (
               <motion.div
                 key={i}
-                className="glass rounded-xl p-6 hover:border-primary/30 transition-all hover:shadow-lg hover:-translate-y-0.5 duration-200"
+                className="glass rounded-xl p-5 sm:p-6 hover:border-primary/30 transition-all hover:shadow-lg hover:-translate-y-0.5 duration-200"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
@@ -227,12 +245,12 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 px-4">
+      <section className="py-16 sm:py-24 px-4">
         <div className="container max-w-3xl text-center">
-          <div className="glass rounded-2xl p-12 gradient-border">
-            <h2 className="text-3xl font-bold mb-4">Ready to Dominate?</h2>
+          <div className="glass rounded-2xl p-8 sm:p-12 gradient-border">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to Dominate?</h2>
             <p className="text-muted-foreground mb-8">Upload your resume and get a detailed, recruiter-grade analysis in under 30 seconds.</p>
-            <Button size="lg" onClick={() => fileInputRef.current?.click()} className="text-base px-10 h-12">
+            <Button size="lg" onClick={() => fileInputRef.current?.click()} className="text-base px-8 sm:px-10 h-12">
               Analyze My Resume <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>

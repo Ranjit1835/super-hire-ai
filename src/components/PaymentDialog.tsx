@@ -22,6 +22,9 @@ interface PaymentDialogProps {
   onSuccess: () => void;
 }
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
 export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, userEmail, onSuccess }: PaymentDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
@@ -65,10 +68,25 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
   const handlePayment = async (paymentType: "ONE_TIME_FIX" | "EARLY_BIRD_ACCESS") => {
     setLoading(paymentType);
     try {
-      const { data, error } = await supabase.functions.invoke("create-payment-order", {
-        body: { paymentType, resumeAnalysisId: paymentType === "ONE_TIME_FIX" ? resumeAnalysisId : undefined },
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) throw new Error("Please sign in to continue");
+
+      // Create payment order via direct fetch
+      const createRes = await fetch(`${SUPABASE_URL}/functions/v1/create-payment-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: SUPABASE_KEY,
+        },
+        body: JSON.stringify({
+          paymentType,
+          resumeAnalysisId: paymentType === "ONE_TIME_FIX" ? resumeAnalysisId : undefined,
+        }),
       });
-      if (error) throw error;
+      const data = await createRes.json();
+      if (!createRes.ok) throw new Error(data?.error || "Failed to create payment order");
+
       if (data.alreadyUnlocked) {
         toast({ title: "Already unlocked!" });
         onSuccess();
@@ -81,7 +99,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
           const s = document.createElement("script");
           s.src = "https://checkout.razorpay.com/v1/checkout.js";
           s.onload = () => resolve();
-          s.onerror = () => reject(new Error("Failed to load Razorpay"));
+          s.onerror = () => reject(new Error("Failed to load payment gateway. Please check your internet connection."));
           document.head.appendChild(s);
         });
       }
@@ -96,14 +114,23 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
         prefill: { email: userEmail || "" },
         handler: async (response: any) => {
           try {
-            const { data: verifyData, error: verifyErr } = await supabase.functions.invoke("verify-payment", {
-              body: {
+            // Verify payment via direct fetch
+            const verifyRes = await fetch(`${SUPABASE_URL}/functions/v1/verify-payment`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+                apikey: SUPABASE_KEY,
+              },
+              body: JSON.stringify({
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-              },
+              }),
             });
-            if (verifyErr) throw verifyErr;
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) throw new Error(verifyData?.error || "Payment verification failed");
+
             const displayAmount = data.amount / 100;
             setReceipt({
               orderId: response.razorpay_order_id,
@@ -112,7 +139,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
             });
             toast({ title: "Payment successful!" });
           } catch (err: any) {
-            toast({ title: "Verification failed", description: err.message, variant: "destructive" });
+            toast({ title: "Verification failed", description: err.message || "Please contact support if amount was deducted.", variant: "destructive" });
           }
           setLoading(null);
         },
@@ -129,7 +156,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
       });
       rzp.open();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Payment error", description: err.message || "Something went wrong. Please try again.", variant: "destructive" });
       setLoading(null);
     }
   };
