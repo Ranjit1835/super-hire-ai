@@ -1,1 +1,1 @@
-export const APP_BASE_URL = "https://super-hire-ai.lovable.app";
+export const APP_BASE_URL = "https://hiresume.in";
