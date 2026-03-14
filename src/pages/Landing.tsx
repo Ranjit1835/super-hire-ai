@@ -146,7 +146,7 @@ export default function Landing() {
       {/* Hero */}
       <section className="pt-28 sm:pt-36 pb-16 sm:pb-24 px-4">
         <div className="container max-w-4xl text-center">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+          <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-secondary/30 text-xs font-medium text-muted-foreground mb-6">
               <CheckCircle2 className="h-3 w-3 text-primary" />
               Recruiter-Grade Intelligence Engine
@@ -198,7 +198,7 @@ export default function Landing() {
                 See How It Works
               </Button>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
