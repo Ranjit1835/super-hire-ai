@@ -198,7 +198,7 @@ export default function Landing() {
                 See How It Works
               </Button>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
