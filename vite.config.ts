@@ -12,7 +12,19 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  build: { target: "es2022" },
+  build: {
+    target: "es2022",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-tooltip', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-accordion'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
   optimizeDeps: { esbuildOptions: { target: "es2022" } },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
