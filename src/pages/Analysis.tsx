@@ -14,6 +14,7 @@ import {
   GraduationCap, Lock, Eye,
 } from "lucide-react";
 import type { AnalysisResult, AnalysisIssue } from "@/lib/analysis-types";
+import { ResumeRoast } from "@/components/analysis/ResumeRoast";
 
 function AnimatedScore({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
