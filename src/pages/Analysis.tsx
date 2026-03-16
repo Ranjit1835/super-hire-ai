@@ -14,6 +14,7 @@ import {
   GraduationCap, Lock, Eye,
 } from "lucide-react";
 import type { AnalysisResult, AnalysisIssue } from "@/lib/analysis-types";
+import { ResumeRoast } from "@/components/analysis/ResumeRoast";
 
 function AnimatedScore({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
@@ -478,6 +479,9 @@ export default function Analysis() {
             </Card>
           </motion.section>
         )}
+
+        {/* AI Resume Roast */}
+        <ResumeRoast result={result} fileName={analysis.file_name} />
 
         <motion.div className="text-center pt-4 pb-8" {...fadeUp(0.5)}>
           <Button size="lg" disabled={checkingAccess} onClick={handleFixResume} className="px-8 transition-transform hover:scale-[1.02]">

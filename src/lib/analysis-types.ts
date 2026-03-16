@@ -27,4 +27,6 @@ export interface AnalysisResult {
   finalVerdict: string;
   resumeType?: "STUDENT" | "PROFESSIONAL";
   studentGrowthRecommendations?: string[];
+  resumeRoast?: string;
+  roastFixTips?: string[];
 }
