@@ -480,6 +480,9 @@ export default function Analysis() {
           </motion.section>
         )}
 
+        {/* AI Resume Roast */}
+        <ResumeRoast result={result} fileName={analysis.file_name} />
+
         <motion.div className="text-center pt-4 pb-8" {...fadeUp(0.5)}>
           <Button size="lg" disabled={checkingAccess} onClick={handleFixResume} className="px-8 transition-transform hover:scale-[1.02]">
             <Zap className="h-4 w-4 mr-2" /> Fix My Resume Now
