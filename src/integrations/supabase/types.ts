@@ -74,6 +74,45 @@ export type Database = {
         }
         Relationships: []
       }
+      interview_sessions: {
+        Row: {
+          conversation_json: Json
+          created_at: string
+          experience_level: string
+          id: string
+          is_paid: boolean
+          role: string
+          scores_json: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_json?: Json
+          created_at?: string
+          experience_level: string
+          id?: string
+          is_paid?: boolean
+          role: string
+          scores_json?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_json?: Json
+          created_at?: string
+          experience_level?: string
+          id?: string
+          is_paid?: boolean
+          role?: string
+          scores_json?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           attempts: number
@@ -171,6 +210,8 @@ export type Database = {
           first_time_early_bird_used: boolean | null
           first_time_fix_used: boolean | null
           id: string
+          last_interview_reset_date: string | null
+          monthly_interview_count: number | null
           total_payments: number | null
           updated_at: string
           user_id: string
@@ -185,6 +226,8 @@ export type Database = {
           first_time_early_bird_used?: boolean | null
           first_time_fix_used?: boolean | null
           id?: string
+          last_interview_reset_date?: string | null
+          monthly_interview_count?: number | null
           total_payments?: number | null
           updated_at?: string
           user_id: string
@@ -199,6 +242,8 @@ export type Database = {
           first_time_early_bird_used?: boolean | null
           first_time_fix_used?: boolean | null
           id?: string
+          last_interview_reset_date?: string | null
+          monthly_interview_count?: number | null
           total_payments?: number | null
           updated_at?: string
           user_id?: string
