@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const { paymentType, resumeAnalysisId, resumeBuilderId } = await req.json();
 
-    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER"].includes(paymentType)) {
+    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER", "MOCK_INTERVIEW"].includes(paymentType)) {
       throw new Error("Invalid paymentType");
     }
 
