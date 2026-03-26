@@ -63,6 +63,19 @@ serve(async (req) => {
 
     if (paymentType === "RESUME_BUILDER") {
       if (!resumeBuilderId) throw new Error("resumeBuilderId required for RESUME_BUILDER");
+      // Check early bird access first — resume builder is free for early bird users
+      const { data: ebProfile } = await admin
+        .from("profiles")
+        .select("early_bird_active, early_bird_expiry_date")
+        .eq("user_id", user.id)
+        .single();
+      if (ebProfile?.early_bird_active && ebProfile.early_bird_expiry_date && new Date(ebProfile.early_bird_expiry_date) > new Date()) {
+        // Auto-unlock for early bird
+        await admin.from("resume_builders").update({ is_paid: true, paid_at: new Date().toISOString() }).eq("id", resumeBuilderId);
+        return new Response(JSON.stringify({ alreadyUnlocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const { data: rb } = await admin
         .from("resume_builders")
         .select("id, user_id, is_paid")
