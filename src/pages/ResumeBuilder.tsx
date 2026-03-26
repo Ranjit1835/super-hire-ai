@@ -31,9 +31,26 @@ export default function ResumeBuilder() {
   const [isPaid, setIsPaid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Check early bird access on mount
   useEffect(() => {
     document.title = "Resume Builder – HireResume";
-  }, []);
+    if (!user) return;
+    const checkEarlyBird = async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("early_bird_active, early_bird_expiry_date")
+        .eq("user_id", user.id)
+        .single();
+      if (
+        profile?.early_bird_active &&
+        profile.early_bird_expiry_date &&
+        new Date(profile.early_bird_expiry_date) > new Date()
+      ) {
+        setIsPaid(true);
+      }
+    };
+    checkEarlyBird();
+  }, [user]);
 
   const handleWizardSubmit = async (formContent: ResumeContent) => {
     setSubmitting(true);
