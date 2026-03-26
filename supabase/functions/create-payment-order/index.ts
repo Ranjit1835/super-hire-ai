@@ -61,8 +61,23 @@ serve(async (req) => {
       }
     }
 
+    if (paymentType === "RESUME_BUILDER") {
+      if (!resumeBuilderId) throw new Error("resumeBuilderId required for RESUME_BUILDER");
+      const { data: rb } = await admin
+        .from("resume_builders")
+        .select("id, user_id, is_paid")
+        .eq("id", resumeBuilderId)
+        .single();
+      if (!rb || rb.user_id !== user.id) throw new Error("Resume build not found");
+      if (rb.is_paid) {
+        return new Response(JSON.stringify({ alreadyUnlocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // --- Student discount logic ---
-    let baseAmount = paymentType === "ONE_TIME_FIX" ? 29900 : 149900;
+    let baseAmount = paymentType === "ONE_TIME_FIX" ? 29900 : paymentType === "EARLY_BIRD_ACCESS" ? 149900 : 39900;
     let amount = baseAmount;
     let discountApplied = false;
     let isStudent = false;

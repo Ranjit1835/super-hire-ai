@@ -349,15 +349,15 @@ export default function Dashboard() {
         {/* Coming Soon Feature Cards */}
         <div className="mt-12 grid md:grid-cols-2 gap-6">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <Card className="glass relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+            <Card className="glass relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/build-resume")}>
               <CardContent className="flex flex-col items-center text-center py-10 px-6">
-                <Badge variant="secondary" className="absolute top-4 right-4 text-xs">Coming Soon</Badge>
+                <Badge className="absolute top-4 right-4 text-xs bg-primary text-primary-foreground">New</Badge>
                 <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
                   <FileEdit className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="text-lg font-bold mb-2">Create Resume From Scratch With HireResume</h3>
                 <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Build a recruiter-ready resume step-by-step using AI guidance.</p>
-                <Button disabled className="pointer-events-none opacity-60">
+                <Button>
                   Create Resume From Scratch
                 </Button>
               </CardContent>
