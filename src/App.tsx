@@ -17,6 +17,7 @@ const FixResume = lazy(() => import("./pages/FixResume"));
 const GuestAnalysis = lazy(() => import("./pages/GuestAnalysis"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ResumeBuilder = lazy(() => import("./pages/ResumeBuilder"));
+const MockInterview = lazy(() => import("./pages/MockInterview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
