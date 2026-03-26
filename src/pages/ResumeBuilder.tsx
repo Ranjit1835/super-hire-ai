@@ -54,34 +54,37 @@ export default function ResumeBuilder() {
       if (saveErr) throw saveErr;
       setResumeId(saved.id);
 
-      // Call AI enhancement
-      const accessToken = session?.access_token;
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/enhance-resume`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: SUPABASE_KEY,
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({ content: formContent }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.enhanced) {
-          setEnhancedContent(data.enhanced);
-          // Save enhanced content
-          await supabase
-            .from("resume_builders")
-            .update({ enhanced_json: data.enhanced as any })
-            .eq("id", saved.id);
-        }
-      } else {
-        // If AI fails, continue with original content
-        toast({ title: "AI enhancement unavailable", description: "Using your original content. You can still preview and download.", variant: "default" });
-      }
-
+      // Move to preview immediately after DB save
       setPhase("preview");
+
+      // Call AI enhancement in background (non-blocking)
+      try {
+        const accessToken = session?.access_token;
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/enhance-resume`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_KEY,
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ content: formContent }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.enhanced) {
+            setEnhancedContent(data.enhanced);
+            await supabase
+              .from("resume_builders")
+              .update({ enhanced_json: data.enhanced as any })
+              .eq("id", saved.id);
+          }
+        } else {
+          toast({ title: "AI enhancement unavailable", description: "Using your original content. You can still preview and download.", variant: "default" });
+        }
+      } catch {
+        toast({ title: "AI enhancement unavailable", description: "Using your original content.", variant: "default" });
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Failed to save resume", variant: "destructive" });
     } finally {
