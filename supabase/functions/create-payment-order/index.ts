@@ -21,9 +21,9 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Unauthorized");
 
-    const { paymentType, resumeAnalysisId } = await req.json();
+    const { paymentType, resumeAnalysisId, resumeBuilderId } = await req.json();
 
-    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS"].includes(paymentType)) {
+    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER"].includes(paymentType)) {
       throw new Error("Invalid paymentType");
     }
 
