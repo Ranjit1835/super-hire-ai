@@ -16,6 +16,7 @@ const Analysis = lazy(() => import("./pages/Analysis"));
 const FixResume = lazy(() => import("./pages/FixResume"));
 const GuestAnalysis = lazy(() => import("./pages/GuestAnalysis"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const ResumeBuilder = lazy(() => import("./pages/ResumeBuilder"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/analysis/:id" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
                 <Route path="/fix/:id" element={<ProtectedRoute><FixResume /></ProtectedRoute>} />
+                <Route path="/build-resume" element={<ProtectedRoute><ResumeBuilder /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

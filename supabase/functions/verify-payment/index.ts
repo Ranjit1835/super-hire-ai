@@ -87,6 +87,24 @@ serve(async (req) => {
       }).eq("id", payment.resume_analysis_id);
     }
 
+    if (payment.payment_type === "RESUME_BUILDER") {
+      // Find the resume builder entry linked via the payment's metadata
+      // We stored resumeBuilderId context in the order; look up by user's latest unpaid build
+      const { data: builds } = await admin
+        .from("resume_builders")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_paid", false)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (builds && builds.length > 0) {
+        await admin.from("resume_builders").update({
+          is_paid: true,
+          paid_at: new Date().toISOString(),
+        }).eq("id", builds[0].id);
+      }
+    }
+
     if (payment.payment_type === "EARLY_BIRD_ACCESS") {
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + 365);
