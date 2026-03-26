@@ -47,6 +47,7 @@ const App = () => (
                 <Route path="/analysis/:id" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
                 <Route path="/fix/:id" element={<ProtectedRoute><FixResume /></ProtectedRoute>} />
                 <Route path="/build-resume" element={<ProtectedRoute><ResumeBuilder /></ProtectedRoute>} />
+                <Route path="/mock-interview" element={<ProtectedRoute><MockInterview /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
