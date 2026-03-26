@@ -1,0 +1,2 @@
+ALTER TABLE public.payments DROP CONSTRAINT payments_payment_type_check;
+ALTER TABLE public.payments ADD CONSTRAINT payments_payment_type_check CHECK (payment_type = ANY (ARRAY['ONE_TIME_FIX'::text, 'EARLY_BIRD_ACCESS'::text, 'RESUME_BUILDER'::text]));
