@@ -68,9 +68,6 @@ serve(async (req) => {
       if (!role || !experienceLevel) throw new Error("role and experienceLevel required");
 
       // Increment monthly count
-      await admin.rpc("increment_interview_count" as any, {} as any).catch(() => {
-        // fallback: manual increment
-      });
       const { data: profile } = await admin
         .from("profiles")
         .select("monthly_interview_count")
