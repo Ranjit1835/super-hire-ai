@@ -83,6 +83,16 @@ function TemplateRenderer({ content, templateId }: { content: ResumeContent; tem
       return <TechBold content={content} />;
     case "compact-onepage":
       return <CompactOnePage content={content} />;
+    case "executive-clean":
+      return <ExecutiveClean content={content} />;
+    case "creative-minimal":
+      return <CreativeMinimal content={content} />;
+    case "two-column-pro":
+      return <TwoColumnPro content={content} />;
+    case "data-tech-focused":
+      return <DataTechFocused content={content} />;
+    case "ultra-compact":
+      return <UltraCompact content={content} />;
     default:
       return <MinimalATS content={content} />;
   }
