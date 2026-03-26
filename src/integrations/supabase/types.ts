@@ -265,6 +265,42 @@ export type Database = {
         }
         Relationships: []
       }
+      resume_builders: {
+        Row: {
+          content_json: Json
+          created_at: string
+          enhanced_json: Json | null
+          id: string
+          is_paid: boolean
+          paid_at: string | null
+          template_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_json?: Json
+          created_at?: string
+          enhanced_json?: Json | null
+          id?: string
+          is_paid?: boolean
+          paid_at?: string | null
+          template_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_json?: Json
+          created_at?: string
+          enhanced_json?: Json | null
+          id?: string
+          is_paid?: boolean
+          paid_at?: string | null
+          template_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       resume_score_cache: {
         Row: {
           analysis_result: Json
