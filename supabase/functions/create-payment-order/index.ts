@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const { paymentType, resumeAnalysisId, resumeBuilderId } = await req.json();
 
-    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER"].includes(paymentType)) {
+    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER", "MOCK_INTERVIEW"].includes(paymentType)) {
       throw new Error("Invalid paymentType");
     }
 
@@ -90,7 +90,7 @@ serve(async (req) => {
     }
 
     // --- Student discount logic ---
-    let baseAmount = paymentType === "ONE_TIME_FIX" ? 29900 : paymentType === "EARLY_BIRD_ACCESS" ? 149900 : 39900;
+    let baseAmount = paymentType === "ONE_TIME_FIX" ? 29900 : paymentType === "EARLY_BIRD_ACCESS" ? 149900 : paymentType === "MOCK_INTERVIEW" ? 59900 : 39900;
     let amount = baseAmount;
     let discountApplied = false;
     let isStudent = false;

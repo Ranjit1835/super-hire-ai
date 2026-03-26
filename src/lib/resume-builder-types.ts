@@ -59,6 +59,11 @@ export const TEMPLATE_IDS = [
   "clean-fresher",
   "tech-bold",
   "compact-onepage",
+  "executive-clean",
+  "creative-minimal",
+  "two-column-pro",
+  "data-tech-focused",
+  "ultra-compact",
 ] as const;
 
 export type TemplateId = typeof TEMPLATE_IDS[number];
@@ -69,6 +74,11 @@ export const TEMPLATE_NAMES: Record<TemplateId, string> = {
   "clean-fresher": "Clean Fresher",
   "tech-bold": "Tech Bold",
   "compact-onepage": "Compact One-Page",
+  "executive-clean": "Executive Clean",
+  "creative-minimal": "Creative Minimal",
+  "two-column-pro": "Two-Column Pro",
+  "data-tech-focused": "Data/Tech Focused",
+  "ultra-compact": "Ultra Compact",
 };
 
 export const emptyResumeContent: ResumeContent = {
