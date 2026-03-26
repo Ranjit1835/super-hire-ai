@@ -90,7 +90,7 @@ serve(async (req) => {
     }
 
     // --- Student discount logic ---
-    let baseAmount = paymentType === "ONE_TIME_FIX" ? 29900 : paymentType === "EARLY_BIRD_ACCESS" ? 149900 : 39900;
+    let baseAmount = paymentType === "ONE_TIME_FIX" ? 29900 : paymentType === "EARLY_BIRD_ACCESS" ? 149900 : paymentType === "MOCK_INTERVIEW" ? 59900 : 39900;
     let amount = baseAmount;
     let discountApplied = false;
     let isStudent = false;
