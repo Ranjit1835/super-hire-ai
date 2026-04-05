@@ -11,7 +11,9 @@ export default function AuthCallback() {
     // Supabase automatically detects and processes the OAuth code/token in the URL.
     // We just listen for the resulting auth state change.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
+      if (event === "PASSWORD_RECOVERY") {
+        navigate("/reset-password", { replace: true });
+      } else if (event === "SIGNED_IN" && session) {
         navigate("/dashboard", { replace: true });
       }
     });

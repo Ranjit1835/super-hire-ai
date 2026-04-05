@@ -34,18 +34,24 @@ export default function ResetPassword() {
   useEffect(() => {
     document.title = "Reset Password – HireResume";
 
-    // Listen for PASSWORD_RECOVERY event
+    // Listen for PASSWORD_RECOVERY event (fired after PKCE code exchange in AuthCallback)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecovery(true);
       }
     });
 
-    // Check if we're already in a recovery session
+    // Check hash-based recovery (legacy flow)
     const hash = window.location.hash;
     if (hash.includes("type=recovery")) {
       setIsRecovery(true);
     }
+
+    // If we arrived here directly after AuthCallback exchanged the code,
+    // session already exists — treat as recovery
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setIsRecovery(true);
+    });
 
     return () => subscription.unsubscribe();
   }, []);
