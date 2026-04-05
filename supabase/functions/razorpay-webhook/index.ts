@@ -68,7 +68,46 @@ serve(async (req) => {
         await admin.from("profiles").update({
           early_bird_active: true,
           early_bird_expiry_date: expiryDate.toISOString(),
+          plan_type: "UNLIMITED",
+          plan_expiry_date: expiryDate.toISOString(),
         }).eq("user_id", payment.user_id);
+      }
+
+      if (payment.payment_type === "RESUME_BUILDER" && payment.resume_builder_id) {
+        await admin.from("resume_builders").update({
+          is_paid: true,
+          paid_at: new Date().toISOString(),
+        }).eq("id", payment.resume_builder_id);
+      }
+
+      // New plan type unlocks
+      if (payment.payment_type === "RESUME_FIX" && payment.resume_analysis_id) {
+        await admin.from("resume_analyses").update({
+          is_paid_fix_unlocked: true,
+          paid_fix_unlocked_at: new Date().toISOString(),
+        }).eq("id", payment.resume_analysis_id);
+      }
+
+      if (payment.payment_type === "RESUME_BUILD" && payment.resume_builder_id) {
+        await admin.from("resume_builders").update({
+          is_paid: true,
+          paid_at: new Date().toISOString(),
+        }).eq("id", payment.resume_builder_id);
+      }
+
+      if (payment.payment_type === "UNLIMITED_PLAN") {
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 365);
+        await admin.from("profiles").update({
+          plan_type: "UNLIMITED",
+          plan_expiry_date: expiryDate.toISOString(),
+          early_bird_active: true,
+          early_bird_expiry_date: expiryDate.toISOString(),
+        }).eq("user_id", payment.user_id);
+      }
+
+      if (payment.payment_type === "COMBO_PLAN") {
+        await admin.from("profiles").update({ plan_type: "COMBO" }).eq("user_id", payment.user_id);
       }
 
       const { data: profile } = await admin
@@ -80,10 +119,10 @@ serve(async (req) => {
       const profileUpdate: Record<string, unknown> = {
         total_payments: (profile?.total_payments || 0) + 1,
       };
-      if (payment.payment_type === "ONE_TIME_FIX" && !profile?.first_time_fix_used) {
+      if ((payment.payment_type === "ONE_TIME_FIX" || payment.payment_type === "RESUME_FIX") && !profile?.first_time_fix_used) {
         profileUpdate.first_time_fix_used = true;
       }
-      if (payment.payment_type === "EARLY_BIRD_ACCESS" && !profile?.first_time_early_bird_used) {
+      if ((payment.payment_type === "EARLY_BIRD_ACCESS" || payment.payment_type === "UNLIMITED_PLAN") && !profile?.first_time_early_bird_used) {
         profileUpdate.first_time_early_bird_used = true;
       }
       await admin.from("profiles").update(profileUpdate).eq("user_id", payment.user_id);

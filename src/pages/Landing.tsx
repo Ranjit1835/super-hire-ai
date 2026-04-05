@@ -13,6 +13,10 @@ import { PricingSection } from "@/components/landing/PricingSection";
 import { CreatorSection } from "@/components/landing/CreatorSection";
 import { WhyRejectedSection } from "@/components/landing/WhyRejectedSection";
 import { BottomCtaSection } from "@/components/landing/BottomCtaSection";
+import { StatsSection } from "@/components/landing/StatsSection";
+import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
+import { VoiceInterviewSection } from "@/components/landing/VoiceInterviewSection";
+import { FAQSection } from "@/components/landing/FAQSection";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -25,7 +29,7 @@ export default function Landing() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    document.title = "HiResume – AI Resume Analyzer & ATS Score Checker";
+    document.title = "HireResume – Free ATS Resume Checker & AI Resume Optimizer | hiresume.in";
   }, []);
 
   const handleGuestUpload = async (file: File) => {
@@ -110,7 +114,7 @@ export default function Landing() {
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <Zap className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-bold text-lg text-foreground">HiResume</span>
+              <span className="font-bold text-lg text-foreground">HireResume</span>
             </div>
           </div>
         </nav>
@@ -128,7 +132,7 @@ export default function Landing() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg text-foreground">HiResume</span>
+            <span className="font-bold text-lg text-foreground">HireResume</span>
           </div>
           <Button onClick={() => navigate(user ? "/dashboard" : "/auth")} size="sm">
             {user ? "Dashboard" : "Get Started"}
@@ -145,13 +149,21 @@ export default function Landing() {
         fileInputRef={fileInputRef}
       />
 
+      <StatsSection />
+
       <HowItWorksSection />
 
       <SampleResultSection onCtaClick={() => fileInputRef.current?.click()} />
 
       <WhyRejectedSection />
 
+      <VoiceInterviewSection />
+
+      <TestimonialsSection />
+
       <PricingSection />
+
+      <FAQSection />
 
       <CreatorSection />
 
@@ -159,8 +171,13 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="py-8 border-t border-border">
-        <div className="container text-center text-sm text-muted-foreground">
-          © 2026 HiResume. All rights reserved.
+        <div className="container text-center text-sm text-muted-foreground space-y-3">
+          <div className="flex flex-wrap justify-center gap-4">
+            <button onClick={() => navigate("/leaderboard")} className="hover:text-foreground transition-colors">Resume Leaderboard</button>
+            <button onClick={() => navigate("/college-placement")} className="hover:text-foreground transition-colors">For Colleges</button>
+            <button onClick={() => navigate("/reels-campaign")} className="hover:text-foreground transition-colors">#HireResume Reels</button>
+          </div>
+          <div>© 2026 HireResume. All rights reserved.</div>
         </div>
       </footer>
     </div>

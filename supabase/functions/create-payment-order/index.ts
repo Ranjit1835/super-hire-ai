@@ -23,7 +23,8 @@ serve(async (req) => {
 
     const { paymentType, resumeAnalysisId, resumeBuilderId } = await req.json();
 
-    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER", "MOCK_INTERVIEW"].includes(paymentType)) {
+    if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER", "MOCK_INTERVIEW",
+          "RESUME_FIX", "RESUME_BUILD", "AI_INTERVIEW", "COMBO_PLAN", "UNLIMITED_PLAN"].includes(paymentType)) {
       throw new Error("Invalid paymentType");
     }
 
@@ -89,8 +90,49 @@ serve(async (req) => {
       }
     }
 
+    // Idempotency checks for new plan types
+    if (paymentType === "RESUME_FIX") {
+      if (!resumeAnalysisId) throw new Error("resumeAnalysisId required for RESUME_FIX");
+      const { data: resume } = await admin.from("resume_analyses").select("id, user_id, is_paid_fix_unlocked").eq("id", resumeAnalysisId).single();
+      if (!resume || resume.user_id !== user.id) throw new Error("Resume not found");
+      if (resume.is_paid_fix_unlocked) return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (paymentType === "RESUME_BUILD") {
+      if (!resumeBuilderId) throw new Error("resumeBuilderId required for RESUME_BUILD");
+      const { data: planProfile } = await admin.from("profiles").select("plan_type, plan_expiry_date, early_bird_active, early_bird_expiry_date").eq("user_id", user.id).single();
+      const hasActivePlan = (planProfile?.plan_type === "UNLIMITED" || planProfile?.early_bird_active) && planProfile?.plan_expiry_date && new Date(planProfile.plan_expiry_date) > new Date();
+      if (hasActivePlan) {
+        await admin.from("resume_builders").update({ is_paid: true, paid_at: new Date().toISOString() }).eq("id", resumeBuilderId);
+        return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: rb } = await admin.from("resume_builders").select("id, user_id, is_paid").eq("id", resumeBuilderId).single();
+      if (!rb || rb.user_id !== user.id) throw new Error("Resume build not found");
+      if (rb.is_paid) return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (paymentType === "UNLIMITED_PLAN") {
+      const { data: planProfile } = await admin.from("profiles").select("plan_type, plan_expiry_date, early_bird_active, early_bird_expiry_date").eq("user_id", user.id).single();
+      const isActive = (planProfile?.plan_type === "UNLIMITED" || planProfile?.early_bird_active) && planProfile?.plan_expiry_date && new Date(planProfile.plan_expiry_date) > new Date();
+      if (isActive) return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (paymentType === "COMBO_PLAN") {
+      const { data: planProfile } = await admin.from("profiles").select("plan_type, plan_expiry_date").eq("user_id", user.id).single();
+      if (planProfile?.plan_type === "COMBO" || planProfile?.plan_type === "UNLIMITED") {
+        return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // --- Student discount logic ---
-    let baseAmount = paymentType === "ONE_TIME_FIX" ? 29900 : paymentType === "EARLY_BIRD_ACCESS" ? 149900 : paymentType === "MOCK_INTERVIEW" ? 59900 : 39900;
+    const baseAmountMap: Record<string, number> = {
+      ONE_TIME_FIX: 29900, RESUME_FIX: 29900,
+      EARLY_BIRD_ACCESS: 149900, UNLIMITED_PLAN: 199900,
+      MOCK_INTERVIEW: 59900, AI_INTERVIEW: 59900,
+      RESUME_BUILDER: 39900, RESUME_BUILD: 39900,
+      COMBO_PLAN: 89900,
+    };
+    let baseAmount = baseAmountMap[paymentType] ?? 29900;
     let amount = baseAmount;
     let discountApplied = false;
     let isStudent = false;
@@ -128,12 +170,12 @@ serve(async (req) => {
         .eq("user_id", user.id)
         .single();
 
-      if (paymentType === "ONE_TIME_FIX" && profile && !profile.first_time_fix_used) {
+      if ((paymentType === "ONE_TIME_FIX" || paymentType === "RESUME_FIX") && profile && !profile.first_time_fix_used) {
         amount = 14900; // ₹149 (50% off)
         discountApplied = true;
       }
-      if (paymentType === "EARLY_BIRD_ACCESS" && profile && !profile.first_time_early_bird_used) {
-        amount = 104900; // ₹1,049 (30% off)
+      if ((paymentType === "EARLY_BIRD_ACCESS" || paymentType === "UNLIMITED_PLAN") && profile && !profile.first_time_early_bird_used) {
+        amount = 149900; // ₹1,499 (student pricing for unlimited)
         discountApplied = true;
       }
     }
@@ -168,6 +210,7 @@ serve(async (req) => {
     const { data: payment, error: insertErr } = await admin.from("payments").insert({
       user_id: user.id,
       resume_analysis_id: resumeAnalysisId || null,
+      resume_builder_id: resumeBuilderId || null,
       payment_type: paymentType,
       amount,
       currency: "INR",

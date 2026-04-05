@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_MODEL = Deno.env.get("AI_MODEL") || "google/gemini-2.5-flash";
+const AI_MODEL = Deno.env.get("AI_MODEL") || "llama-3.3-70b-versatile";
 
 // ─── Deterministic Metrics Engine ───────────────────────────────────────────
 const STRONG_VERBS = new Set([
@@ -248,8 +248,8 @@ async function runAiAnalysis(
   previousScores: Record<string, number> | null,
   previousResumeText: string | null,
 ) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) throw new Error("AI API key not configured");
 
   let systemPrompt = SYSTEM_PROMPT;
   if (resumeType === "STUDENT") {
@@ -268,10 +268,10 @@ This resume belongs to a student or fresh graduate. Apply these rules:
     userMessage += `\n\nIMPORTANT CONTEXT: This is a RE-ANALYSIS of a previously fixed/improved resume. The previous version scored: ATS=${previousScores.atsScore}, RecruiterScan=${previousScores.recruiterScanScore}, Keywords=${previousScores.keywordStrengthScore}, Quantification=${previousScores.quantificationScore}, Structure=${previousScores.structureScore}. If the resume has measurably improved, scores MUST NOT decrease.`;
   }
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      Authorization: `Bearer ${GEMINI_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

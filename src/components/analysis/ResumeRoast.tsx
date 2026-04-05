@@ -17,7 +17,7 @@ export function ResumeRoast({ result, fileName }: ResumeRoastProps) {
     : generateFallbackTips(result);
 
   const shareScore = result.atsScore;
-  const shareText = `My resume scored ${shareScore}/100 on HiResume ATS check. Apparently recruiters would ${shareScore < 50 ? "reject it in seconds" : shareScore < 70 ? "skim past it quickly" : "give it a second look"}. Check yours at hiresume.in`;
+  const shareText = `My resume scored ${shareScore}/100 on HireResume ATS check. Apparently recruiters would ${shareScore < 50 ? "reject it in seconds" : shareScore < 70 ? "skim past it quickly" : "give it a second look"}. Check yours at hiresume.in`;
 
   const handleShareTwitter = () => {
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");

@@ -158,7 +158,7 @@ serve(async (req) => {
     const deviceInfo = req.headers.get("user-agent")?.slice(0, 200) || "Unknown";
     await adminClient.from("user_sessions").insert({
       user_id: userId,
-      session_token: signInData.session.access_token.slice(-16), // Store only last 16 chars for identification
+      session_token: await crypto.subtle.digest("SHA-256", new TextEncoder().encode(signInData.session.access_token)).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("")).then(h => h.slice(0, 32)),
       device_info: deviceInfo,
       is_active: true,
     });

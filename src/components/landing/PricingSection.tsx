@@ -1,62 +1,182 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, GraduationCap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, Zap, Package, Crown, GraduationCap, FileEdit, Mic, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
-const features = [
-  "ATS keyword optimization",
-  "Improved project descriptions",
-  "Strong, quantified bullet points",
-  "ATS-friendly formatting",
-  "Professional resume structure",
-  "5 downloadable PDF templates",
+const plans = [
+  {
+    id: "resume-fix",
+    icon: <Zap className="h-5 w-5 text-primary" />,
+    iconBg: "bg-primary/10",
+    name: "Resume Fix",
+    price: "₹299",
+    studentPrice: "₹149",
+    period: "one-time",
+    description: "Fix one resume with AI",
+    features: [
+      "ATS keyword optimization",
+      "Quantified bullet points",
+      "Professional formatting",
+      "5 PDF template options",
+    ],
+    highlight: false,
+    badge: null,
+  },
+  {
+    id: "resume-build",
+    icon: <FileEdit className="h-5 w-5 text-orange-500" />,
+    iconBg: "bg-orange-500/10",
+    name: "Resume Build",
+    price: "₹399",
+    studentPrice: null,
+    period: "one-time",
+    description: "Build a new resume from scratch",
+    features: [
+      "50+ ATS-ready templates",
+      "Step-by-step AI guidance",
+      "PDF download",
+      "Recruiter-ready structure",
+    ],
+    highlight: false,
+    badge: null,
+  },
+  {
+    id: "ai-interview",
+    icon: <Mic className="h-5 w-5 text-green-500" />,
+    iconBg: "bg-green-500/10",
+    name: "AI Interview",
+    price: "₹599",
+    studentPrice: null,
+    period: "per session",
+    description: "AI-powered mock interview",
+    features: [
+      "Role-specific questions",
+      "Real-time AI feedback",
+      "Performance scoring",
+      "Detailed improvement tips",
+    ],
+    highlight: false,
+    badge: null,
+  },
+  {
+    id: "combo",
+    icon: <Package className="h-5 w-5 text-blue-500" />,
+    iconBg: "bg-blue-500/10",
+    name: "Combo Plan",
+    price: "₹899",
+    studentPrice: null,
+    period: "one-time",
+    description: "Resume Fix + AI Interview",
+    features: [
+      "Everything in Resume Fix",
+      "1 AI Interview session",
+      "Interview + Resume analysis",
+      "Save ₹199 vs buying separately",
+    ],
+    highlight: false,
+    badge: "POPULAR",
+  },
+  {
+    id: "unlimited",
+    icon: <Crown className="h-5 w-5 text-primary" />,
+    iconBg: "bg-primary/20",
+    name: "Unlimited Plan",
+    price: "₹1,999",
+    studentPrice: null,
+    period: "/year",
+    description: "Full access for serious job-seekers",
+    features: [
+      "3 resume builds/month",
+      "2 AI interviews/month",
+      "Priority AI processing",
+      "365-day access",
+    ],
+    highlight: true,
+    badge: "BEST VALUE",
+  },
 ];
 
 export function PricingSection() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const handleCta = () => navigate(user ? "/dashboard" : "/auth");
+
   return (
-    <section className="py-16 sm:py-20 px-4 border-y border-border bg-secondary/10">
-      <div className="container max-w-3xl">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-4">What You Get With Resume Fix</h2>
-        <p className="text-muted-foreground text-center mb-10">AI-powered resume optimization that gets you more interviews</p>
+    <section className="py-16 sm:py-20 px-4 border-y border-border bg-secondary/10" id="pricing">
+      <div className="container max-w-6xl">
+        <div className="text-center mb-10">
+          <Badge className="mb-3 bg-primary/10 text-primary border-primary/20 text-xs">Pricing</Badge>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3">Simple, Transparent Pricing</h2>
+          <p className="text-muted-foreground text-sm">Pay only for what you need. No subscriptions, no hidden fees.</p>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <Card className="glass">
-            <CardContent className="pt-6">
-              <ul className="space-y-3 mb-8">
-                {features.map((f, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {plans.map((plan, i) => (
+            <motion.div
+              key={plan.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.07 }}
+            >
+              <Card className={`relative h-full flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${plan.highlight ? "border-2 border-primary/50 bg-primary/5" : "border-border"}`}>
+                {plan.badge && (
+                  <Badge className={`absolute -top-2.5 right-3 text-[10px] ${plan.highlight ? "bg-primary text-primary-foreground" : "bg-blue-500 text-white"}`}>
+                    {plan.badge}
+                  </Badge>
+                )}
+                <CardContent className="pt-5 pb-5 flex flex-col flex-1">
+                  <div className={`h-9 w-9 rounded-lg ${plan.iconBg} flex items-center justify-center mb-3`}>
+                    {plan.icon}
+                  </div>
+                  <p className="font-bold text-sm mb-0.5">{plan.name}</p>
+                  <p className="text-xs text-muted-foreground mb-3">{plan.description}</p>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Card className="border-border">
-                  <CardContent className="pt-5 text-center">
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Standard Fix</p>
-                    <p className="text-3xl font-black">₹299</p>
-                    <p className="text-xs text-muted-foreground mt-1">One-time payment</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-primary/40 bg-primary/5 relative overflow-hidden">
-                  <CardContent className="pt-5 text-center">
-                    <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground text-[10px]">
-                      <GraduationCap className="h-3 w-3 mr-1" /> Student Price
-                    </Badge>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Student Discount</p>
-                    <p className="text-3xl font-black text-primary">₹149</p>
-                    <p className="text-xs text-muted-foreground mt-1">Special price for students</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+                  <div className="mb-3">
+                    <span className="text-2xl font-black">{plan.price}</span>
+                    <span className="text-xs text-muted-foreground ml-1">{plan.period}</span>
+                    {plan.studentPrice && (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[10px] text-primary border-primary/30 px-1.5 py-0">
+                          <GraduationCap className="h-2.5 w-2.5 mr-0.5" /> {plan.studentPrice} for students
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+
+                  <ul className="space-y-1.5 flex-1 mb-4">
+                    {plan.features.map((f, j) => (
+                      <li key={j} className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    size="sm"
+                    variant={plan.highlight ? "default" : "outline"}
+                    className="w-full text-xs"
+                    onClick={handleCta}
+                  >
+                    Get Started <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="text-center mt-8 space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Secured by Razorpay · All prices inclusive of taxes · Student discount applied automatically
+          </p>
+          <p className="text-xs text-primary font-medium">
+            Start with the free ATS check — pay only when you're ready to fix or build.
+          </p>
+        </div>
       </div>
     </section>
   );

@@ -1,0 +1,97 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d0d14"/>
+      <stop offset="50%" style="stop-color:#130d22"/>
+      <stop offset="100%" style="stop-color:#0a1220"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="50%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff08" stroke-width="1"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Glow orbs -->
+  <ellipse cx="200" cy="150" rx="200" ry="150" fill="#8b5cf620"/>
+  <ellipse cx="1000" cy="480" rx="180" ry="130" fill="#3b82f618"/>
+
+  <!-- Logo icon -->
+  <rect x="80" y="70" width="52" height="52" rx="14" fill="url(#accent)" filter="url(#glow)"/>
+  <text x="106" y="104" font-family="Arial, sans-serif" font-size="28" font-weight="900" fill="white" text-anchor="middle">H</text>
+
+  <!-- Brand name -->
+  <text x="148" y="106" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="white">HireResume</text>
+
+  <!-- Main headline -->
+  <text x="80" y="200" font-family="Arial, sans-serif" font-size="58" font-weight="900" fill="white">Is Your Resume</text>
+
+  <!-- Gradient headline -->
+  <text x="80" y="270" font-family="Arial, sans-serif" font-size="58" font-weight="900">
+    <tspan fill="url(#accent)" filter="url(#glow)">Getting Rejected?</tspan>
+  </text>
+
+  <!-- Sub headline -->
+  <text x="80" y="330" font-family="Arial, sans-serif" font-size="26" fill="#a0a0b8">Check your ATS score in 10 seconds. Free.</text>
+
+  <!-- Stats cards -->
+  <rect x="80" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#8b5cf630" stroke-width="1"/>
+  <text x="180" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">75%</text>
+  <text x="180" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">Resumes rejected by ATS</text>
+
+  <rect x="300" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#3b82f630" stroke-width="1"/>
+  <text x="400" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">10s</text>
+  <text x="400" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">To get your ATS score</text>
+
+  <rect x="520" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#06b6d430" stroke-width="1"/>
+  <text x="620" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">+44</text>
+  <text x="620" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">Avg score improvement</text>
+
+  <!-- Right side score mockup -->
+  <rect x="790" y="120" width="330" height="390" rx="20" fill="url(#card)" stroke="#8b5cf625" stroke-width="1.5"/>
+  <text x="955" y="165" font-family="Arial, sans-serif" font-size="14" fill="#8b8ba8" text-anchor="middle">ATS SCORE</text>
+  <text x="955" y="245" font-family="Arial, sans-serif" font-size="80" font-weight="900" fill="url(#accent)" text-anchor="middle" filter="url(#glow)">86</text>
+  <text x="955" y="270" font-family="Arial, sans-serif" font-size="14" fill="#8b8ba8" text-anchor="middle">/ 100</text>
+
+  <!-- Score bars -->
+  <rect x="820" y="300" width="270" height="6" rx="3" fill="#1a1a30"/>
+  <rect x="820" y="300" width="220" height="6" rx="3" fill="url(#accent)"/>
+  <text x="820" y="326" font-family="Arial, sans-serif" font-size="12" fill="#a0a0b8">Keywords</text>
+  <text x="1090" y="326" font-family="Arial, sans-serif" font-size="12" fill="#8b5cf6" text-anchor="end">88%</text>
+
+  <rect x="820" y="340" width="270" height="6" rx="3" fill="#1a1a30"/>
+  <rect x="820" y="340" width="190" height="6" rx="3" fill="#3b82f6"/>
+  <text x="820" y="366" font-family="Arial, sans-serif" font-size="12" fill="#a0a0b8">ATS Formatting</text>
+  <text x="1090" y="366" font-family="Arial, sans-serif" font-size="12" fill="#3b82f6" text-anchor="end">82%</text>
+
+  <rect x="820" y="380" width="270" height="6" rx="3" fill="#1a1a30"/>
+  <rect x="820" y="380" width="240" height="6" rx="3" fill="#06b6d4"/>
+  <text x="820" y="406" font-family="Arial, sans-serif" font-size="12" fill="#a0a0b8">Impact Metrics</text>
+  <text x="1090" y="406" font-family="Arial, sans-serif" font-size="12" fill="#06b6d4" text-anchor="end">91%</text>
+
+  <rect x="820" y="420" width="270" height="6" rx="3" fill="#1a1a30"/>
+  <rect x="820" y="420" width="175" height="6" rx="3" fill="#8b5cf6"/>
+  <text x="820" y="446" font-family="Arial, sans-serif" font-size="12" fill="#a0a0b8">Recruiter Scan</text>
+  <text x="1090" y="446" font-family="Arial, sans-serif" font-size="12" fill="#8b5cf6" text-anchor="end">78%</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="570" width="1200" height="60" fill="#08080f"/>
+  <text x="600" y="605" font-family="Arial, sans-serif" font-size="18" fill="#8b8ba8" text-anchor="middle">hiresume.in · Free ATS Resume Checker · AI Resume Optimizer</text>
+</svg>

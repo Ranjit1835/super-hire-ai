@@ -27,12 +27,14 @@ export default function OtpVerification() {
   const maskedEmail = location.state?.maskedEmail;
   const returnTo = location.state?.returnTo;
   const guestToken = location.state?.guestToken;
+  // Guard: this page is only for signup email verification, not login
+  const isSignupVerification = location.state?.isSignupVerification === true;
 
   useEffect(() => {
-    if (!email || !password) {
+    if (!email || !password || !isSignupVerification) {
       navigate("/auth", { replace: true });
     }
-  }, [email, password, navigate]);
+  }, [email, password, isSignupVerification, navigate]);
 
   // Resend cooldown timer
   useEffect(() => {

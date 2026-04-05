@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -41,7 +42,7 @@ function ScoreBar({ label, value, delay }: { label: string; value: number; delay
   );
 }
 
-export function InterviewReport({ scores, role, experienceLevel }: Props) {
+export const InterviewReport = memo(function InterviewReport({ scores, role, experienceLevel }: Props) {
   const navigate = useNavigate();
 
   return (
@@ -158,4 +159,4 @@ export function InterviewReport({ scores, role, experienceLevel }: Props) {
       </div>
     </motion.div>
   );
-}
+});

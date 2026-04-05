@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { memo, useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Search, Brain, BarChart3, Target, Cpu, Sparkles } from "lucide-react";
 
@@ -43,7 +43,7 @@ function AnimatedCounter({ target, label, delay }: { target: number; label: stri
   );
 }
 
-export function ScanningAnimation() {
+export const ScanningAnimation = memo(function ScanningAnimation() {
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
@@ -150,4 +150,4 @@ export function ScanningAnimation() {
       </div>
     </div>
   );
-}
+});

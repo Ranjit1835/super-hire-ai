@@ -49,7 +49,7 @@ export function SampleResultSection({ onCtaClick }: SampleResultSectionProps) {
               <CardContent className="pt-6">
                 <div className="flex items-center gap-2 mb-4">
                   <CheckCircle2 className="h-5 w-5 text-success" />
-                  <span className="font-semibold text-success">After HiResume Fix</span>
+                  <span className="font-semibold text-success">After HireResume Fix</span>
                 </div>
                 <div className="text-5xl font-black text-success mb-4">86<span className="text-xl font-normal text-muted-foreground">/100</span></div>
                 <ul className="space-y-2 text-sm text-muted-foreground">

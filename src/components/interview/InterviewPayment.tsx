@@ -39,7 +39,7 @@ export function InterviewPayment({ accessInfo, userEmail, onPaymentSuccess }: Pr
           Authorization: `Bearer ${session.access_token}`,
           apikey: SUPABASE_KEY,
         },
-        body: JSON.stringify({ paymentType: "MOCK_INTERVIEW" }),
+        body: JSON.stringify({ paymentType: "AI_INTERVIEW" }),
       });
       const data = await createRes.json();
       if (!createRes.ok) throw new Error(data?.error || "Failed to create order");
@@ -137,7 +137,7 @@ export function InterviewPayment({ accessInfo, userEmail, onPaymentSuccess }: Pr
             {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
             {loading ? "Processing..." : "Pay ₹599 – Start Interview"}
           </Button>
-          <p className="text-xs text-muted-foreground mt-3">Early Bird members get 2 free sessions/month</p>
+          <p className="text-xs text-muted-foreground mt-3">Unlimited Plan members get 2 free sessions/month</p>
         </CardContent>
       </Card>
     </motion.div>

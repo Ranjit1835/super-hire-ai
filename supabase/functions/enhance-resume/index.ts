@@ -24,8 +24,8 @@ serve(async (req) => {
     const { content } = await req.json();
     if (!content) throw new Error("Missing resume content");
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("AI service not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("AI service not configured");
 
     const systemPrompt = `You are a professional resume writer and ATS optimization expert. You will receive resume content as JSON and must return improved content in the EXACT same JSON structure.
 
@@ -39,10 +39,10 @@ Rules:
 - Make content ATS-friendly with relevant industry keywords
 - Return ONLY valid JSON, no markdown or extra text`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

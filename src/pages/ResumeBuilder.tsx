@@ -52,9 +52,10 @@ export default function ResumeBuilder() {
     checkEarlyBird();
   }, [user]);
 
-  const handleWizardSubmit = async (formContent: ResumeContent) => {
+  const handleWizardSubmit = async (formContent: ResumeContent, chosenTemplateId: TemplateId) => {
     setSubmitting(true);
     setContent(formContent);
+    setTemplateId(chosenTemplateId);
 
     try {
       // Save to DB first
@@ -63,7 +64,7 @@ export default function ResumeBuilder() {
         .insert({
           user_id: user!.id,
           content_json: formContent as any,
-          template_id: templateId,
+          template_id: chosenTemplateId,
         })
         .select("id")
         .single();

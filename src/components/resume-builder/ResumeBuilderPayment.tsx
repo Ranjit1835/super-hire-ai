@@ -42,7 +42,7 @@ export function ResumeBuilderPayment({ resumeBuilderId, isPaid, onPaymentSuccess
           apikey: SUPABASE_KEY,
         },
         body: JSON.stringify({
-          paymentType: "RESUME_BUILDER",
+          paymentType: "RESUME_BUILD",
           resumeBuilderId,
         }),
       });

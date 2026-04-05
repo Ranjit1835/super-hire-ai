@@ -72,7 +72,16 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
+
+    // Guard: login no longer uses OTP — only signup email verification does
+    if (body?.purpose === "login") {
+      return new Response(JSON.stringify({ error: "OTP login is no longer supported. Use /auth-signin instead." }), {
+        status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { email, password } = body;
 
     if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return new Response(JSON.stringify({ error: "Invalid email" }), {

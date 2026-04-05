@@ -1,4 +1,4 @@
-project_id = "mxrejzcckhtmdyywsgww"
+project_id = "zhfahrrxuguagwbujkiz"
 
 [functions.analyze-resume]
 verify_jwt = false
@@ -28,4 +28,19 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.claim-guest-analysis]
+verify_jwt = false
+
+[functions.auth-signin]
+verify_jwt = false
+
+[functions.mock-interview]
+verify_jwt = false
+
+[functions.enhance-resume]
+verify_jwt = false
+
+[functions.referral]
+verify_jwt = false
+
+[functions.weekly-stats]
 verify_jwt = false

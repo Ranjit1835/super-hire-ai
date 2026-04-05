@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Zap, ArrowLeft, Mic, Send, Loader2, Bot, User, BarChart3 } from "lucide-react";
+import { Zap, ArrowLeft, Mic, MicOff, Send, Loader2, Bot, User, BarChart3 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { InterviewPayment } from "@/components/interview/InterviewPayment";
 import { InterviewReport } from "@/components/interview/InterviewReport";
+import { useSpeech } from "@/hooks/useSpeech";
+import { VoiceWaveform } from "@/components/interview/VoiceWaveform";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -47,6 +49,7 @@ export default function MockInterview() {
   const [accessInfo, setAccessInfo] = useState<any>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const { isVoiceMode, toggleVoiceMode, isSpeaking, isListening, transcript, speak, startListening, isSupported } = useSpeech();
 
   useEffect(() => { document.title = "AI Mock Interview – HireResume"; }, []);
 
@@ -61,7 +64,7 @@ export default function MockInterview() {
     checkAccess();
   }, [user, session]);
 
-  const callAPI = async (body: any) => {
+  const callAPI = useCallback(async (body: any) => {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/mock-interview`, {
       method: "POST",
       headers: {
@@ -74,7 +77,7 @@ export default function MockInterview() {
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Request failed");
     return data;
-  };
+  }, [session]);
 
   const checkAccess = async () => {
     setCheckingAccess(true);
@@ -100,8 +103,40 @@ export default function MockInterview() {
       setSessionId(data.sessionId);
       setMessages([{ role: "assistant", content: data.message, timestamp: new Date().toISOString() }]);
       setPhase("chat");
+      if (isVoiceMode) {
+        speak(data.message, () => startListening());
+      }
     } catch (err: any) {
       toast({ title: "Failed to start", description: err.message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Auto-send voice transcript when STT finishes
+  useEffect(() => {
+    if (isVoiceMode && !isListening && transcript.trim() && phase === "chat" && !sending) {
+      sendVoiceMessage(transcript.trim());
+    }
+  }, [isListening]);
+
+  const sendVoiceMessage = async (text: string) => {
+    if (!text || sending) return;
+    const userMsg: Message = { role: "user", content: text, timestamp: new Date().toISOString() };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
+    setSending(true);
+
+    try {
+      const data = await callAPI({ action: "respond", sessionId, messages: updated });
+      setMessages(prev => [...prev, { role: "assistant", content: data.message, timestamp: new Date().toISOString() }]);
+      if (data.isComplete) {
+        setTimeout(() => generateScore(), 1500);
+      } else if (isVoiceMode) {
+        speak(data.message, () => startListening());
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -120,8 +155,9 @@ export default function MockInterview() {
       setMessages(prev => [...prev, { role: "assistant", content: data.message, timestamp: new Date().toISOString() }]);
 
       if (data.isComplete) {
-        // Auto-score after a brief delay
         setTimeout(() => generateScore(), 1500);
+      } else if (isVoiceMode) {
+        speak(data.message, () => startListening());
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -236,9 +272,17 @@ export default function MockInterview() {
                 <h2 className="font-bold text-lg">{role} Interview</h2>
                 <p className="text-xs text-muted-foreground capitalize">{experienceLevel} level</p>
               </div>
-              <Button variant="outline" size="sm" onClick={generateScore}>
-                <BarChart3 className="h-4 w-4 mr-1" /> End & Score
-              </Button>
+              <div className="flex items-center gap-2">
+                {isSupported && (
+                  <Button variant={isVoiceMode ? "default" : "outline"} size="sm" onClick={toggleVoiceMode}>
+                    {isVoiceMode ? <MicOff className="h-4 w-4 mr-1" /> : <Mic className="h-4 w-4 mr-1" />}
+                    {isVoiceMode ? "Voice On" : "Voice"}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={generateScore}>
+                  <BarChart3 className="h-4 w-4 mr-1" /> End & Score
+                </Button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
@@ -258,7 +302,7 @@ export default function MockInterview() {
                     <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
                       msg.role === "user"
                         ? "bg-primary text-primary-foreground rounded-br-sm"
-                        : "bg-secondary text-secondary-foreground rounded-bl-sm"
+                        : "bg-card border border-border text-foreground rounded-bl-sm"
                     }`}>
                       {msg.content}
                     </div>
@@ -287,19 +331,33 @@ export default function MockInterview() {
               <div ref={chatEndRef} />
             </div>
 
-            <div className="flex gap-2">
-              <Input
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                placeholder="Type your answer..."
-                disabled={sending}
-                className="flex-1"
-              />
-              <Button onClick={sendMessage} disabled={sending || !input.trim()} size="icon">
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+            {isVoiceMode ? (
+              <div className="flex flex-col items-center gap-3 py-2">
+                <VoiceWaveform isActive={isListening || isSpeaking} label={isSpeaking ? "AI is speaking..." : isListening ? "Listening..." : sending ? "Processing..." : "Tap mic to respond"} />
+                {!isListening && !isSpeaking && !sending && (
+                  <Button size="sm" onClick={startListening}>
+                    <Mic className="h-4 w-4 mr-1" /> Tap to Speak
+                  </Button>
+                )}
+                {transcript && (
+                  <p className="text-xs text-muted-foreground italic">"{transcript}"</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                  placeholder="Type your answer..."
+                  disabled={sending}
+                  className="flex-1"
+                />
+                <Button onClick={sendMessage} disabled={sending || !input.trim()} size="icon">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </motion.div>
         )}
 

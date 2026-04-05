@@ -6,12 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown, FileEdit, Mic } from "lucide-react";
+import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown, FileEdit, Mic, Crown, Package } from "lucide-react";
 import { motion } from "framer-motion";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
 import { Badge } from "@/components/ui/badge";
+import { ReferralWidget } from "@/components/ReferralWidget";
+import { type PlanType, planLabel, hasActivePlan, isEarlyBirdActive } from "@/integrations/supabase/extended-types";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function competitivenessColor(level: string): string {
+  switch (level) {
+    case "Elite": return "text-primary";
+    case "Strong": return "text-success";
+    case "Competitive": return "text-warning";
+    default: return "text-destructive";
+  }
+}
 
 function validateFile(file: File): string | null {
   if (!file) return "No file selected";
@@ -36,19 +47,25 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [planType, setPlanType] = useState<PlanType | null>(null);
+  const [earlyBirdActive, setEarlyBirdActive] = useState(false);
   const autoAnalyzeTriggered = useRef(false);
 
-  const fetchAnalyses = useCallback(async () => {
+  const fetchDashboardData = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("resume_analyses")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    if (data) setAnalyses(data);
+    const [analysesRes, profileRes] = await Promise.all([
+      supabase.from("resume_analyses").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("profiles").select("early_bird_active, early_bird_expiry_date, plan_type, plan_expiry_date").eq("user_id", user.id).single(),
+    ]);
+    if (analysesRes.data) setAnalyses(analysesRes.data);
+    if (profileRes.data) {
+      const p = profileRes.data as any;
+      setPlanType(p.plan_type ?? "FREE");
+      setEarlyBirdActive(isEarlyBirdActive(p));
+    }
   }, [user]);
 
-  useEffect(() => { fetchAnalyses(); }, [fetchAnalyses]);
+  useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
   useEffect(() => { document.title = "Dashboard – HireResume"; }, []);
 
   // Auto-analyze from guest upload flow
@@ -172,27 +189,9 @@ export default function Dashboard() {
     setAnalyses((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const competitivenessColor = (level: string) => {
-    switch (level) {
-      case "Elite": return "text-primary";
-      case "Strong": return "text-success";
-      case "Competitive": return "text-warning";
-      default: return "text-destructive";
-    }
-  };
 
   const displayedAnalyses = showAll ? analyses : analyses.slice(0, 3);
 
-  // Fetch early bird status
-  const [earlyBirdActive, setEarlyBirdActive] = useState(false);
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("profiles").select("early_bird_active, early_bird_expiry_date").eq("user_id", user.id).single().then(({ data }: any) => {
-      if (data?.early_bird_active && data.early_bird_expiry_date && new Date(data.early_bird_expiry_date) > new Date()) {
-        setEarlyBirdActive(true);
-      }
-    });
-  }, [user]);
 
   if (uploading) {
     return (
@@ -221,7 +220,19 @@ export default function Dashboard() {
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="font-bold text-foreground">HireResume</span>
-            {earlyBirdActive && <Badge className="bg-primary/20 text-primary border-primary/30 text-xs ml-2 hidden sm:inline-flex">Early Bird ✦</Badge>}
+            {planType === "UNLIMITED" && (
+              <Badge className="bg-primary/20 text-primary border-primary/30 text-xs ml-2 hidden sm:inline-flex">
+                <Crown className="h-3 w-3 mr-1" /> Unlimited
+              </Badge>
+            )}
+            {planType === "COMBO" && (
+              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs ml-2 hidden sm:inline-flex">
+                <Package className="h-3 w-3 mr-1" /> Combo
+              </Badge>
+            )}
+            {earlyBirdActive && planType !== "UNLIMITED" && planType !== "COMBO" && (
+              <Badge className="bg-primary/20 text-primary border-primary/30 text-xs ml-2 hidden sm:inline-flex">Early Bird ✦</Badge>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
@@ -253,7 +264,7 @@ export default function Dashboard() {
         {/* Upload zone */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card
-            className={`glass cursor-pointer transition-all duration-200 mb-8 hover:shadow-lg hover:-translate-y-0.5 ${dragOver ? "border-primary/50 bg-primary/5" : "hover:border-primary/30"}`}
+            className={`glass-neon cursor-pointer transition-all duration-200 mb-8 hover:shadow-lg hover:-translate-y-0.5 ${dragOver ? "border-primary/50 bg-primary/5" : "hover:neon-glow"}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
@@ -288,7 +299,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               {displayedAnalyses.map((a, i) => (
                 <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Card className="glass hover:border-primary/30 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                  <Card className="glass hover:border-primary/40 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
                     <CardContent className="flex items-center justify-between py-4">
                       <div className="flex items-center gap-3 sm:gap-4 cursor-pointer flex-1 min-w-0" onClick={() => navigate(`/analysis/${a.id}`)}>
                         <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
@@ -346,8 +357,13 @@ export default function Dashboard() {
           </motion.div>
         )}
 
+        {/* Referral Widget */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-8">
+          <ReferralWidget />
+        </motion.div>
+
         {/* Coming Soon Feature Cards */}
-        <div className="mt-12 grid md:grid-cols-2 gap-6">
+        <div className="mt-8 grid md:grid-cols-2 gap-6">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card className="glass relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/build-resume")}>
               <CardContent className="flex flex-col items-center text-center py-10 px-6">

@@ -20,7 +20,7 @@ export function CreatorSection() {
                 <div>
                   <p className="font-semibold mb-2">Built by Ranjith</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    "Hi, I'm Ranjith, a software engineer who noticed that many talented people lose job opportunities because their resumes fail ATS systems. HiResume was built to help job seekers understand and fix their resumes before applying."
+                    "Hi, I'm Ranjith, a software engineer who noticed that many talented people lose job opportunities because their resumes fail ATS systems. HireResume was built to help job seekers understand and fix their resumes before applying — and land the interviews they deserve."
                   </p>
                 </div>
               </div>

@@ -28,18 +28,21 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("AI service not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("AI service not configured");
 
     // ACTION: check-access
     if (action === "check-access") {
       const { data: profile } = await admin
         .from("profiles")
-        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date")
+        .select("early_bird_active, early_bird_expiry_date, plan_type, plan_expiry_date, monthly_interview_count, last_interview_reset_date")
         .eq("user_id", user.id)
         .single();
 
       const isEarlyBird = profile?.early_bird_active && profile?.early_bird_expiry_date && new Date(profile.early_bird_expiry_date) > new Date();
+      const hasActivePlan = (profile?.plan_type === "UNLIMITED" || profile?.plan_type === "COMBO") &&
+        profile?.plan_expiry_date && new Date(profile.plan_expiry_date) > new Date();
+      const hasPlanAccess = isEarlyBird || hasActivePlan;
 
       // Reset monthly count if new month
       let monthlyCount = profile?.monthly_interview_count || 0;
@@ -53,13 +56,14 @@ serve(async (req) => {
         }).eq("user_id", user.id);
       }
 
-      const canAccess = isEarlyBird && monthlyCount < 2;
+      const canAccess = hasPlanAccess && monthlyCount < 2;
       return new Response(JSON.stringify({
         canAccess,
         isEarlyBird: !!isEarlyBird,
+        planType: profile?.plan_type ?? "FREE",
         monthlyCount,
         monthlyLimit: 2,
-        reason: canAccess ? "EARLY_BIRD_ACCESS" : isEarlyBird ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
+        reason: canAccess ? "PLAN_ACCESS" : hasPlanAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -67,14 +71,43 @@ serve(async (req) => {
     if (action === "start") {
       if (!role || !experienceLevel) throw new Error("role and experienceLevel required");
 
-      // Increment monthly count
-      const { data: profile } = await admin
+      // Verify access before starting — guard against clients that skip check-access
+      const { data: accessProfile } = await admin
         .from("profiles")
-        .select("monthly_interview_count")
+        .select("early_bird_active, early_bird_expiry_date, plan_type, plan_expiry_date, monthly_interview_count, last_interview_reset_date")
         .eq("user_id", user.id)
         .single();
+
+      const isEarlyBird = accessProfile?.early_bird_active &&
+        accessProfile?.early_bird_expiry_date &&
+        new Date(accessProfile.early_bird_expiry_date) > new Date();
+      const hasActivePlan = (accessProfile?.plan_type === "UNLIMITED" || accessProfile?.plan_type === "COMBO") &&
+        accessProfile?.plan_expiry_date && new Date(accessProfile.plan_expiry_date) > new Date();
+      const hasPlanAccess = isEarlyBird || hasActivePlan;
+
+      let monthlyCount = accessProfile?.monthly_interview_count || 0;
+      const lastReset = accessProfile?.last_interview_reset_date
+        ? new Date(accessProfile.last_interview_reset_date)
+        : new Date(0);
+      const now = new Date();
+      if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+        monthlyCount = 0;
+        await admin.from("profiles").update({
+          monthly_interview_count: 0,
+          last_interview_reset_date: now.toISOString(),
+        }).eq("user_id", user.id);
+      }
+
+      if (!hasPlanAccess || monthlyCount >= 2) {
+        return new Response(JSON.stringify({
+          error: hasPlanAccess ? "Monthly interview limit reached" : "Payment required to start interview",
+          reason: hasPlanAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Increment monthly count
       await admin.from("profiles").update({
-        monthly_interview_count: (profile?.monthly_interview_count || 0) + 1,
+        monthly_interview_count: monthlyCount + 1,
       }).eq("user_id", user.id);
 
       const systemPrompt = `You are a professional interviewer conducting a ${experienceLevel}-level interview for a ${role} position.
@@ -89,10 +122,10 @@ Rules:
 - When wrapping up, say "That concludes our interview" and provide brief feedback
 - Keep responses concise (2-3 sentences max before asking the next question)`;
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -162,10 +195,10 @@ Rules:
         ...messages.map((m: any) => ({ role: m.role, content: m.content })),
       ];
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -211,10 +244,10 @@ Rules:
       const conversation = session.conversation_json as any[];
       const conversationText = conversation.map((m: any) => `${m.role}: ${m.content}`).join("\n");
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

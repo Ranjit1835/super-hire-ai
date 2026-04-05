@@ -36,7 +36,7 @@ export function WhyRejectedSection() {
 
         <div className="flex items-center gap-2 mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
           <AlertTriangle className="h-5 w-5 text-primary shrink-0" />
-          <p className="text-sm font-medium">HiResume automatically detects all these issues and tells you exactly how to fix them.</p>
+          <p className="text-sm font-medium">HireResume automatically detects all these issues and tells you exactly how to fix them.</p>
         </div>
       </div>
     </section>

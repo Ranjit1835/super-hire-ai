@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: "es2022",
+    sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -21,6 +22,7 @@ export default defineConfig(({ mode }) => ({
           'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-tooltip', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-accordion'],
           'vendor-motion': ['framer-motion'],
           'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-pdf': ['pdfjs-dist', 'pdf-lib'],
         },
       },
     },
