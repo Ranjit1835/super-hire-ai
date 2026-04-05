@@ -80,7 +80,7 @@ export default function Landing() {
         }
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Analysis failed. Please try again.");
+      if (!res.ok) throw new Error(data?.error || "Analysis failed. Please try again.");
 
       if (data.guestToken) {
         navigate(`/analysis/guest/${data.guestToken}`);

@@ -37,19 +37,15 @@ export default function Leaderboard() {
   useEffect(() => {
     const fetchEntries = async () => {
       setLoading(true);
-      const query = supabase
+      const base = supabase
         .from("leaderboard_entries")
         .select("id, display_name, college, industry, role_target, ats_score, improvement, created_at")
         .eq("is_public", true)
         .limit(50);
 
-      if (tab === "top") {
-        query.order("ats_score", { ascending: false });
-      } else {
-        query.order("created_at", { ascending: false });
-      }
-
-      const { data } = await query;
+      const { data } = await (tab === "top"
+        ? base.order("ats_score", { ascending: false })
+        : base.order("created_at", { ascending: false }));
       setEntries(data ?? []);
       setLoading(false);
     };

@@ -24,10 +24,11 @@ export default function WeeklyStats() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    supabase.functions.invoke("weekly-stats").then(({ data }) => {
-      setStats(data);
+    supabase.functions.invoke("weekly-stats").then(({ data, error }) => {
+      if (error) console.error("Weekly stats error:", error);
+      if (data) setStats(data);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, []);
 
   const copyPost = () => {

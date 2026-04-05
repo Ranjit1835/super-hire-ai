@@ -22,7 +22,10 @@ export function ReferralWidget() {
     if (!user) return;
     supabase.functions.invoke("referral", {
       body: { action: "get_referral_info", user_id: user.id }
-    }).then(({ data }) => { if (data) setInfo(data); });
+    }).then(({ data, error }) => {
+      if (error) console.error("Referral widget error:", error);
+      if (data) setInfo(data);
+    });
   }, [user]);
 
   const referralUrl = info

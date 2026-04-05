@@ -1,6 +1,5 @@
-import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, ImageIcon } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 
 interface ScoreCardProps {
   score: number;
@@ -8,13 +7,26 @@ interface ScoreCardProps {
 }
 
 export function ScoreCardDownload({ score, fileName }: ScoreCardProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
   const generateAndDownload = () => {
     const canvas = document.createElement("canvas");
     canvas.width = 1200;
     canvas.height = 628;
     const ctx = canvas.getContext("2d")!;
+    if (!ctx.roundRect) {
+      ctx.roundRect = function(x: number, y: number, w: number, h: number, r: number) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+      };
+    };
 
     // Background gradient
     const bg = ctx.createLinearGradient(0, 0, 1200, 628);

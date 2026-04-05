@@ -220,7 +220,7 @@ export default function Analysis() {
       .then(({ data }) => {
         if (data) {
           setAnalysis(data);
-          setResult(data.analysis_result as unknown as AnalysisResult);
+          if (data.analysis_result) setResult(data.analysis_result as unknown as AnalysisResult);
           document.title = `${data.file_name} – Analysis – HireResume`;
         }
         setLoading(false);
@@ -544,7 +544,7 @@ export default function Analysis() {
         <ResumeRoast result={result} fileName={analysis.file_name} />
 
         {/* Share Buttons */}
-        <ShareSection score={result.ats_score} analysisId={id || ""} />
+        <ShareSection score={result.atsScore} analysisId={id || ""} />
 
         <motion.div className="text-center pt-4 pb-8" {...fadeUp(0.5)}>
           <Button size="lg" disabled={checkingAccess} onClick={handleFixResume} className="px-8 transition-transform hover:scale-[1.02]">
