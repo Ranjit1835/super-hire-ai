@@ -56,13 +56,14 @@ serve(async (req) => {
         }).eq("user_id", user.id);
       }
 
-      const canAccess = hasPlanAccess && monthlyCount < 2;
+      const monthlyLimit = profile?.plan_type === "UNLIMITED" ? 999 : 2;
+      const canAccess = hasPlanAccess && monthlyCount < monthlyLimit;
       return new Response(JSON.stringify({
         canAccess,
         isEarlyBird: !!isEarlyBird,
         planType: profile?.plan_type ?? "FREE",
         monthlyCount,
-        monthlyLimit: 2,
+        monthlyLimit,
         reason: canAccess ? "PLAN_ACCESS" : hasPlanAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -98,7 +99,8 @@ serve(async (req) => {
         }).eq("user_id", user.id);
       }
 
-      if (!hasPlanAccess || monthlyCount >= 2) {
+      const startMonthlyLimit = accessProfile?.plan_type === "UNLIMITED" ? 999 : 2;
+      if (!hasPlanAccess || monthlyCount >= startMonthlyLimit) {
         return new Response(JSON.stringify({
           error: hasPlanAccess ? "Monthly interview limit reached" : "Payment required to start interview",
           reason: hasPlanAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
