@@ -129,7 +129,7 @@ Rules:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "llama-3.3-70b-versatile",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `Start the interview. I'm applying for the ${role} role at ${experienceLevel} level.` },
@@ -202,7 +202,7 @@ Rules:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "llama-3.3-70b-versatile",
           messages: aiMessages,
         }),
       });
@@ -251,42 +251,40 @@ Rules:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "llama-3.3-70b-versatile",
           messages: [
-            { role: "system", content: "You are an expert interview evaluator." },
-            { role: "user", content: `Evaluate this interview conversation and return scores:\n\n${conversationText}` },
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "return_scores",
-              description: "Return interview evaluation scores",
-              parameters: {
-                type: "object",
-                properties: {
-                  communication: { type: "number", description: "Communication score 0-100" },
-                  confidence: { type: "number", description: "Confidence score 0-100" },
-                  technicalDepth: { type: "number", description: "Technical depth score 0-100" },
-                  clarity: { type: "number", description: "Clarity score 0-100" },
-                  overallScore: { type: "number", description: "Overall score 0-100" },
-                  strengths: { type: "array", items: { type: "string" } },
-                  weakAreas: { type: "array", items: { type: "string" } },
-                  suggestions: { type: "array", items: { type: "string" } },
-                },
-                required: ["communication", "confidence", "technicalDepth", "clarity", "overallScore", "strengths", "weakAreas", "suggestions"],
-              },
+            {
+              role: "system",
+              content: "You are an expert interview evaluator. Always respond with valid JSON only, no markdown, no explanation.",
             },
-          }],
-          tool_choice: { type: "function", function: { name: "return_scores" } },
+            {
+              role: "user",
+              content: `Evaluate this interview and return ONLY a JSON object with these exact keys:
+{
+  "communication": <0-100>,
+  "confidence": <0-100>,
+  "technicalDepth": <0-100>,
+  "clarity": <0-100>,
+  "overallScore": <0-100>,
+  "strengths": ["...", "..."],
+  "weakAreas": ["...", "..."],
+  "suggestions": ["...", "..."]
+}
+
+Interview transcript:
+${conversationText}`,
+            },
+          ],
+          response_format: { type: "json_object" },
         }),
       });
 
       if (!response.ok) throw new Error("AI scoring failed");
       const aiResult = await response.json();
-      const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-      if (!toolCall) throw new Error("AI did not return scores");
+      const raw = aiResult.choices?.[0]?.message?.content;
+      if (!raw) throw new Error("AI did not return scores");
 
-      const scores = JSON.parse(toolCall.function.arguments);
+      const scores = JSON.parse(raw);
 
       await admin.from("interview_sessions").update({
         scores_json: scores,
