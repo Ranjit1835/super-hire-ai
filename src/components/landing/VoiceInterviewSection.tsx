@@ -30,7 +30,7 @@ export function VoiceInterviewSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const handleStart = () => navigate(user ? "/mock-interview" : "/auth");
+  const handleStart = () => navigate(user ? "/voice-interview" : "/auth?redirect=/voice-interview");
 
   return (
     <section className="py-16 sm:py-20 px-4" id="ai-interview">

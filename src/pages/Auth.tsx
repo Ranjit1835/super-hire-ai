@@ -61,9 +61,12 @@ export default function Auth() {
 
   const returnTo = searchParams.get("returnTo");
   const guestToken = searchParams.get("guestToken");
+  const redirect = searchParams.get("redirect");
 
   if (user) {
-    if (returnTo === "guest" && guestToken) {
+    if (redirect) {
+      navigate(redirect, { replace: true });
+    } else if (returnTo === "guest" && guestToken) {
       navigate(`/analysis/guest/${guestToken}`, { replace: true });
     } else if (returnTo === "analyze" && sessionStorage.getItem("pendingResume")) {
       navigate("/dashboard?autoAnalyze=true", { replace: true });
@@ -102,7 +105,9 @@ export default function Auth() {
     }
 
     setLoginAttempts(0);
-    if (returnTo === "guest" && guestToken) {
+    if (redirect) {
+      navigate(redirect, { replace: true });
+    } else if (returnTo === "guest" && guestToken) {
       navigate(`/analysis/guest/${guestToken}`, { replace: true });
     } else if (returnTo === "analyze" && sessionStorage.getItem("pendingResume")) {
       navigate("/dashboard?autoAnalyze=true", { replace: true });
