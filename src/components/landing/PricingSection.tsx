@@ -102,7 +102,14 @@ const plans = [
 export function PricingSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const handleCta = () => navigate(user ? "/dashboard" : "/auth");
+  const handleCta = (planId: string) => {
+    const isInterview = planId === "ai-interview";
+    if (user) {
+      navigate(isInterview ? "/voice-interview" : "/dashboard");
+    } else {
+      navigate(isInterview ? "/auth?redirect=/voice-interview" : "/auth");
+    }
+  };
 
   return (
     <section className="py-16 sm:py-20 px-4 border-y border-border bg-secondary/10" id="pricing">
@@ -159,7 +166,7 @@ export function PricingSection() {
                     size="sm"
                     variant={plan.highlight ? "default" : "outline"}
                     className="w-full text-xs"
-                    onClick={handleCta}
+                    onClick={() => handleCta(plan.id)}
                   >
                     Get Started <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
