@@ -65,6 +65,7 @@ export default function VoiceInterview() {
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finalTranscriptRef = useRef("");
   const messagesRef = useRef<Message[]>([]);
+  const sessionIdRef = useRef<string | null>(null);
   messagesRef.current = messages;
 
   useEffect(() => { document.title = "Voice Interview – HireResume"; }, []);
@@ -200,7 +201,7 @@ export default function VoiceInterview() {
     setLiveTranscript("");
 
     try {
-      const data = await callAPI({ action: "respond", sessionId, messages: updated });
+      const data = await callAPI({ action: "respond", sessionId: sessionIdRef.current, messages: updated });
       const aiMsg: Message = { role: "assistant", content: data.message, timestamp: new Date().toISOString() };
       setMessages(prev => [...prev, aiMsg]);
       setQuestionNumber(q => q + 1);
@@ -215,7 +216,7 @@ export default function VoiceInterview() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
       setVoiceState("idle");
     }
-  }, [sessionId, callAPI]);
+  }, [callAPI]);
 
   const startInterview = async () => {
     if (!role) { toast({ title: "Select a role", variant: "destructive" }); return; }
@@ -223,6 +224,7 @@ export default function VoiceInterview() {
     try {
       const data = await callAPI({ action: "start", role, experienceLevel });
       setSessionId(data.sessionId);
+      sessionIdRef.current = data.sessionId;
       const aiMsg: Message = { role: "assistant", content: data.message, timestamp: new Date().toISOString() };
       setMessages([aiMsg]);
       setQuestionNumber(1);
@@ -241,7 +243,7 @@ export default function VoiceInterview() {
     recognitionRef.current?.abort();
     setPhase("scoring");
     try {
-      const data = await callAPI({ action: "score", sessionId });
+      const data = await callAPI({ action: "score", sessionId: sessionIdRef.current });
       setScores(data.scores);
       setPhase("report");
     } catch (err: any) {
