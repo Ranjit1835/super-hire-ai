@@ -380,7 +380,7 @@ export default function Dashboard() {
             </Card>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Card className="glass relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/mock-interview")}>
+            <Card className="glass relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/voice-interview")}>
               <CardContent className="flex flex-col items-center text-center py-10 px-6">
                 <Badge className="absolute top-4 right-4 text-xs bg-primary text-primary-foreground">New</Badge>
                 <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
