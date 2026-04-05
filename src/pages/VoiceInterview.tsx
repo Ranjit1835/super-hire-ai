@@ -123,16 +123,41 @@ export default function VoiceInterview() {
     const voice = getBestVoice();
     if (voice) utterance.voice = voice;
 
-    utterance.onend = () => {
-      if (autoListen) startListening();
-      else setVoiceState("idle");
-    };
-    utterance.onerror = () => {
+    const onDone = () => {
+      if (resumeTimer) clearInterval(resumeTimer);
       if (autoListen) startListening();
       else setVoiceState("idle");
     };
 
+    utterance.onend = onDone;
+    utterance.onerror = onDone;
+
     window.speechSynthesis.speak(utterance);
+
+    // Chrome bug fix: speechSynthesis pauses after ~15s — keep it alive
+    let resumeTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
+      if (!window.speechSynthesis.speaking) {
+        clearInterval(resumeTimer!);
+        return;
+      }
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }, 10000);
+
+    // Fallback: if onend never fires, force-start listening after estimated duration
+    const wordCount = text.split(" ").length;
+    const estimatedMs = Math.max((wordCount / 2.5) * 1000 + 1000, 4000);
+    const fallbackTimer = setTimeout(() => {
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+      if (resumeTimer) clearInterval(resumeTimer);
+      if (autoListen) startListening();
+      else setVoiceState("idle");
+    }, estimatedMs);
+
+    utterance.onend = () => { clearTimeout(fallbackTimer); onDone(); };
+    utterance.onerror = () => { clearTimeout(fallbackTimer); onDone(); };
   }, [voicesLoaded]);
 
   // Start STT
