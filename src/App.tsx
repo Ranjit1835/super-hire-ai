@@ -24,6 +24,7 @@ const CollegePlacement = lazy(() => import("./pages/CollegePlacement"));
 const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const ReelsCampaign = lazy(() => import("./pages/ReelsCampaign"));
 const WeeklyStats = lazy(() => import("./pages/WeeklyStats"));
+const VoiceInterview = lazy(() => import("./pages/VoiceInterview"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +59,7 @@ function AppRoutes() {
       <Route path="/leaderboard" element={<Leaderboard />} />
       <Route path="/reels-campaign" element={<ReelsCampaign />} />
       <Route path="/weekly-stats" element={<ProtectedRoute><WeeklyStats /></ProtectedRoute>} />
+      <Route path="/voice-interview" element={<ProtectedRoute><VoiceInterview /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

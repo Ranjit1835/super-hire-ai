@@ -233,6 +233,31 @@ export default function MockInterview() {
               )}
             </div>
 
+            {/* Voice Interview CTA */}
+            <div className="max-w-md mx-auto mb-4">
+              <button
+                onClick={() => navigate("/voice-interview")}
+                className="w-full rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all p-4 text-left flex items-center gap-4 group"
+              >
+                <div className="h-12 w-12 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Mic className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-semibold text-sm">Voice-to-Voice Interview</span>
+                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">New</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Speak naturally with AI. No typing — just talk like a real interview.</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 max-w-md mx-auto mb-4">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or text-based interview</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
             <Card className="max-w-md mx-auto">
               <CardContent className="py-6 space-y-4">
                 <div>
