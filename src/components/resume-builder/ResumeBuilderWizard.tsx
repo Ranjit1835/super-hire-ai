@@ -12,6 +12,7 @@ import { StepProjects } from "./steps/StepProjects";
 import { StepExperience } from "./steps/StepExperience";
 import { StepCertifications } from "./steps/StepCertifications";
 import { TemplateGallery } from "./TemplateGallery";
+import { TemplatePreviewModal } from "./TemplatePreviewModal";
 
 // Step 0 is template selection; steps 1-7 are content steps
 const CONTENT_STEPS = [
@@ -37,6 +38,7 @@ export function ResumeBuilderWizard({ onSubmit, submitting, initialContent, init
   const [step, setStep] = useState(0);
   const [templateId, setTemplateId] = useState<TemplateId | null>(initialTemplateId ?? null);
   const [content, setContent] = useState<ResumeContent>(initialContent || emptyResumeContent);
+  const [previewId, setPreviewId] = useState<TemplateId | null>(null);
 
   const progress = ((step + 1) / TOTAL_STEPS) * 100;
 
@@ -101,7 +103,7 @@ export function ResumeBuilderWizard({ onSubmit, submitting, initialContent, init
           transition={{ duration: 0.2 }}
         >
           {step === 0 ? (
-            <TemplateGallery selected={templateId} onSelect={setTemplateId} />
+            <TemplateGallery selected={templateId} onSelect={setTemplateId} onPreview={setPreviewId} />
           ) : (
             stepComponents[contentStep]
           )}
@@ -136,6 +138,15 @@ export function ResumeBuilderWizard({ onSubmit, submitting, initialContent, init
           </Button>
         )}
       </div>
+
+      <TemplatePreviewModal
+        open={previewId !== null}
+        templateId={previewId}
+        selectedId={templateId}
+        onClose={() => setPreviewId(null)}
+        onSelect={(id) => { setTemplateId(id); setPreviewId(id); }}
+      />
+
     </div>
   );
 }
