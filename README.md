@@ -1,73 +1,96 @@
-# Welcome to your Lovable project
+# HireResume.in — AI-Powered Resume Platform
 
-## Project info
+Built by **Ranjit Perumala** ([@Ranjit1835](https://github.com/Ranjit1835))
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+HireResume is a full-stack AI resume platform that helps job seekers analyze, optimize, and build professional resumes. Deployed at [hiresume.in](https://hiresume.in).
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+### Resume Analysis (Core)
+- Upload PDF → instant ATS score with 5-layer AI analysis
+- Recruiter psychology simulation (6-second scan)
+- ATS compatibility testing (Workday, Greenhouse, Lever, Taleo)
+- Student vs. professional auto-detection with tailored scoring
+- Guest analysis with sign-up-to-unlock flow
 
-**Use Lovable**
+### Resume Studio (NEW)
+- Conversational AI resume editor with split-screen experience
+- Chat with AI in natural language → resume updates in real-time
+- Hybrid LLM: Groq LLaMA 3.3 70B (free) / Claude Haiku & Sonnet (paid)
+- 5 persona modes (Big Tech, Startup, Enterprise, AI/ML, Career Switcher)
+- Version history with one-click revert
+- Smart suggestions engine (weak bullets, filler words, missing sections)
+- 5 premium templates with live preview
+- Share via unique read-only links
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Resume Fix (Paid)
+- AI-powered resume rewriting based on analysis results
+- 5 downloadable PDF templates with inline editing
 
-Changes made via Lovable will be committed automatically to this repo.
+### Resume Builder
+- Multi-step wizard with 50 templates across 5 categories
+- AI enhancement of user content
 
-**Use your preferred IDE**
+### AI Mock Interview
+- Text-based and full voice-to-voice interview modes
+- 12 tech roles, 3 experience levels
+- Real-time scoring and detailed reports
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Additional Features
+- Razorpay payment integration (multiple plan tiers)
+- Referral system with credits
+- Public leaderboard (opt-in)
+- College placement partnership (B2B)
+- Weekly analytics dashboard
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Tech Stack
 
-Follow these steps:
+- **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + Framer Motion
+- **Backend:** Supabase (PostgreSQL + 23 Edge Functions + Auth + RLS)
+- **AI:** Groq LLaMA 3.3 70B, Claude Haiku 4.5, Claude Sonnet 4.6
+- **Payments:** Razorpay
+- **Deployment:** Netlify
+- **PDF:** Client-side generation with pdf-lib + pdfjs-dist
+
+## Getting Started
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone https://github.com/Ranjit1835/super-hire-ai.git
+cd super-hire-ai
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Requires environment variables for Supabase and API keys (see Supabase Edge Function configs).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Project Structure
 
-**Use GitHub Codespaces**
+```
+src/
+  components/       # Shared UI components (shadcn/ui, landing sections)
+  contexts/         # Auth context
+  features/
+    studio/         # Resume Studio feature module
+      components/   # ChatPanel, PreviewPanel, VersionHistory, Suggestions
+      hooks/        # useStudioSession, useChatStream, useVersionHistory
+      lib/          # claudeStream, jsonPatch, resumeDiff
+      pages/        # StudioPage, StudioPaywallPage, StudioSharedPage
+      types/        # TypeScript interfaces
+  hooks/            # Shared hooks
+  integrations/     # Supabase client
+  lib/              # PDF generators, parsers, utilities
+  pages/            # Route-level page components
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+supabase/
+  functions/        # 23 Supabase Edge Functions
+  migrations/       # Database migrations
+```
 
-## What technologies are used for this project?
+## License
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+All rights reserved. This project is proprietary software built by Ranjit Perumala.
