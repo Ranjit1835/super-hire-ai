@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Zap, AlertTriangle, Lightbulb, CheckCircle2,
   XCircle, Wrench, TrendingUp, Brain, Target, ChevronDown, ChevronUp, Home, Upload,
-  GraduationCap, Lock, Eye, Share2, Copy, Check,
+  GraduationCap, Lock, Eye, Share2, Copy, Check, Sparkles,
 } from "lucide-react";
 import type { AnalysisResult, AnalysisIssue } from "@/lib/analysis-types";
 import { ResumeRoast } from "@/components/analysis/ResumeRoast";
@@ -546,11 +546,21 @@ export default function Analysis() {
         {/* Share Buttons */}
         <ShareSection score={result.atsScore} analysisId={id || ""} />
 
-        <motion.div className="text-center pt-4 pb-8" {...fadeUp(0.5)}>
+        <motion.div className="text-center pt-4 pb-8 space-y-4" {...fadeUp(0.5)}>
           <Button size="lg" disabled={checkingAccess} onClick={handleFixResume} className="px-8 transition-transform hover:scale-[1.02]">
             <Zap className="h-4 w-4 mr-2" /> Fix My Resume Now
           </Button>
           <p className="text-xs text-muted-foreground mt-3">AI will generate an optimized version based on this analysis</p>
+          <div className="pt-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => navigate("/studio")}
+              className="px-8 border-violet-500/30 text-violet-300 hover:bg-violet-500/10 transition-transform hover:scale-[1.02]"
+            >
+              <Sparkles className="h-4 w-4 mr-2" /> Try Resume Studio — Chat & Edit Live
+            </Button>
+          </div>
         </motion.div>
 
         <PaymentDialog

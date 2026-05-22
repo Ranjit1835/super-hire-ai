@@ -44,3 +44,24 @@ verify_jwt = false
 
 [functions.weekly-stats]
 verify_jwt = false
+
+[functions.studio-parse-resume]
+verify_jwt = false
+
+[functions.studio-create-session]
+verify_jwt = false
+
+[functions.studio-chat]
+verify_jwt = false
+
+[functions.studio-list-versions]
+verify_jwt = false
+
+[functions.studio-revert-version]
+verify_jwt = false
+
+[functions.studio-apply-suggestion]
+verify_jwt = false
+
+[functions.studio-share-link]
+verify_jwt = false

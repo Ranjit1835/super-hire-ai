@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, ArrowRight } from "lucide-react";
+import { Upload, ArrowRight, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface HeroSectionProps {
@@ -82,6 +83,16 @@ export function HeroSection({ dragOver, setDragOver, onDrop, onFileSelect, fileI
             <p className="text-sm text-muted-foreground">
               Free ATS analysis. Pay only if you want us to fix your resume.
             </p>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mt-4">
+              <button
+                onClick={() => (window.location.href = "/studio")}
+                className="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Or try <strong>Resume Studio</strong> — chat with AI to edit your resume live</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </motion.div>
           </div>
         </div>
       </section>

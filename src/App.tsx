@@ -25,6 +25,9 @@ const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const ReelsCampaign = lazy(() => import("./pages/ReelsCampaign"));
 const WeeklyStats = lazy(() => import("./pages/WeeklyStats"));
 const VoiceInterview = lazy(() => import("./pages/VoiceInterview"));
+const StudioPage = lazy(() => import("./features/studio/pages/StudioPage"));
+const StudioPaywallPage = lazy(() => import("./features/studio/pages/StudioPaywallPage"));
+const StudioSharedPage = lazy(() => import("./features/studio/pages/StudioSharedPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +63,9 @@ function AppRoutes() {
       <Route path="/reels-campaign" element={<ReelsCampaign />} />
       <Route path="/weekly-stats" element={<ProtectedRoute><WeeklyStats /></ProtectedRoute>} />
       <Route path="/voice-interview" element={<ProtectedRoute><VoiceInterview /></ProtectedRoute>} />
+      <Route path="/studio" element={<ProtectedRoute><StudioPaywallPage /></ProtectedRoute>} />
+      <Route path="/studio/:resumeId" element={<ProtectedRoute><StudioPage /></ProtectedRoute>} />
+      <Route path="/studio/shared/:shareToken" element={<StudioSharedPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

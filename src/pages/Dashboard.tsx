@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown, FileEdit, Mic, Crown, Package } from "lucide-react";
+import { Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown, FileEdit, Mic, Crown, Package, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
 import { Badge } from "@/components/ui/badge";
@@ -362,7 +362,28 @@ export default function Dashboard() {
           <ReferralWidget />
         </motion.div>
 
-        {/* Coming Soon Feature Cards */}
+        {/* Resume Studio CTA */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-8">
+          <Card className="relative overflow-hidden cursor-pointer border-violet-500/20 bg-gradient-to-r from-violet-950/40 to-cyan-950/40 hover:shadow-xl hover:shadow-violet-500/10 transition-all duration-300 hover:-translate-y-1" onClick={() => navigate("/studio")}>
+            <CardContent className="flex items-center gap-6 py-6 px-6">
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold">Resume Studio</h3>
+                  <Badge className="text-[10px] bg-gradient-to-r from-violet-600 to-cyan-600 text-white border-0">AI Powered</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">Chat with AI and watch your resume transform in real-time. The smartest way to edit your resume.</p>
+              </div>
+              <Button className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 border-0 flex-shrink-0">
+                Open Studio
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Feature Cards */}
         <div className="mt-8 grid md:grid-cols-2 gap-6">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card className="glass relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/build-resume")}>
