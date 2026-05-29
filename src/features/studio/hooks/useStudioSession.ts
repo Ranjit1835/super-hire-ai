@@ -47,6 +47,16 @@ export function useStudioSession(resumeId: string | undefined) {
         const createRes = await supabase.functions.invoke("studio-create-session", {
           body: { action: "create-free", resumeId },
         });
+        if (createRes.error) {
+          let errMsg = "Failed to create session";
+          try {
+            if (createRes.error.context && typeof createRes.error.context.json === "function") {
+              const body = await createRes.error.context.json();
+              errMsg = body?.error || errMsg;
+            }
+          } catch { /* ignore */ }
+          throw new Error(errMsg);
+        }
         activeSession = createRes.data?.session;
       }
 

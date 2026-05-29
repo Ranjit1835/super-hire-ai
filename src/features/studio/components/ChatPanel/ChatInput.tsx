@@ -39,7 +39,7 @@ export function ChatInput({ onSend, disabled, isStreaming, placeholder }: ChatIn
   };
 
   return (
-    <div className="border-t border-white/5 bg-[#0d0d15]/80 backdrop-blur-sm p-3">
+    <div className="border-t border-white/5 bg-[#0d0d15]/80 backdrop-blur-sm p-3 sticky bottom-0 z-10">
       <div className="flex items-end gap-2 bg-[#14141f] rounded-xl border border-white/10 px-3 py-2 focus-within:border-violet-500/40 transition-colors">
         <textarea
           ref={textareaRef}

@@ -45,17 +45,18 @@ export function FloatingActionBar({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-1 bg-[#14141f]/90 backdrop-blur-xl border border-white/10 rounded-xl px-2 py-1.5 shadow-2xl"
+        className="flex items-center gap-0.5 sm:gap-1 bg-[#14141f]/90 backdrop-blur-xl border border-white/10 rounded-xl px-1.5 sm:px-2 py-1.5 shadow-2xl"
       >
         {actions.map(({ icon: Icon, label, onClick, accent }) => (
           <button
             key={label}
             onClick={onClick}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
               accent
                 ? "bg-violet-600/20 text-violet-300 border border-violet-500/30"
                 : "text-slate-400 hover:text-white hover:bg-white/5"
             }`}
+            title={label}
           >
             <Icon className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{label}</span>

@@ -3,19 +3,19 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { generateResumePdf, downloadPdf, TemplateType } from "@/lib/pdf-generator";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, FileText, Briefcase, Award, Minus, Target, Pencil, Eye, Zap, Home } from "lucide-react";
+import { ArrowLeft, Download, FileText, Briefcase, Award, Minus, Target, Pencil, Eye, Home, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import ResumePreview, { FixedContent } from "@/components/fix-resume/ResumePreview";
+import { AnimatedGradientMesh } from "@/components/premium";
 
-const templates: { id: TemplateType; label: string; icon: typeof FileText; desc: string; accent: string }[] = [
-  { id: "classic", label: "Classic ATS", icon: FileText, desc: "Black & white, maximum ATS compatibility", accent: "border-muted-foreground/30" },
-  { id: "modern", label: "Modern Tech", icon: Briefcase, desc: "Blue accents, skill tags, clean spacing", accent: "border-blue-500/40" },
-  { id: "executive", label: "Executive Pro", icon: Award, desc: "Navy & gold, premium leadership layout", accent: "border-amber-500/40" },
-  { id: "minimal", label: "Minimal Clean", icon: Minus, desc: "Light grey, thin lines, high readability", accent: "border-muted-foreground/20" },
-  { id: "impact", label: "Impact-Focused", icon: Target, desc: "Achievements highlighted, metrics emphasized", accent: "border-emerald-500/40" },
+const templates: { id: TemplateType; label: string; icon: typeof FileText; desc: string; color: string }[] = [
+  { id: "classic", label: "Classic ATS", icon: FileText, desc: "Black & white, maximum ATS compatibility", color: "violet" },
+  { id: "modern", label: "Modern Tech", icon: Briefcase, desc: "Blue accents, skill tags, clean spacing", color: "cyan" },
+  { id: "executive", label: "Executive Pro", icon: Award, desc: "Navy & gold, premium leadership layout", color: "amber" },
+  { id: "minimal", label: "Minimal Clean", icon: Minus, desc: "Light grey, thin lines, high readability", color: "slate" },
+  { id: "impact", label: "Impact-Focused", icon: Target, desc: "Achievements highlighted, metrics emphasized", color: "emerald" },
 ];
 
 export default function FixResume() {
@@ -32,7 +32,6 @@ export default function FixResume() {
   useEffect(() => {
     if (!id || !user) return;
 
-    // Check payment access first
     const checkAccess = async () => {
       try {
         const session = (await supabase.auth.getSession()).data.session;
@@ -52,7 +51,6 @@ export default function FixResume() {
         return;
       }
 
-      // Proceed to load analysis
       const { data } = await supabase
         .from("resume_analyses")
         .select("*")
@@ -76,7 +74,6 @@ export default function FixResume() {
       });
       if (error) throw error;
       if (!data?.fixedContent) throw new Error("No content returned");
-      // Sanitize content to prevent null issues
       const fc = data.fixedContent;
       setFixedContent({
         name: fc.name || "Name",
@@ -119,83 +116,116 @@ export default function FixResume() {
 
   if (loading || generating) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-4" />
+      <div className="flex min-h-screen items-center justify-center bg-background relative">
+        <AnimatedGradientMesh />
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center relative z-10"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="mx-auto mb-4"
+          >
+            <Loader2 className="h-10 w-10 text-violet-400" />
+          </motion.div>
           <p className="text-muted-foreground">{generating ? "AI is generating your improved resume..." : "Loading..."}</p>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   if (!fixedContent) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
+      <div className="flex min-h-screen items-center justify-center bg-background relative">
+        <AnimatedGradientMesh />
+        <div className="text-center relative z-10">
           <p className="text-muted-foreground mb-4">Could not generate fixed resume</p>
-          <Button onClick={() => navigate(`/analysis/${id}`)}>Back to Analysis</Button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate(`/analysis/${id}`)}
+            className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all"
+          >
+            Back to Analysis
+          </motion.button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border glass-strong sticky top-0 z-50">
+    <div className="min-h-screen bg-background relative">
+      <AnimatedGradientMesh />
+
+      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate(`/analysis/${id}`)}>
+            <Button variant="ghost" size="icon" onClick={() => navigate(`/analysis/${id}`)} className="text-muted-foreground hover:text-foreground hover:bg-violet-500/5">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <span className="font-medium text-sm">Fix My Resume</span>
+            <span className="font-semibold text-sm text-foreground">Fix My Resume</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="text-muted-foreground hover:text-foreground hover:bg-violet-500/5">
               <Home className="h-4 w-4 mr-1" /> Dashboard
             </Button>
             <Button
               variant={editable ? "default" : "outline"}
               size="sm"
               onClick={() => setEditable(!editable)}
+              className={editable ? "bg-gradient-to-r from-violet-600 to-cyan-600 text-white border-0" : "border-violet-500/20 hover:border-violet-500/40"}
             >
               {editable ? <><Eye className="h-4 w-4 mr-1" /> Preview</> : <><Pencil className="h-4 w-4 mr-1" /> Edit</>}
             </Button>
-            <Button onClick={handleDownload} size="sm">
-              <Download className="h-4 w-4 mr-1" /> Download PDF
-            </Button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleDownload}
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center gap-1"
+            >
+              <Download className="h-4 w-4" /> Download PDF
+            </motion.button>
           </div>
         </div>
       </header>
 
-      <main className="container py-8 max-w-6xl">
+      <main className="container py-8 max-w-6xl relative z-10">
         {/* Template Selection */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-          <h2 className="text-xl font-bold mb-2">Choose Your Template</h2>
+          <h2 className="text-xl font-bold mb-2 text-foreground">Choose Your Template</h2>
           <p className="text-sm text-muted-foreground mb-5">Each template uses a structurally different layout optimized for ATS parsing.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {templates.map((t) => (
-              <Card
+              <motion.button
                 key={t.id}
-                className={`cursor-pointer transition-all duration-200 border-2 hover:-translate-y-0.5 hover:shadow-lg ${template === t.id ? `${t.accent} bg-primary/5 shadow-md` : "border-transparent hover:border-muted-foreground/10"}`}
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className={`text-left p-4 rounded-xl border-2 transition-all ${
+                  template === t.id
+                    ? `border-violet-500/50 bg-violet-500/10 shadow-lg shadow-violet-500/10`
+                    : "border-violet-500/10 glass hover:border-violet-500/30 card-hover-glow"
+                }`}
                 onClick={() => setTemplate(t.id)}
               >
-                <CardContent className="py-4 px-4">
-                  <div className={`h-9 w-9 rounded-lg flex items-center justify-center mb-2 ${template === t.id ? "bg-primary/20" : "bg-secondary"}`}>
-                    <t.icon className={`h-4 w-4 ${template === t.id ? "text-primary" : "text-muted-foreground"}`} />
-                  </div>
-                  <p className="font-semibold text-sm">{t.label}</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-snug">{t.desc}</p>
-                </CardContent>
-              </Card>
+                <div className={`h-9 w-9 rounded-lg flex items-center justify-center mb-2 ${
+                  template === t.id ? "bg-violet-500/20 border border-violet-500/30" : "bg-white/5 border border-violet-500/10"
+                }`}>
+                  <t.icon className={`h-4 w-4 ${template === t.id ? "text-violet-400" : "text-muted-foreground"}`} />
+                </div>
+                <p className="font-semibold text-sm text-foreground">{t.label}</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-snug">{t.desc}</p>
+              </motion.button>
             ))}
           </div>
         </motion.div>
 
         {/* Preview */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <h2 className="text-xl font-bold mb-4">
+          <h2 className="text-xl font-bold mb-4 text-foreground">
             Resume Preview — {templates.find(t => t.id === template)?.label}
-            {editable && <span className="text-primary text-sm font-normal ml-2">(Editing Mode)</span>}
+            {editable && <span className="text-violet-400 text-sm font-normal ml-2">(Editing Mode)</span>}
           </h2>
           <ResumePreview
             content={fixedContent}
@@ -206,9 +236,14 @@ export default function FixResume() {
         </motion.div>
 
         <div className="text-center mt-8">
-          <Button size="lg" onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-2" /> Download as PDF
-          </Button>
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={handleDownload}
+            className="px-8 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-xl hover:shadow-violet-500/25 transition-all inline-flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" /> Download as PDF
+          </motion.button>
         </div>
       </main>
     </div>

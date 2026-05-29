@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, CheckCircle2, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
 
 const PASSWORD_RULES = {
   minLength: 8,
@@ -34,21 +33,17 @@ export default function ResetPassword() {
   useEffect(() => {
     document.title = "Reset Password – HireResume";
 
-    // Listen for PASSWORD_RECOVERY event (fired after PKCE code exchange in AuthCallback)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecovery(true);
       }
     });
 
-    // Check hash-based recovery (legacy flow)
     const hash = window.location.hash;
     if (hash.includes("type=recovery")) {
       setIsRecovery(true);
     }
 
-    // If we arrived here directly after AuthCallback exchanged the code,
-    // session already exists — treat as recovery
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setIsRecovery(true);
     });
@@ -79,57 +74,74 @@ export default function ResetPassword() {
 
   if (!isRecovery) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md glass shadow-xl">
-          <CardContent className="py-12 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden px-4">
+        <AnimatedGradientMesh />
+        <div className="glass rounded-2xl shadow-2xl shadow-violet-500/10 border border-violet-500/15 w-full max-w-md relative z-10">
+          <div className="py-12 text-center px-6">
             <p className="text-muted-foreground mb-4">Invalid or expired reset link.</p>
-            <Button onClick={() => navigate("/auth")}>Back to Sign In</Button>
-          </CardContent>
-        </Card>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate("/auth")}
+              className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all"
+            >
+              Back to Sign In
+            </motion.button>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <Card className="w-full max-w-md glass shadow-xl">
-            <CardContent className="py-12 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden px-4">
+        <AnimatedGradientMesh />
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative z-10">
+          <div className="glass rounded-2xl shadow-2xl shadow-violet-500/10 border border-violet-500/15 w-full max-w-md">
+            <div className="py-12 text-center px-6">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 300 }}
-                className="mx-auto mb-4 h-16 w-16 rounded-full bg-success/20 flex items-center justify-center"
+                className="mx-auto mb-4 h-16 w-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center"
               >
-                <CheckCircle2 className="h-8 w-8 text-success" />
+                <CheckCircle2 className="h-8 w-8 text-emerald-400" />
               </motion.div>
-              <h2 className="text-xl font-bold mb-2">Password Reset Successful</h2>
+              <h2 className="text-xl font-bold mb-2 text-foreground">Password Reset Successful</h2>
               <p className="text-muted-foreground">Redirecting to sign in...</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-        <Card className="glass shadow-xl">
-          <CardHeader className="text-center pb-4">
+    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden px-4">
+      <AnimatedGradientMesh />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md relative z-10"
+      >
+        <div className="glass rounded-2xl shadow-2xl shadow-violet-500/10 border border-violet-500/15 overflow-hidden">
+          <div className="text-center px-6 pt-8 pb-4 relative">
+            <SparkleParticles count={5} colors={["#8B5CF6", "#06B6D4"]} />
             <motion.div
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200 }}
-              className="mx-auto mb-3 h-12 w-12 rounded-xl bg-primary flex items-center justify-center"
+              className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/30"
             >
-              <Zap className="h-6 w-6 text-primary-foreground" />
+              <Zap className="h-7 w-7 text-white" />
             </motion.div>
-            <CardTitle className="text-2xl">Reset Password</CardTitle>
-            <CardDescription>Enter your new password below</CardDescription>
-          </CardHeader>
-          <CardContent>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Reset Password</h1>
+            <p className="text-sm text-muted-foreground mt-1">Enter your new password below</p>
+          </div>
+
+          <div className="px-6 pb-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <div className="relative">
@@ -140,13 +152,13 @@ export default function ResetPassword() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="pl-10"
+                    className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40"
                   />
                 </div>
                 {password && passwordErrors.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {passwordErrors.map((err, i) => (
-                      <li key={i} className="text-xs text-destructive flex items-center gap-1">
+                      <li key={i} className="text-xs text-red-400 flex items-center gap-1">
                         <span>•</span> {err}
                       </li>
                     ))}
@@ -162,30 +174,32 @@ export default function ResetPassword() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="pl-10"
+                    className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40"
                   />
                 </div>
                 {confirmPassword && !passwordsMatch && (
-                  <p className="text-xs text-destructive mt-1">Passwords do not match</p>
+                  <p className="text-xs text-red-400 mt-1">Passwords do not match</p>
                 )}
               </div>
-              <Button
+              <motion.button
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
                 type="submit"
-                className="w-full h-11"
                 disabled={loading || passwordErrors.length > 0 || !passwordsMatch || !password}
+                className="w-full h-11 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50"
               >
                 {loading ? (
-                  <span className="flex items-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Updating...
                   </span>
                 ) : (
                   "Reset Password"
                 )}
-              </Button>
+              </motion.button>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

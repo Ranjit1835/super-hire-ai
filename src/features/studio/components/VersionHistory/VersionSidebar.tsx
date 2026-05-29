@@ -35,7 +35,7 @@ export function VersionSidebar({ versions, loading, open, onClose, onRevert, onL
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: "100%", opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="absolute top-0 right-0 bottom-0 w-72 z-40 bg-[#0d0d15] border-l border-white/10 flex flex-col"
+          className="absolute inset-0 md:left-auto md:w-72 z-40 bg-[#0d0d15] border-l border-white/10 flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">

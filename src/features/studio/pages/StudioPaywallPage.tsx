@@ -1,12 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Upload, Sparkles, ArrowLeft, FileText, Loader2, Check, Zap, Brain, Shield } from "lucide-react";
+import { Upload, Sparkles, ArrowLeft, ArrowRight, FileText, Loader2, Check, Zap, Brain, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
 import * as pdfjsLib from "pdfjs-dist";
 
-// Set worker path
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 function StudioPaywallPage() {
@@ -17,11 +17,9 @@ function StudioPaywallPage() {
   const [parseStep, setParseStep] = useState(0);
   const [dragOver, setDragOver] = useState(false);
 
-  // Check for existing studio resumes
   const [existingResumes, setExistingResumes] = useState<any[]>([]);
-  const [loaded, setLoaded] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     supabase
       .from("studio_resumes")
       .select("id, title, updated_at, template_id")
@@ -29,9 +27,8 @@ function StudioPaywallPage() {
       .limit(5)
       .then(({ data }) => {
         setExistingResumes(data || []);
-        setLoaded(true);
       });
-  });
+  }, []);
 
   const extractText = async (pdfFile: File): Promise<string> => {
     const arrayBuffer = await pdfFile.arrayBuffer();
@@ -61,24 +58,36 @@ function StudioPaywallPage() {
       setParseStep(1);
 
       try {
-        // Step 1: Extract text
-        setParseStep(1);
         const resumeText = await extractText(selectedFile);
         if (resumeText.trim().length < 50) {
           throw new Error("Could not extract enough text from this PDF");
         }
 
-        // Step 2: AI parsing
         setParseStep(2);
         const { data, error } = await supabase.functions.invoke("studio-parse-resume", {
           body: { resumeText, title: selectedFile.name.replace(".pdf", "") },
         });
 
-        if (error || !data?.resume?.id) {
-          throw new Error(error?.message || "Failed to parse resume");
+        if (error) {
+          let errMsg = "";
+          try {
+            if (error.context && typeof error.context.json === "function") {
+              const body = await error.context.json();
+              errMsg = body?.error || JSON.stringify(body);
+            }
+          } catch { /* ignore */ }
+          if (!errMsg) {
+            errMsg = typeof error === "object" ? (error.message || JSON.stringify(error)) : String(error);
+          }
+          throw new Error(errMsg);
+        }
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+        if (!data?.resume?.id) {
+          throw new Error("No resume ID returned");
         }
 
-        // Step 3: Done
         setParseStep(3);
         await new Promise((r) => setTimeout(r, 500));
 
@@ -110,37 +119,47 @@ function StudioPaywallPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className="min-h-screen bg-background text-foreground relative">
+      <AnimatedGradientMesh />
+
       {/* Header */}
-      <header className="flex items-center gap-3 px-6 py-4 border-b border-white/5">
+      <header className="relative z-10 flex items-center gap-3 px-6 py-4 border-b border-violet-500/10 glass-strong">
         <button
           onClick={() => navigate("/dashboard")}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5"
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="text-sm font-semibold">Resume Studio</span>
+          <span className="text-sm font-semibold tracking-tight">Resume Studio</span>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-6 py-12">
+      <div className="max-w-3xl mx-auto px-6 py-12 relative z-10">
         {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-10"
         >
-          <h1 className="text-3xl font-bold mb-3">
-            <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
-              Chat with AI.
-            </span>{" "}
-            Watch your resume transform.
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-sm text-violet-300 mb-5"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>AI-Powered Resume Editor</span>
+          </motion.div>
+
+          <h1 className="text-3xl sm:text-4xl font-bold mb-3 tracking-tight">
+            <span className="gradient-text-new">Chat with AI.</span>{" "}
+            <span className="text-foreground">Watch your resume transform.</span>
           </h1>
-          <p className="text-slate-400 text-sm max-w-md mx-auto">
+          <p className="text-muted-foreground text-sm max-w-md mx-auto leading-relaxed">
             Upload your resume and have a natural conversation with AI. Every improvement appears in real-time on a live preview.
           </p>
         </motion.div>
@@ -150,11 +169,11 @@ function StudioPaywallPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-[#14141f] border border-white/10 rounded-2xl p-8 mb-8"
+            className="glass rounded-2xl p-8 mb-8 border-violet-500/15"
           >
             <div className="flex items-center gap-3 mb-6">
               <Loader2 className="w-5 h-5 text-violet-400 animate-spin" />
-              <span className="text-sm font-medium text-white">Preparing your studio...</span>
+              <span className="text-sm font-medium text-foreground">Preparing your studio...</span>
             </div>
             <div className="space-y-4">
               {parseSteps.map((step, i) => {
@@ -166,17 +185,17 @@ function StudioPaywallPage() {
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                         isDone
-                          ? "bg-emerald-500/20 text-emerald-400"
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                           : isActive
-                          ? "bg-violet-500/20 text-violet-400"
-                          : "bg-white/5 text-slate-600"
+                          ? "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+                          : "bg-white/5 text-muted-foreground border border-transparent"
                       }`}
                     >
                       {isDone ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
                     </div>
                     <span
                       className={`text-sm ${
-                        isDone ? "text-emerald-400" : isActive ? "text-white" : "text-slate-600"
+                        isDone ? "text-emerald-400" : isActive ? "text-foreground" : "text-muted-foreground/50"
                       }`}
                     >
                       {step.label}
@@ -207,10 +226,10 @@ function StudioPaywallPage() {
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
-            className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer ${
+            className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer backdrop-blur-xl overflow-hidden ${
               dragOver
-                ? "border-violet-500 bg-violet-500/5"
-                : "border-white/10 hover:border-white/20 hover:bg-white/[0.02]"
+                ? "border-violet-500 bg-violet-500/10 neon-glow"
+                : "border-violet-500/20 bg-[rgba(20,20,35,0.4)] hover:border-violet-500/40 card-hover-glow"
             }`}
             onClick={() => {
               const input = document.createElement("input");
@@ -223,9 +242,15 @@ function StudioPaywallPage() {
               input.click();
             }}
           >
-            <Upload className="w-10 h-10 text-slate-500 mx-auto mb-4" />
-            <p className="text-sm text-slate-300 mb-1">Drop your resume PDF here or click to upload</p>
-            <p className="text-xs text-slate-500">PDF only · Max 10MB</p>
+            {dragOver && <SparkleParticles count={12} colors={["#8B5CF6", "#06B6D4"]} />}
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Upload className="w-10 h-10 text-violet-400/60 mx-auto mb-4" />
+            </motion.div>
+            <p className="text-sm text-foreground/80 mb-1">Drop your resume PDF here or click to upload</p>
+            <p className="text-xs text-muted-foreground/50">PDF only · Max 10MB</p>
           </motion.div>
         )}
 
@@ -237,22 +262,24 @@ function StudioPaywallPage() {
             transition={{ delay: 0.2 }}
             className="mt-8"
           >
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Recent Resumes</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Recent Resumes</h3>
             <div className="space-y-2">
               {existingResumes.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => navigate(`/studio/${r.id}`)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#14141f] border border-white/5 hover:border-violet-500/20 transition-all text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl glass border-violet-500/10 card-hover-glow transition-all text-left"
                 >
-                  <FileText className="w-4 h-4 text-slate-500" />
+                  <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-violet-400" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{r.title}</p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-sm text-foreground truncate">{r.title}</p>
+                    <p className="text-[10px] text-muted-foreground/50">
                       {new Date(r.updated_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <ArrowLeft className="w-3.5 h-3.5 text-slate-500 rotate-180" />
+                  <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/40" />
                 </button>
               ))}
             </div>
@@ -268,14 +295,16 @@ function StudioPaywallPage() {
             className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4"
           >
             {[
-              { icon: Zap, title: "Real-time Preview", desc: "See changes appear instantly as AI edits your resume" },
-              { icon: Brain, title: "AI-Powered", desc: "Claude AI understands context, not just keywords" },
-              { icon: Shield, title: "Truthful Always", desc: "AI enhances phrasing but never fabricates experience" },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="bg-[#14141f] border border-white/5 rounded-xl p-4">
-                <Icon className="w-5 h-5 text-violet-400 mb-2" />
-                <h3 className="text-sm font-semibold text-white mb-1">{title}</h3>
-                <p className="text-xs text-slate-400">{desc}</p>
+              { icon: Zap, title: "Real-time Preview", desc: "See changes appear instantly as AI edits your resume", color: "violet" },
+              { icon: Brain, title: "AI-Powered", desc: "Claude AI understands context, not just keywords", color: "cyan" },
+              { icon: Shield, title: "Truthful Always", desc: "AI enhances phrasing but never fabricates experience", color: "emerald" },
+            ].map(({ icon: Icon, title, desc, color }) => (
+              <div key={title} className="glass rounded-xl p-5 card-hover-glow border-violet-500/10">
+                <div className={`w-9 h-9 rounded-lg bg-${color}-500/10 border border-${color}-500/20 flex items-center justify-center mb-3`}>
+                  <Icon className={`w-4 h-4 text-${color}-400`} />
+                </div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">{title}</h3>
+                <p className="text-xs text-muted-foreground/70 leading-relaxed">{desc}</p>
               </div>
             ))}
           </motion.div>

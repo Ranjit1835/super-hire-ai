@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,7 @@ import { InterviewPayment } from "@/components/interview/InterviewPayment";
 import { InterviewReport } from "@/components/interview/InterviewReport";
 import { useSpeech } from "@/hooks/useSpeech";
 import { VoiceWaveform } from "@/components/interview/VoiceWaveform";
+import { AnimatedGradientMesh } from "@/components/premium";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -53,16 +53,14 @@ export default function MockInterview() {
 
   useEffect(() => { document.title = "AI Mock Interview – HireResume"; }, []);
 
-  // Scroll to bottom on new message
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Check access on mount
   useEffect(() => {
-    if (!user || !session) return;
+    if (!user || !session?.access_token) return;
     checkAccess();
-  }, [user, session]);
+  }, [user?.id, session?.access_token]);
 
   const callAPI = useCallback(async (body: any) => {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/mock-interview`, {
@@ -113,12 +111,11 @@ export default function MockInterview() {
     }
   };
 
-  // Auto-send voice transcript when STT finishes
   useEffect(() => {
     if (isVoiceMode && !isListening && transcript.trim() && phase === "chat" && !sending) {
       sendVoiceMessage(transcript.trim());
     }
-  }, [isListening]);
+  }, [isListening, isVoiceMode, transcript, phase, sending]);
 
   const sendVoiceMessage = async (text: string) => {
     if (!text || sending) return;
@@ -185,31 +182,33 @@ export default function MockInterview() {
 
   if (checkingAccess) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background flex items-center justify-center relative">
+        <AnimatedGradientMesh />
+        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border glass-strong sticky top-0 z-50">
+    <div className="min-h-screen bg-background relative">
+      <AnimatedGradientMesh />
+
+      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="h-4 w-4 text-primary-foreground" />
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+              <Zap className="h-4 w-4 text-white" />
             </div>
             <span className="font-bold text-foreground">HireResume</span>
-            <Badge variant="secondary" className="text-xs">Interview</Badge>
+            <Badge className="text-xs bg-violet-500/10 text-violet-300 border-violet-500/20">Interview</Badge>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
-          </Button>
+          <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Dashboard
+          </button>
         </div>
       </header>
 
-      <main className="container py-6 sm:py-8 px-4 max-w-3xl">
-        {/* Setup phase */}
+      <main className="container py-6 sm:py-8 px-4 max-w-3xl relative z-10">
         {phase === "setup" && !canAccess && (
           <InterviewPayment
             accessInfo={accessInfo}
@@ -221,13 +220,13 @@ export default function MockInterview() {
         {phase === "setup" && canAccess && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <div className="text-center mb-8">
-              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Mic className="h-8 w-8 text-primary" />
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-violet-600/20 to-cyan-600/20 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
+                <Mic className="h-8 w-8 text-violet-400" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">AI Mock Interview</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2 gradient-text-new">AI Mock Interview</h1>
               <p className="text-muted-foreground text-sm">Practice real interview questions with AI simulation</p>
               {accessInfo?.isEarlyBird && (
-                <Badge className="mt-2 bg-primary/20 text-primary border-primary/30">
+                <Badge className="mt-2 bg-violet-500/15 text-violet-300 border-violet-500/25">
                   Early Bird: {accessInfo.monthlyLimit - accessInfo.monthlyCount} interviews left this month
                 </Badge>
               )}
@@ -235,44 +234,46 @@ export default function MockInterview() {
 
             {/* Voice Interview CTA */}
             <div className="max-w-md mx-auto mb-4">
-              <button
+              <motion.button
+                whileHover={{ y: -2, scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
                 onClick={() => navigate("/voice-interview")}
-                className="w-full rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all p-4 text-left flex items-center gap-4 group"
+                className="w-full rounded-xl border border-violet-500/20 glass card-hover-glow transition-all p-4 text-left flex items-center gap-4 group"
               >
-                <div className="h-12 w-12 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Mic className="h-6 w-6 text-primary" />
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-violet-600/20 to-cyan-600/20 border border-violet-500/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Mic className="h-6 w-6 text-violet-400" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-semibold text-sm">Voice-to-Voice Interview</span>
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">New</Badge>
+                    <span className="font-semibold text-sm text-foreground">Voice-to-Voice Interview</span>
+                    <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/25 text-xs">New</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">Speak naturally with AI. No typing — just talk like a real interview.</p>
                 </div>
-              </button>
+              </motion.button>
             </div>
 
             <div className="flex items-center gap-3 max-w-md mx-auto mb-4">
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
               <span className="text-xs text-muted-foreground">or text-based interview</span>
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
             </div>
 
-            <Card className="max-w-md mx-auto">
-              <CardContent className="py-6 space-y-4">
+            <div className="glass rounded-2xl border border-violet-500/15 max-w-md mx-auto">
+              <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block">Select Role</label>
+                  <label className="text-sm font-medium mb-1.5 block text-foreground">Select Role</label>
                   <Select value={role} onValueChange={setRole}>
-                    <SelectTrigger><SelectValue placeholder="Choose a role..." /></SelectTrigger>
+                    <SelectTrigger className="bg-white/5 border-violet-500/15"><SelectValue placeholder="Choose a role..." /></SelectTrigger>
                     <SelectContent>
                       {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block">Experience Level</label>
+                  <label className="text-sm font-medium mb-1.5 block text-foreground">Experience Level</label>
                   <Select value={experienceLevel} onValueChange={(v: any) => setExperienceLevel(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-white/5 border-violet-500/15"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="fresher">Fresher (0-1 yrs)</SelectItem>
                       <SelectItem value="mid">Mid-Level (2-5 yrs)</SelectItem>
@@ -280,12 +281,18 @@ export default function MockInterview() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={startInterview} disabled={sending || !role} className="w-full">
-                  {sending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Mic className="h-4 w-4 mr-1" />}
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={startInterview}
+                  disabled={sending || !role}
+                  className="w-full h-11 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
                   {sending ? "Starting..." : "Start Interview"}
-                </Button>
-              </CardContent>
-            </Card>
+                </motion.button>
+              </div>
+            </div>
           </motion.div>
         )}
 
@@ -294,19 +301,29 @@ export default function MockInterview() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-[calc(100vh-8rem)]">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="font-bold text-lg">{role} Interview</h2>
+                <h2 className="font-bold text-lg text-foreground">{role} Interview</h2>
                 <p className="text-xs text-muted-foreground capitalize">{experienceLevel} level</p>
               </div>
               <div className="flex items-center gap-2">
                 {isSupported && (
-                  <Button variant={isVoiceMode ? "default" : "outline"} size="sm" onClick={toggleVoiceMode}>
-                    {isVoiceMode ? <MicOff className="h-4 w-4 mr-1" /> : <Mic className="h-4 w-4 mr-1" />}
+                  <button
+                    onClick={toggleVoiceMode}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      isVoiceMode
+                        ? "bg-gradient-to-r from-violet-600 to-cyan-600 text-white"
+                        : "glass border border-violet-500/15 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {isVoiceMode ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
                     {isVoiceMode ? "Voice On" : "Voice"}
-                  </Button>
+                  </button>
                 )}
-                <Button variant="outline" size="sm" onClick={generateScore}>
-                  <BarChart3 className="h-4 w-4 mr-1" /> End & Score
-                </Button>
+                <button
+                  onClick={generateScore}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium glass border border-violet-500/15 text-muted-foreground hover:text-foreground transition-all"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" /> End & Score
+                </button>
               </div>
             </div>
 
@@ -320,19 +337,19 @@ export default function MockInterview() {
                     className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     {msg.role === "assistant" && (
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
-                        <Bot className="h-4 w-4 text-primary" />
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-600/20 to-cyan-600/20 border border-violet-500/20 flex items-center justify-center shrink-0 mt-1">
+                        <Bot className="h-4 w-4 text-violet-400" />
                       </div>
                     )}
                     <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-sm"
-                        : "bg-card border border-border text-foreground rounded-bl-sm"
+                        ? "bg-gradient-to-r from-violet-600 to-cyan-600 text-white rounded-br-sm"
+                        : "glass border border-violet-500/10 text-foreground rounded-bl-sm"
                     }`}>
                       {msg.content}
                     </div>
                     {msg.role === "user" && (
-                      <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-1">
+                      <div className="h-8 w-8 rounded-full bg-white/5 border border-violet-500/10 flex items-center justify-center shrink-0 mt-1">
                         <User className="h-4 w-4 text-muted-foreground" />
                       </div>
                     )}
@@ -341,14 +358,14 @@ export default function MockInterview() {
               </AnimatePresence>
               {sending && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Bot className="h-4 w-4 text-primary" />
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-600/20 to-cyan-600/20 border border-violet-500/20 flex items-center justify-center shrink-0">
+                    <Bot className="h-4 w-4 text-violet-400" />
                   </div>
-                  <div className="bg-secondary rounded-2xl rounded-bl-sm px-4 py-3">
+                  <div className="glass border border-violet-500/10 rounded-2xl rounded-bl-sm px-4 py-3">
                     <div className="flex gap-1">
-                      <span className="h-2 w-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="h-2 w-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="h-2 w-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      <span className="h-2 w-2 bg-violet-400/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="h-2 w-2 bg-violet-400/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="h-2 w-2 bg-violet-400/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 </motion.div>
@@ -360,9 +377,14 @@ export default function MockInterview() {
               <div className="flex flex-col items-center gap-3 py-2">
                 <VoiceWaveform isActive={isListening || isSpeaking} label={isSpeaking ? "AI is speaking..." : isListening ? "Listening..." : sending ? "Processing..." : "Tap mic to respond"} />
                 {!isListening && !isSpeaking && !sending && (
-                  <Button size="sm" onClick={startListening}>
-                    <Mic className="h-4 w-4 mr-1" /> Tap to Speak
-                  </Button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={startListening}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center gap-1.5"
+                  >
+                    <Mic className="h-4 w-4" /> Tap to Speak
+                  </motion.button>
                 )}
                 {transcript && (
                   <p className="text-xs text-muted-foreground italic">"{transcript}"</p>
@@ -376,11 +398,17 @@ export default function MockInterview() {
                   onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
                   placeholder="Type your answer..."
                   disabled={sending}
-                  className="flex-1"
+                  className="flex-1 bg-white/5 border-violet-500/15 focus:border-violet-500/40"
                 />
-                <Button onClick={sendMessage} disabled={sending || !input.trim()} size="icon">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={sendMessage}
+                  disabled={sending || !input.trim()}
+                  className="h-10 w-10 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-600 text-white flex items-center justify-center disabled:opacity-50"
+                >
                   <Send className="h-4 w-4" />
-                </Button>
+                </motion.button>
               </div>
             )}
           </motion.div>
@@ -389,8 +417,8 @@ export default function MockInterview() {
         {/* Scoring phase */}
         {phase === "scoring" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Analyzing Your Interview</h2>
+            <Loader2 className="h-12 w-12 animate-spin text-violet-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2 text-foreground">Analyzing Your Interview</h2>
             <p className="text-muted-foreground text-sm">AI is evaluating your responses...</p>
             <Progress value={66} className="max-w-xs mx-auto mt-6" />
           </motion.div>

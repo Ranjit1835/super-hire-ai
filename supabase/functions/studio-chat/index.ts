@@ -91,7 +91,7 @@ serve(async (req) => {
       .limit(20);
 
     // Save user message
-    const { data: userMsg } = await admin
+    const { data: userMsg, error: msgErr } = await admin
       .from("studio_messages")
       .insert({
         session_id: sessionId,
@@ -101,16 +101,14 @@ serve(async (req) => {
       .select("id")
       .single();
 
-    // Determine model based on pass_type
-    let model: string;
-    if (session.pass_type === "free") {
-      // Free tier: use Groq LLaMA for cost efficiency
-      model = "groq";
-    } else if (session.pass_type === "single") {
-      model = "claude-haiku-4-5-20251001";
-    } else {
-      model = "claude-sonnet-4-6-20250514";
+    if (msgErr) {
+      console.error("[STUDIO CHAT] Failed to save user message:", msgErr.message);
     }
+
+    // Determine model based on pass_type
+    const model = session.pass_type === "free" || session.pass_type === "single"
+      ? "claude-haiku-4-5-20251001"
+      : "claude-sonnet-4-6";
 
     // Build system prompt
     const personaInstructions = PERSONA_INSTRUCTIONS[currentPersona] || PERSONA_INSTRUCTIONS["big-tech"];
@@ -125,16 +123,14 @@ serve(async (req) => {
       { role: "user", content: userMessage },
     ];
 
-    // Stream response
-    if (model === "groq") {
-      // Groq (free tier) — non-streaming for simplicity
-      return await handleGroqResponse(admin, session, resume, messages, systemPrompt, userMsg?.id, corsHeaders);
+    // Use Claude for all tiers — non-streaming JSON response for free, SSE for paid
+    if (session.pass_type === "free") {
+      return await handleClaudeJson(admin, session, resume, messages, systemPrompt, model, userMsg?.id, corsHeaders);
     } else {
-      // Claude (paid tier) — streaming with SSE + prompt caching
       return await handleClaudeStream(admin, session, resume, messages, systemPrompt, model, userMsg?.id, corsHeaders);
     }
   } catch (err: any) {
-    console.error("[STUDIO CHAT] Error:", err.message);
+    console.error("[STUDIO CHAT] Error:", err.message, err.stack?.slice(0, 300));
     return new Response(JSON.stringify({ error: err.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -185,41 +181,43 @@ RULES:
 - Path format: "experience[0].bullets[2]" or "summary" or "skills[1].items" or "projects[0].bullets[0]"`;
 }
 
-async function handleGroqResponse(
+async function handleClaudeJson(
   admin: any,
   session: any,
   resume: any,
   messages: any[],
   systemPrompt: string,
+  model: string,
   userMsgId: string | undefined,
   cors: Record<string, string>
 ) {
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) throw new Error("Groq API key not configured");
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!ANTHROPIC_API_KEY) throw new Error("Anthropic API key not configured");
 
-  const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${GEMINI_API_KEY}`,
       "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: Deno.env.get("AI_MODEL") || "llama-3.3-70b-versatile",
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-      temperature: 0.3,
+      model,
       max_tokens: 2048,
+      system: systemPrompt,
+      messages,
     }),
   });
 
   if (!aiResponse.ok) {
     const errText = await aiResponse.text();
-    console.error("[STUDIO CHAT] Groq error:", errText);
-    throw new Error("AI service temporarily unavailable");
+    console.error("[STUDIO CHAT] Anthropic error:", aiResponse.status, errText);
+    throw new Error(`AI service error: ${errText.slice(0, 150)}`);
   }
 
   const aiData = await aiResponse.json();
-  const content = aiData.choices?.[0]?.message?.content || "";
-  const tokensUsed = (aiData.usage?.prompt_tokens || 0) + (aiData.usage?.completion_tokens || 0);
+  const content = aiData.content?.[0]?.text || "";
+  const tokensUsed = (aiData.usage?.input_tokens || 0) + (aiData.usage?.output_tokens || 0);
 
   // Parse changes if present
   const { changes, explanation } = parseChangesFromResponse(content);
@@ -227,19 +225,24 @@ async function handleGroqResponse(
   // Apply changes to resume
   let versionId: string | undefined;
   if (changes && changes.length > 0) {
-    const result = await applyChangesAndSaveVersion(admin, resume, changes, explanation, userMsgId);
-    versionId = result.versionId;
+    try {
+      const result = await applyChangesAndSaveVersion(admin, resume, changes, explanation, userMsgId);
+      versionId = result.versionId;
+    } catch (e: any) {
+      console.error("[STUDIO CHAT] Failed to apply changes:", e.message);
+    }
   }
 
-  // Save assistant message
-  await admin.from("studio_messages").insert({
+  // Save assistant message (non-blocking — don't fail the response)
+  const { error: saveMsgErr } = await admin.from("studio_messages").insert({
     session_id: session.id,
     role: "assistant",
     content,
     changes_applied: changes,
-    model_used: "groq-llama-3.3-70b",
+    model_used: model,
     tokens_used: tokensUsed,
   });
+  if (saveMsgErr) console.error("[STUDIO CHAT] Failed to save assistant msg:", saveMsgErr.message);
 
   // Increment messages_used
   await admin
@@ -253,7 +256,7 @@ async function handleGroqResponse(
       changes,
       message_id: userMsgId,
       version_id: versionId,
-      model_used: "groq-llama-3.3-70b",
+      model_used: model,
       tokens_used: tokensUsed,
       messages_used: session.messages_used + 1,
     }),
@@ -300,14 +303,15 @@ async function handleClaudeStream(
       "Content-Type": "application/json",
       "x-api-key": ANTHROPIC_API_KEY,
       "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
     },
     body: JSON.stringify(requestBody),
   });
 
   if (!streamResponse.ok) {
     const errText = await streamResponse.text();
-    console.error("[STUDIO CHAT] Anthropic stream error:", errText);
-    throw new Error("AI service temporarily unavailable");
+    console.error("[STUDIO CHAT] Anthropic stream error:", streamResponse.status, errText);
+    throw new Error(`Anthropic API ${streamResponse.status}: ${errText.slice(0, 200)}`);
   }
 
   // Create a TransformStream to process and forward SSE

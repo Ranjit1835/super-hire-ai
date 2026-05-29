@@ -15,6 +15,7 @@ export default {
   	extend: {
   		fontFamily: {
   			sans: [
+  				'Inter',
   				'Roboto',
   				'ui-sans-serif',
   				'system-ui',
@@ -27,6 +28,7 @@ export default {
   				'sans-serif'
   			],
   			mono: [
+  				'Geist Mono',
   				'Roboto Mono',
   				'ui-monospace',
   				'SFMono-Regular',

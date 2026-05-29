@@ -36,24 +36,15 @@ serve(async (req) => {
       throw new Error("Resume text is too short or missing");
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("Anthropic API key not configured");
+    // Try Anthropic first, fall back to Gemini
+    const ANTHROPIC_API_KEY = (Deno.env.get("ANTHROPIC_API_KEY") || "").trim();
+    const GEMINI_API_KEY = (Deno.env.get("GEMINI_API_KEY") || "").trim();
+    if (!ANTHROPIC_API_KEY && !GEMINI_API_KEY) throw new Error("No AI API key configured");
 
-    // Use Claude Sonnet for high-quality parsing
-    const parseResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6-20250514",
-        max_tokens: 4096,
-        messages: [
-          {
-            role: "user",
-            content: `Parse the following resume text into a structured JSON object. Extract ALL information accurately. Do not fabricate any details — if a field is not found, use an empty string or empty array.
+    const useGemini = !ANTHROPIC_API_KEY;
+    console.log(`[STUDIO PARSE] Using ${useGemini ? "Gemini" : "Anthropic"} for parsing`);
+
+    const resumePrompt = `Parse the following resume text into a structured JSON object. Extract ALL information accurately. Do not fabricate any details — if a field is not found, use an empty string or empty array.
 
 Return ONLY valid JSON matching this exact schema:
 {
@@ -126,20 +117,62 @@ RULES:
 - Do NOT add information that isn't in the resume
 
 RESUME TEXT:
-${resumeText}`,
-          },
-        ],
-      }),
-    });
+${resumeText}`;
 
-    if (!parseResponse.ok) {
-      const errText = await parseResponse.text();
-      console.error("[STUDIO PARSE] Anthropic API error:", errText);
-      throw new Error("Failed to parse resume with AI");
+    let rawContent = "";
+    let tokensUsedParse = 0;
+
+    if (useGemini) {
+      // Gemini API via OpenAI-compatible endpoint
+      const parseResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gemini-2.0-flash",
+          messages: [{ role: "user", content: resumePrompt }],
+          max_tokens: 4096,
+          temperature: 0.1,
+        }),
+      });
+
+      if (!parseResponse.ok) {
+        const errText = await parseResponse.text();
+        console.error("[STUDIO PARSE] Gemini API error:", parseResponse.status, errText);
+        throw new Error(`Gemini API ${parseResponse.status}: ${errText.slice(0, 200)}`);
+      }
+
+      const parseData = await parseResponse.json();
+      rawContent = parseData.choices?.[0]?.message?.content || "";
+      tokensUsedParse = (parseData.usage?.prompt_tokens ?? 0) + (parseData.usage?.completion_tokens ?? 0);
+    } else {
+      // Anthropic API
+      const parseResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 4096,
+          messages: [{ role: "user", content: resumePrompt }],
+        }),
+      });
+
+      if (!parseResponse.ok) {
+        const errText = await parseResponse.text();
+        console.error("[STUDIO PARSE] Anthropic API error:", parseResponse.status, errText);
+        throw new Error(`Anthropic API ${parseResponse.status}: ${errText.slice(0, 200)}`);
+      }
+
+      const parseData = await parseResponse.json();
+      rawContent = parseData.content?.[0]?.text || "";
+      tokensUsedParse = (parseData.usage?.input_tokens ?? 0) + (parseData.usage?.output_tokens ?? 0);
     }
-
-    const parseData = await parseResponse.json();
-    const rawContent = parseData.content?.[0]?.text || "";
 
     // Extract JSON from the response (handle markdown code blocks)
     let jsonStr = rawContent;
@@ -202,13 +235,12 @@ ${resumeText}`,
       console.error("[STUDIO PARSE] Suggestion generation failed:", e)
     );
 
-    const tokensUsed = parseData.usage?.input_tokens + parseData.usage?.output_tokens || 0;
-    console.log(`[STUDIO PARSE] user=${user.id} resume=${studioResume.id} tokens=${tokensUsed}`);
+    console.log(`[STUDIO PARSE] user=${user.id} resume=${studioResume.id} tokens=${tokensUsedParse}`);
 
     return new Response(
       JSON.stringify({
         resume: studioResume,
-        tokensUsed,
+        tokensUsed: tokensUsedParse,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

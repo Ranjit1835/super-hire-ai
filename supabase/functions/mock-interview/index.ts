@@ -28,21 +28,21 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("AI service not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("AI service not configured");
+    console.log(`[MOCK-INTERVIEW] action=${action} user=${user.id}`);
 
     // ACTION: check-access
     if (action === "check-access") {
-      const { data: profile } = await admin
+      const { data: profile, error: profileErr } = await admin
         .from("profiles")
-        .select("early_bird_active, early_bird_expiry_date, plan_type, plan_expiry_date, monthly_interview_count, last_interview_reset_date")
+        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date")
         .eq("user_id", user.id)
         .single();
 
+      if (profileErr) console.error("[MOCK-INTERVIEW] profile fetch error:", profileErr.message);
+
       const isEarlyBird = profile?.early_bird_active && profile?.early_bird_expiry_date && new Date(profile.early_bird_expiry_date) > new Date();
-      const hasActivePlan = (profile?.plan_type === "UNLIMITED" || profile?.plan_type === "COMBO") &&
-        profile?.plan_expiry_date && new Date(profile.plan_expiry_date) > new Date();
-      const hasPlanAccess = isEarlyBird || hasActivePlan;
 
       // Reset monthly count if new month
       let monthlyCount = profile?.monthly_interview_count || 0;
@@ -56,15 +56,15 @@ serve(async (req) => {
         }).eq("user_id", user.id);
       }
 
-      const monthlyLimit = profile?.plan_type === "UNLIMITED" ? 999 : 2;
-      const canAccess = hasPlanAccess && monthlyCount < monthlyLimit;
+      const monthlyLimit = isEarlyBird ? 10 : 2;
+      const canAccess = isEarlyBird && monthlyCount < monthlyLimit;
       return new Response(JSON.stringify({
         canAccess,
         isEarlyBird: !!isEarlyBird,
-        planType: profile?.plan_type ?? "FREE",
+        planType: isEarlyBird ? "EARLY_BIRD" : "FREE",
         monthlyCount,
         monthlyLimit,
-        reason: canAccess ? "PLAN_ACCESS" : hasPlanAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
+        reason: canAccess ? "PLAN_ACCESS" : isEarlyBird ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -75,16 +75,13 @@ serve(async (req) => {
       // Verify access before starting — guard against clients that skip check-access
       const { data: accessProfile } = await admin
         .from("profiles")
-        .select("early_bird_active, early_bird_expiry_date, plan_type, plan_expiry_date, monthly_interview_count, last_interview_reset_date")
+        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date")
         .eq("user_id", user.id)
         .single();
 
       const isEarlyBird = accessProfile?.early_bird_active &&
         accessProfile?.early_bird_expiry_date &&
         new Date(accessProfile.early_bird_expiry_date) > new Date();
-      const hasActivePlan = (accessProfile?.plan_type === "UNLIMITED" || accessProfile?.plan_type === "COMBO") &&
-        accessProfile?.plan_expiry_date && new Date(accessProfile.plan_expiry_date) > new Date();
-      const hasPlanAccess = isEarlyBird || hasActivePlan;
 
       let monthlyCount = accessProfile?.monthly_interview_count || 0;
       const lastReset = accessProfile?.last_interview_reset_date
@@ -99,11 +96,11 @@ serve(async (req) => {
         }).eq("user_id", user.id);
       }
 
-      const startMonthlyLimit = accessProfile?.plan_type === "UNLIMITED" ? 999 : 2;
-      if (!hasPlanAccess || monthlyCount >= startMonthlyLimit) {
+      const startMonthlyLimit = isEarlyBird ? 10 : 2;
+      if (!isEarlyBird || monthlyCount >= startMonthlyLimit) {
         return new Response(JSON.stringify({
-          error: hasPlanAccess ? "Monthly interview limit reached" : "Payment required to start interview",
-          reason: hasPlanAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
+          error: isEarlyBird ? "Monthly interview limit reached" : "Payment required to start interview",
+          reason: isEarlyBird ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
         }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -124,28 +121,31 @@ Rules:
 - When wrapping up, say "That concludes our interview" and provide brief feedback
 - Keep responses concise (2-3 sentences max before asking the next question)`;
 
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${GEMINI_API_KEY}`,
           "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1024,
+          system: systemPrompt,
           messages: [
-            { role: "system", content: systemPrompt },
             { role: "user", content: `Start the interview. I'm applying for the ${role} role at ${experienceLevel} level.` },
           ],
         }),
       });
 
       if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[MOCK-INTERVIEW] AI error ${response.status}:`, errText.slice(0, 300));
         if (response.status === 429) throw new Error("AI service is busy. Please try again.");
-        if (response.status === 402) throw new Error("AI credits exhausted.");
-        throw new Error("AI service error");
+        throw new Error(`AI service error (${response.status}): ${errText.slice(0, 100)}`);
       }
       const aiResult = await response.json();
-      const aiMessage = aiResult.choices?.[0]?.message?.content || "Let's begin the interview.";
+      const aiMessage = aiResult.content?.[0]?.text || "Let's begin the interview.";
 
       const conversation = [
         { role: "assistant", content: aiMessage, timestamp: new Date().toISOString() },
@@ -192,19 +192,19 @@ Rules:
 - After about 6-8 questions total, wrap up by saying "That concludes our interview" and give brief feedback
 - Keep responses concise`;
 
-      const aiMessages = [
-        { role: "system", content: systemPrompt },
-        ...messages.map((m: any) => ({ role: m.role, content: m.content })),
-      ];
+      const aiMessages = messages.map((m: any) => ({ role: m.role, content: m.content }));
 
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${GEMINI_API_KEY}`,
           "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1024,
+          system: systemPrompt,
           messages: aiMessages,
         }),
       });
@@ -214,7 +214,7 @@ Rules:
         throw new Error("AI service error");
       }
       const aiResult = await response.json();
-      const aiMessage = aiResult.choices?.[0]?.message?.content || "";
+      const aiMessage = aiResult.content?.[0]?.text || "";
 
       const updatedConversation = [...messages, { role: "assistant", content: aiMessage, timestamp: new Date().toISOString() }];
 
@@ -246,19 +246,18 @@ Rules:
       const conversation = session.conversation_json as any[];
       const conversationText = conversation.map((m: any) => `${m.role}: ${m.content}`).join("\n");
 
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${GEMINI_API_KEY}`,
           "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 2048,
+          system: "You are an expert interview evaluator. Always respond with valid JSON only, no markdown, no explanation.",
           messages: [
-            {
-              role: "system",
-              content: "You are an expert interview evaluator. Always respond with valid JSON only, no markdown, no explanation.",
-            },
             {
               role: "user",
               content: `Evaluate this interview and return ONLY a JSON object with these exact keys:
@@ -277,16 +276,19 @@ Interview transcript:
 ${conversationText}`,
             },
           ],
-          response_format: { type: "json_object" },
         }),
       });
 
-      if (!response.ok) throw new Error("AI scoring failed");
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[MOCK-INTERVIEW] Scoring AI error ${response.status}:`, errText.slice(0, 300));
+        throw new Error(`AI scoring failed (${response.status})`);
+      }
       const aiResult = await response.json();
-      const raw = aiResult.choices?.[0]?.message?.content;
+      const raw = aiResult.content?.[0]?.text;
       if (!raw) throw new Error("AI did not return scores");
 
-      const scores = JSON.parse(raw);
+      const scores = JSON.parse(raw.replace(/```json\n?|\n?```/g, "").trim());
 
       await admin.from("interview_sessions").update({
         scores_json: scores,
@@ -300,9 +302,9 @@ ${conversationText}`,
 
     throw new Error("Invalid action");
   } catch (err: any) {
-    console.error("mock-interview error:", err);
+    console.error("[MOCK-INTERVIEW] error:", err.message, err.stack);
     return new Response(JSON.stringify({ error: err.message }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

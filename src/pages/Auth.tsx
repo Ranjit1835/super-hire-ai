@@ -5,12 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { APP_BASE_URL, APPLE_OAUTH_ENABLED } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Zap, LogIn, UserPlus, Mail, Lock, User, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
 
 const PASSWORD_RULES = {
   minLength: 8,
@@ -96,7 +96,6 @@ export default function Auth() {
       setLoginAttempts(newAttempts);
       setSignInError(error);
 
-      // Client-side cooldown after 5 failed attempts
       if (newAttempts >= 5 && code !== "rate_limited") {
         setCooldownEnd(Date.now() + 30_000);
         setTimeout(() => setCooldownEnd(null), 30_000);
@@ -183,35 +182,42 @@ export default function Auth() {
   const cooldownRemaining = cooldownEnd ? Math.ceil((cooldownEnd - Date.now()) / 1000) : 0;
 
   return (
-    <div className="min-h-screen flex items-center justify-center gradient-bg px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden px-4">
+      <AnimatedGradientMesh />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md relative z-10"
       >
-        <Card className="glass-neon shadow-xl">
-          <CardHeader className="text-center pb-4">
+        <div className="glass rounded-2xl shadow-2xl shadow-violet-500/10 border border-violet-500/15 overflow-hidden">
+          {/* Header */}
+          <div className="text-center px-6 pt-8 pb-4 relative">
+            <SparkleParticles count={6} colors={["#8B5CF6", "#06B6D4"]} />
             <motion.div
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-              className="mx-auto mb-3 h-12 w-12 rounded-xl bg-primary flex items-center justify-center"
+              className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/30"
             >
-              <Zap className="h-6 w-6 text-primary-foreground" />
+              <Zap className="h-7 w-7 text-white" />
             </motion.div>
-            <CardTitle className="text-2xl">HireResume</CardTitle>
-            <CardDescription>
+            <h1 className="text-2xl font-bold tracking-tight gradient-text-new">HireResume</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               {returnTo === "guest" ? "Sign in to unlock your full analysis" : returnTo === "analyze" ? "Sign in to see your analysis results" : "Resume Intelligence Platform"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </p>
+          </div>
+
+          <div className="px-6 pb-6">
             {showForgotPassword ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="text-center mb-4">
-                    <KeyRound className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <h3 className="font-semibold">Forgot Password?</h3>
+                    <div className="h-10 w-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-3">
+                      <KeyRound className="h-5 w-5 text-violet-400" />
+                    </div>
+                    <h3 className="font-semibold text-foreground">Forgot Password?</h3>
                     <p className="text-sm text-muted-foreground">Enter your email to receive a reset link</p>
                   </div>
                   <div className="relative">
@@ -222,41 +228,51 @@ export default function Auth() {
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
                       required
-                      className="pl-10"
+                      className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40"
                     />
                   </div>
-                  <Button type="submit" className="w-full h-11" disabled={forgotLoading}>
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="w-full h-11 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50"
+                  >
                     {forgotLoading ? (
-                      <span className="flex items-center gap-2">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                         Sending...
                       </span>
                     ) : "Send Reset Link"}
-                  </Button>
-                  <Button type="button" variant="link" className="w-full" onClick={() => setShowForgotPassword(false)}>
-                    ← Back to Sign In
-                  </Button>
+                  </motion.button>
+                  <button
+                    type="button"
+                    className="w-full text-xs text-violet-400 hover:text-violet-300 py-2 transition-colors"
+                    onClick={() => setShowForgotPassword(false)}
+                  >
+                    &larr; Back to Sign In
+                  </button>
                 </form>
               </motion.div>
             ) : (
               <Tabs defaultValue="signin">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="signin" className="gap-1.5">
+                <TabsList className="grid w-full grid-cols-2 mb-4 bg-white/5 border border-violet-500/10">
+                  <TabsTrigger value="signin" className="gap-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600/80 data-[state=active]:to-cyan-600/80 data-[state=active]:text-white">
                     <LogIn className="h-3.5 w-3.5" /> Sign In
                   </TabsTrigger>
-                  <TabsTrigger value="signup" className="gap-1.5">
+                  <TabsTrigger value="signup" className="gap-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600/80 data-[state=active]:to-cyan-600/80 data-[state=active]:text-white">
                     <UserPlus className="h-3.5 w-3.5" /> Sign Up
                   </TabsTrigger>
                 </TabsList>
 
                 {/* SIGN IN TAB */}
                 <TabsContent value="signin">
-                  {/* OAuth Buttons */}
                   <div className="space-y-2 mb-4">
-                    <Button
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
                       type="button"
-                      variant="outline"
-                      className="w-full h-10 gap-2"
+                      className="w-full h-10 rounded-lg border border-violet-500/15 bg-white/5 hover:bg-white/10 text-sm font-medium text-foreground flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                       onClick={handleGoogleSignIn}
                       disabled={oauthLoading !== null}
                     >
@@ -264,12 +280,13 @@ export default function Auth() {
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                       ) : <GoogleIcon />}
                       Continue with Google
-                    </Button>
+                    </motion.button>
                     {APPLE_OAUTH_ENABLED && (
-                      <Button
+                      <motion.button
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
                         type="button"
-                        variant="outline"
-                        className="w-full h-10 gap-2"
+                        className="w-full h-10 rounded-lg border border-violet-500/15 bg-white/5 hover:bg-white/10 text-sm font-medium text-foreground flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                         onClick={handleAppleSignIn}
                         disabled={oauthLoading !== null}
                       >
@@ -277,13 +294,13 @@ export default function Auth() {
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                         ) : <AppleIcon />}
                         Continue with Apple
-                      </Button>
+                      </motion.button>
                     )}
                   </div>
 
                   <div className="relative mb-4">
-                    <Separator />
-                    <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                    <div className="h-px bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
+                    <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[rgba(20,20,35,0.8)] px-3 text-xs text-muted-foreground">
                       or sign in with email
                     </span>
                   </div>
@@ -291,22 +308,22 @@ export default function Auth() {
                   <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input name="email" type="email" placeholder="Email" required className="pl-10" />
+                      <Input name="email" type="email" placeholder="Email" required className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
                     </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input name="password" type="password" placeholder="Password" required className="pl-10" />
+                      <Input name="password" type="password" placeholder="Password" required className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
                     </div>
                     {signInError && (
                       <motion.div
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="rounded-lg bg-destructive/10 border border-destructive/30 p-3"
+                        className="rounded-lg bg-red-500/10 border border-red-500/20 p-3"
                       >
-                        <p className="text-sm text-destructive font-medium">{signInError}</p>
+                        <p className="text-sm text-red-400 font-medium">{signInError}</p>
                         <button
                           type="button"
-                          className="text-xs text-primary hover:underline mt-1"
+                          className="text-xs text-violet-400 hover:text-violet-300 mt-1 transition-colors"
                           onClick={() => { setShowForgotPassword(true); setSignInError(null); }}
                         >
                           Forgot your password?
@@ -318,22 +335,28 @@ export default function Auth() {
                         Too many attempts. Wait {cooldownRemaining}s before trying again.
                       </p>
                     )}
-                    <Button type="submit" className="w-full h-11" disabled={loading || isCoolingDown}>
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      type="submit"
+                      disabled={loading || isCoolingDown}
+                      className="w-full h-11 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
                       {loading ? (
-                        <span className="flex items-center gap-2">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                           Signing in...
-                        </span>
+                        </>
                       ) : (
-                        <span className="flex items-center gap-2">
+                        <>
                           <LogIn className="h-4 w-4" /> Sign In
-                        </span>
+                        </>
                       )}
-                    </Button>
+                    </motion.button>
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        className="text-xs text-primary hover:underline"
+                        className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
                         onClick={() => setShowForgotPassword(true)}
                       >
                         Forgot password?
@@ -344,12 +367,12 @@ export default function Auth() {
 
                 {/* SIGN UP TAB */}
                 <TabsContent value="signup">
-                  {/* OAuth for signup */}
                   <div className="space-y-2 mb-4">
-                    <Button
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
                       type="button"
-                      variant="outline"
-                      className="w-full h-10 gap-2"
+                      className="w-full h-10 rounded-lg border border-violet-500/15 bg-white/5 hover:bg-white/10 text-sm font-medium text-foreground flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                       onClick={handleGoogleSignIn}
                       disabled={oauthLoading !== null}
                     >
@@ -357,12 +380,12 @@ export default function Auth() {
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                       ) : <GoogleIcon />}
                       Sign up with Google
-                    </Button>
+                    </motion.button>
                   </div>
 
                   <div className="relative mb-4">
-                    <Separator />
-                    <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                    <div className="h-px bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
+                    <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[rgba(20,20,35,0.8)] px-3 text-xs text-muted-foreground">
                       or create account with email
                     </span>
                   </div>
@@ -370,11 +393,11 @@ export default function Auth() {
                   <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input name="name" placeholder="Full Name" required className="pl-10" />
+                      <Input name="name" placeholder="Full Name" required className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
                     </div>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input name="email" type="email" placeholder="Email" required className="pl-10" />
+                      <Input name="email" type="email" placeholder="Email" required className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
                     </div>
                     <div>
                       <div className="relative">
@@ -386,13 +409,13 @@ export default function Auth() {
                           required
                           value={signupPassword}
                           onChange={(e) => setSignupPassword(e.target.value)}
-                          className="pl-10"
+                          className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40"
                         />
                       </div>
                       {signupPassword && signupErrors.length > 0 && (
                         <ul className="mt-1.5 space-y-0.5">
                           {signupErrors.map((err, i) => (
-                            <li key={i} className="text-xs text-destructive flex items-center gap-1">
+                            <li key={i} className="text-xs text-red-400 flex items-center gap-1">
                               <span>•</span> {err}
                             </li>
                           ))}
@@ -409,38 +432,40 @@ export default function Auth() {
                           required
                           value={signupConfirm}
                           onChange={(e) => setSignupConfirm(e.target.value)}
-                          className="pl-10"
+                          className="pl-10 bg-white/5 border-violet-500/15 focus:border-violet-500/40"
                         />
                       </div>
                       {signupConfirm && !signupMatch && (
-                        <p className="text-xs text-destructive mt-1">Passwords do not match</p>
+                        <p className="text-xs text-red-400 mt-1">Passwords do not match</p>
                       )}
                     </div>
-                    <Button
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
                       type="submit"
-                      className="w-full h-11"
                       disabled={loading || signupErrors.length > 0 || !signupMatch || !signupPassword}
+                      className="w-full h-11 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {loading ? (
-                        <span className="flex items-center gap-2">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                           Creating account...
-                        </span>
+                        </>
                       ) : (
-                        <span className="flex items-center gap-2">
+                        <>
                           <UserPlus className="h-4 w-4" /> Create Account
-                        </span>
+                        </>
                       )}
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center">
+                    </motion.button>
+                    <p className="text-xs text-muted-foreground/60 text-center">
                       A verification link will be sent to your email
                     </p>
                   </form>
                 </TabsContent>
               </Tabs>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

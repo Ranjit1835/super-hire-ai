@@ -7,10 +7,9 @@ interface ResumeRendererProps {
   json: ResumeJSON;
   templateId: StudioTemplateId;
   pendingChanges?: ResumeChange[];
-  scale?: number;
 }
 
-export function ResumeRenderer({ json, templateId, pendingChanges = [], scale = 1 }: ResumeRendererProps) {
+export function ResumeRenderer({ json, templateId, pendingChanges = [] }: ResumeRendererProps) {
   const template = STUDIO_TEMPLATES.find((t) => t.id === templateId) || STUDIO_TEMPLATES[0];
   const changedSections = new Set(pendingChanges.map((c) => getSectionFromPath(c.path)));
   const changedPaths = new Set(pendingChanges.map((c) => c.path));
@@ -30,11 +29,8 @@ export function ResumeRenderer({ json, templateId, pendingChanges = [], scale = 
       className="bg-white text-black rounded-lg shadow-2xl overflow-hidden"
       style={{
         fontFamily: template.fontFamily,
-        transform: `scale(${scale})`,
-        transformOrigin: "top center",
-        width: "210mm",
-        minHeight: "297mm",
-        maxWidth: "100%",
+        width: 612,
+        minHeight: 792,
       }}
     >
       <div className="p-8">

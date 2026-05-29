@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { Trophy, Zap, ArrowLeft, Upload, TrendingUp, Medal } from "lucide-react";
+import { Trophy, Zap, ArrowLeft, Upload, TrendingUp, Medal, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AnimatedGradientMesh } from "@/components/premium";
 
 interface LeaderboardEntry {
   id: string;
@@ -19,13 +18,23 @@ interface LeaderboardEntry {
 }
 
 const SCORE_COLOR = (s: number) =>
-  s >= 80 ? "text-green-400" : s >= 60 ? "text-yellow-400" : "text-red-400";
+  s >= 80 ? "text-emerald-400" : s >= 60 ? "text-amber-400" : "text-red-400";
 
 const RANK_ICON = (rank: number) => {
   if (rank === 1) return <Medal className="h-5 w-5 text-yellow-400" />;
   if (rank === 2) return <Medal className="h-5 w-5 text-gray-300" />;
   if (rank === 3) return <Medal className="h-5 w-5 text-amber-600" />;
   return <span className="text-sm text-muted-foreground font-mono w-5 text-center">{rank}</span>;
+};
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04 } },
+};
+
+const item = {
+  hidden: { opacity: 0, x: -12 },
+  show: { opacity: 1, x: 0 },
 };
 
 export default function Leaderboard() {
@@ -53,86 +62,107 @@ export default function Leaderboard() {
   }, [tab]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border glass-strong sticky top-0 z-50">
+    <div className="min-h-screen bg-background relative">
+      <AnimatedGradientMesh />
+
+      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
         <div className="container flex items-center h-14">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-2 mr-4">
+          <button onClick={() => navigate("/")} className="flex items-center gap-2 mr-4 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-4 w-4" /> Home
-          </Button>
+          </button>
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="h-4 w-4 text-primary-foreground" />
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+              <Zap className="h-4 w-4 text-white" />
             </div>
-            <span className="font-bold">HireResume</span>
+            <span className="font-bold text-foreground">HireResume</span>
           </div>
         </div>
       </header>
 
-      <main className="container max-w-3xl py-10 px-4">
+      <main className="container max-w-3xl py-10 px-4 relative z-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2 mb-3">
               <Trophy className="h-8 w-8 text-yellow-400" />
-              <h1 className="text-3xl font-bold">Resume Leaderboard</h1>
+              <h1 className="text-3xl font-bold gradient-text-new">Resume Leaderboard</h1>
             </div>
             <p className="text-muted-foreground max-w-md mx-auto">
               Opt-in scores from job seekers across India. See where you rank — and get inspired to improve.
             </p>
-            <Button className="mt-4 gap-2" onClick={() => navigate("/dashboard")}>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate("/dashboard")}
+              className="mt-4 px-5 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all inline-flex items-center gap-2"
+            >
               <Upload className="h-4 w-4" /> Check My Score
-            </Button>
+            </motion.button>
           </div>
 
           {/* Tabs */}
           <div className="flex gap-2 mb-6">
-            <Button variant={tab === "top" ? "default" : "outline"} size="sm" onClick={() => setTab("top")}>
-              <Trophy className="h-4 w-4 mr-1" /> Top Scores
-            </Button>
-            <Button variant={tab === "recent" ? "default" : "outline"} size="sm" onClick={() => setTab("recent")}>
-              <TrendingUp className="h-4 w-4 mr-1" /> Recent
-            </Button>
+            {([["top", Trophy, "Top Scores"], ["recent", TrendingUp, "Recent"]] as const).map(([key, Icon, label]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  tab === key
+                    ? "bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow-lg shadow-violet-500/20"
+                    : "glass border border-violet-500/10 text-muted-foreground hover:text-foreground hover:border-violet-500/30"
+                }`}
+              >
+                <Icon className="h-4 w-4" /> {label}
+              </button>
+            ))}
           </div>
 
           {loading ? (
             <div className="flex justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
             </div>
           ) : entries.length === 0 ? (
-            <Card className="glass text-center py-16">
-              <CardContent>
-                <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No public entries yet. Be the first to share your score!</p>
-                <Button className="mt-4" onClick={() => navigate("/dashboard")}>Upload My Resume</Button>
-              </CardContent>
-            </Card>
+            <div className="glass rounded-2xl border border-violet-500/10 text-center py-16 px-6">
+              <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No public entries yet. Be the first to share your score!</p>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => navigate("/dashboard")}
+                className="mt-4 px-5 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all"
+              >
+                Upload My Resume
+              </motion.button>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-2">
               {entries.map((entry, i) => (
-                <motion.div key={entry.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
-                  <Card className="glass hover:border-primary/30 transition-all duration-200">
-                    <CardContent className="flex items-center gap-4 py-3">
+                <motion.div key={entry.id} variants={item}>
+                  <div className={`glass rounded-xl border transition-all hover:border-violet-500/30 card-hover-glow ${
+                    i < 3 ? "border-violet-500/20" : "border-violet-500/10"
+                  }`}>
+                    <div className="flex items-center gap-4 py-3 px-4">
                       <div className="flex items-center justify-center w-8 shrink-0">
                         {RANK_ICON(i + 1)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold truncate">{entry.display_name}</span>
-                          {entry.college && <Badge variant="secondary" className="text-xs">{entry.college}</Badge>}
+                          <span className="font-semibold truncate text-foreground">{entry.display_name}</span>
+                          {entry.college && <Badge className="text-xs bg-violet-500/10 text-violet-300 border-violet-500/20">{entry.college}</Badge>}
                           {entry.role_target && <span className="text-xs text-muted-foreground hidden sm:inline">{entry.role_target}</span>}
                         </div>
                         {entry.improvement > 0 && (
-                          <span className="text-xs text-green-400">+{entry.improvement} pts improved</span>
+                          <span className="text-xs text-emerald-400">+{entry.improvement} pts improved</span>
                         )}
                       </div>
-                      <div className={`text-2xl font-bold shrink-0 ${SCORE_COLOR(entry.ats_score)}`}>
+                      <div className={`text-2xl font-bold font-mono shrink-0 ${SCORE_COLOR(entry.ats_score)}`}>
                         {entry.ats_score}
                         <span className="text-xs text-muted-foreground font-normal">/100</span>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </motion.div>
       </main>

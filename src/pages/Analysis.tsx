@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, Zap, AlertTriangle, Lightbulb, CheckCircle2,
+  ArrowLeft, ArrowRight, Zap, AlertTriangle, Lightbulb, CheckCircle2,
   XCircle, Wrench, TrendingUp, Brain, Target, ChevronDown, ChevronUp, Home, Upload,
   GraduationCap, Lock, Eye, Share2, Copy, Check, Sparkles,
 } from "lucide-react";
@@ -17,6 +17,8 @@ import type { AnalysisResult, AnalysisIssue } from "@/lib/analysis-types";
 import { ResumeRoast } from "@/components/analysis/ResumeRoast";
 import { ScoreCardDownload } from "@/components/analysis/ScoreCard";
 import { LeaderboardOptIn } from "@/components/analysis/LeaderboardOptIn";
+import { AnimatedGradientMesh } from "@/components/premium";
+import { PostAnalysisStudioToast } from "@/components/PostAnalysisStudioToast";
 
 function AnimatedScore({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
@@ -44,9 +46,10 @@ function IssueCard({ issue, color, icon: Icon }: { issue: AnalysisIssue; color: 
 
   return (
     <motion.div
-      className={`rounded-xl border p-4 sm:p-5 transition-all hover:shadow-lg ${color}`}
+      className={`rounded-xl border p-4 sm:p-5 transition-all duration-300 backdrop-blur-lg card-hover-glow ${color}`}
       initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
     >
       <button className="w-full text-left" onClick={() => setOpen(!open)}>
         <div className="flex items-start gap-3">
@@ -153,7 +156,7 @@ function PerformanceHeader({ result }: { result: AnalysisResult }) {
 
   return (
     <motion.div
-      className="rounded-2xl border border-border/50 glass-strong p-6 sm:p-8 mb-8 sm:mb-10"
+      className="rounded-2xl border border-violet-500/15 glass p-6 sm:p-8 mb-8 sm:mb-10 card-hover-glow"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -298,33 +301,74 @@ export default function Analysis() {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="border-b border-border glass-strong sticky top-0 z-50">
+    <div className="min-h-screen bg-background pb-20 relative">
+      <AnimatedGradientMesh />
+
+      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="shrink-0 text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0 hidden sm:block">
               <p className="font-medium text-sm truncate">{analysis.file_name}</p>
-              <p className="text-xs text-muted-foreground">{new Date(analysis.created_at).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground/60">{new Date(analysis.created_at).toLocaleString()}</p>
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="hidden sm:inline-flex">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
               <Home className="h-4 w-4 mr-1" /> Home
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")} className="hidden md:inline-flex">
+            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")} className="hidden md:inline-flex border-border/50 hover:border-violet-500/30">
               <Upload className="h-4 w-4 mr-1" /> Analyze New
             </Button>
-            <Button disabled={checkingAccess} onClick={handleFixResume} size="sm" className="transition-transform hover:scale-[1.02]">
-              <Zap className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Fix My Resume</span><span className="sm:hidden">Fix</span>
-            </Button>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              disabled={checkingAccess}
+              onClick={handleFixResume}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow-lg shadow-violet-500/20 disabled:opacity-50"
+            >
+              <Zap className="h-4 w-4" /> <span className="hidden sm:inline">Fix My Resume</span><span className="sm:hidden">Fix</span>
+            </motion.button>
           </div>
         </div>
       </header>
 
-      <main className="container py-6 sm:py-8 max-w-5xl px-4">
+      {/* Studio sticky banner — top of results */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden border-b border-violet-500/20"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-600/15 via-cyan-600/10 to-violet-600/15" />
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-violet-500/10 to-transparent"
+          animate={{ x: ["-100%", "100%"] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "linear", repeatDelay: 2 }}
+        />
+        <div className="container max-w-5xl px-4 py-2.5 flex items-center justify-between gap-3 relative">
+          <div className="flex items-center gap-2 min-w-0">
+            <motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 3, repeat: Infinity }}>
+              <Sparkles className="h-4 w-4 text-violet-400 shrink-0" />
+            </motion.div>
+            <p className="text-sm font-medium text-foreground/90 truncate">
+              <span className="hidden sm:inline">NEW: Edit your resume conversationally</span>
+              <span className="sm:hidden">NEW: AI Resume Editor</span>
+            </p>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/studio")}
+            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 transition-shadow"
+          >
+            Open Studio <ArrowRight className="h-3 w-3" />
+          </motion.button>
+        </div>
+      </motion.div>
+
+      <main className="container py-6 sm:py-8 max-w-5xl px-4 relative z-10">
         <PerformanceHeader result={result} />
 
         {/* Score Grid */}
@@ -547,19 +591,25 @@ export default function Analysis() {
         <ShareSection score={result.atsScore} analysisId={id || ""} />
 
         <motion.div className="text-center pt-4 pb-8 space-y-4" {...fadeUp(0.5)}>
-          <Button size="lg" disabled={checkingAccess} onClick={handleFixResume} className="px-8 transition-transform hover:scale-[1.02]">
-            <Zap className="h-4 w-4 mr-2" /> Fix My Resume Now
-          </Button>
-          <p className="text-xs text-muted-foreground mt-3">AI will generate an optimized version based on this analysis</p>
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            disabled={checkingAccess}
+            onClick={handleFixResume}
+            className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-base font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 transition-shadow disabled:opacity-50"
+          >
+            <Zap className="h-4 w-4" /> Fix My Resume Now
+          </motion.button>
+          <p className="text-xs text-muted-foreground/60 mt-3">AI will generate an optimized version based on this analysis</p>
           <div className="pt-2">
-            <Button
-              variant="outline"
-              size="lg"
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => navigate("/studio")}
-              className="px-8 border-violet-500/30 text-violet-300 hover:bg-violet-500/10 transition-transform hover:scale-[1.02]"
+              className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-base font-semibold border-2 border-violet-500/30 text-violet-300 hover:bg-violet-500/10 hover:border-violet-500/50 transition-all"
             >
-              <Sparkles className="h-4 w-4 mr-2" /> Try Resume Studio — Chat & Edit Live
-            </Button>
+              <Sparkles className="h-4 w-4" /> Try Resume Studio — Chat & Edit Live
+            </motion.button>
           </div>
         </motion.div>
 
@@ -575,20 +625,39 @@ export default function Analysis() {
       {/* Sticky bottom conversion bar */}
       {!isFixUnlocked && showStickyBar && (
         <motion.div
-          className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border py-3"
+          className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-violet-500/10 py-3"
           initial={{ y: 100 }}
           animate={{ y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
           <div className="container flex items-center justify-between max-w-5xl px-4">
-            <p className="text-sm font-medium hidden sm:block">Ready to fix your resume?</p>
-            <p className="text-sm font-medium sm:hidden">Fix your resume</p>
-            <Button size="sm" onClick={handleFixResume} disabled={checkingAccess} className="gap-2 transition-transform hover:scale-[1.02]">
-              <Zap className="h-4 w-4" /> Fix My Resume – ₹299
-            </Button>
+            <p className="text-sm font-medium hidden sm:block text-muted-foreground">Ready to fix your resume?</p>
+            <p className="text-sm font-medium sm:hidden text-muted-foreground">Fix your resume</p>
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleFixResume}
+                disabled={checkingAccess}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow-lg shadow-violet-500/20 disabled:opacity-50"
+              >
+                <Zap className="h-4 w-4" /> Fix My Resume – ₹299
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/studio")}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-violet-500/30 text-violet-300 hover:bg-violet-500/10"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Studio
+              </motion.button>
+            </div>
           </div>
         </motion.div>
       )}
+
+      {/* Post-analysis Studio toast */}
+      <PostAnalysisStudioToast />
     </div>
   );
 }

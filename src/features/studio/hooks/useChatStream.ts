@@ -109,11 +109,12 @@ export function useChatStream({
         }
       } catch (err: any) {
         console.error("[useChatStream] Error:", err);
+        const detail = err?.message || "Unknown error";
         const errMsg: StudioMessage = {
           id: crypto.randomUUID(),
           session_id: sessionId,
           role: "system",
-          content: `Something went wrong. Please try again.`,
+          content: `Error: ${detail}`,
           changes_applied: null,
           model_used: null,
           tokens_used: 0,

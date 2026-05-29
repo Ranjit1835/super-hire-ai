@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_MODEL = Deno.env.get("AI_MODEL") || "llama-3.3-70b-versatile";
+const AI_MODEL = "claude-haiku-4-5-20251001";
 
 // ─── Deterministic Metrics Engine ───────────────────────────────────────────
 const STRONG_VERBS = new Set([
@@ -248,9 +248,6 @@ async function runAiAnalysis(
   previousScores: Record<string, number> | null,
   previousResumeText: string | null,
 ) {
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) throw new Error("AI API key not configured");
-
   let systemPrompt = SYSTEM_PROMPT;
   if (resumeType === "STUDENT") {
     systemPrompt += `\n\nSTUDENT/FRESHER MODE ACTIVE:
@@ -268,20 +265,30 @@ This resume belongs to a student or fresh graduate. Apply these rules:
     userMessage += `\n\nIMPORTANT CONTEXT: This is a RE-ANALYSIS of a previously fixed/improved resume. The previous version scored: ATS=${previousScores.atsScore}, RecruiterScan=${previousScores.recruiterScanScore}, Keywords=${previousScores.keywordStrengthScore}, Quantification=${previousScores.quantificationScore}, Structure=${previousScores.structureScore}. If the resume has measurably improved, scores MUST NOT decrease.`;
   }
 
-  const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!ANTHROPIC_API_KEY) throw new Error("Anthropic API key not configured");
+
+  // Convert OpenAI tool schema to Anthropic format
+  const anthropicTool = {
+    name: AI_TOOL_SCHEMA.function.name,
+    description: AI_TOOL_SCHEMA.function.description,
+    input_schema: AI_TOOL_SCHEMA.function.parameters,
+  };
+
+  const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${GEMINI_API_KEY}`,
       "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
       model: AI_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-      tools: [AI_TOOL_SCHEMA],
-      tool_choice: { type: "function", function: { name: "submit_analysis" } },
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMessage }],
+      tools: [anthropicTool],
+      tool_choice: { type: "tool", name: "submit_analysis" },
       temperature: 0.2,
     }),
   });
@@ -289,7 +296,6 @@ This resume belongs to a student or fresh graduate. Apply these rules:
   if (!aiResponse.ok) {
     const status = aiResponse.status;
     if (status === 429) throw new Error("Rate limit exceeded. Please try again later.");
-    if (status === 402) throw new Error("AI credits exhausted. Please add credits.");
     const text = await aiResponse.text();
     console.error("AI error:", status, text);
     throw new Error("AI analysis failed");
@@ -298,12 +304,12 @@ This resume belongs to a student or fresh graduate. Apply these rules:
   const aiData = await aiResponse.json();
   if (aiData.usage) console.log("Token usage:", JSON.stringify(aiData.usage));
 
-  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
+  const toolUse = aiData.content?.find((c: any) => c.type === "tool_use");
+  if (!toolUse?.input) throw new Error("AI did not return structured output");
 
   let analysisResult;
   try {
-    analysisResult = JSON.parse(toolCall.function.arguments);
+    analysisResult = typeof toolUse.input === "string" ? JSON.parse(toolUse.input) : toolUse.input;
   } catch {
     throw new Error("Invalid AI response format");
   }

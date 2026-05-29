@@ -8,6 +8,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Landing from "./pages/Landing";
+import { StudioNavBar } from "./components/StudioNavBar";
+import { StudioFAB } from "./components/StudioFAB";
+import { StudioOnboardingTooltip } from "./components/StudioOnboardingTooltip";
 
 const Auth = lazy(() => import("./pages/Auth"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
@@ -79,9 +82,12 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <ErrorBoundary>
+            <StudioNavBar />
             <Suspense fallback={<PageLoader />}>
               <AppRoutes />
             </Suspense>
+            <StudioFAB />
+            <StudioOnboardingTooltip />
           </ErrorBoundary>
         </AuthProvider>
       </BrowserRouter>

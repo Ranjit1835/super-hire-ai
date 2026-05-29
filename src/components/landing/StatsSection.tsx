@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
 const stats = [
-  { value: 1200, suffix: "+", label: "Resumes Analyzed", sublabel: "and counting" },
+  { value: 10000, suffix: "+", label: "Resumes Analyzed", sublabel: "and counting" },
   { value: 75, suffix: "%", label: "Rejected Without AI Fix", sublabel: "of all resumes submitted" },
   { value: 44, suffix: " pts", label: "Avg Score Improvement", sublabel: "after AI optimization" },
   { value: 10, suffix: "s", label: "To Get Your ATS Score", sublabel: "instant analysis, free" },
@@ -34,13 +34,16 @@ function CountUp({ target, suffix }: { target: number; suffix: string }) {
     return () => obs.disconnect();
   }, [target]);
 
-  return <span ref={ref}>{count.toLocaleString("en-IN")}{suffix}</span>;
+  return <span ref={ref} className="font-mono">{count.toLocaleString("en-IN")}{suffix}</span>;
 }
 
 export function StatsSection() {
   return (
-    <section className="py-12 px-4 border-y border-border/40 bg-primary/5">
-      <div className="container max-w-5xl">
+    <section className="relative py-14 px-4 border-y border-violet-500/10 overflow-hidden">
+      {/* Subtle gradient bg */}
+      <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 via-transparent to-cyan-500/5" />
+
+      <div className="container max-w-5xl relative">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {stats.map((s, i) => (
             <motion.div
@@ -49,13 +52,13 @@ export function StatsSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="text-center"
+              className="text-center group"
             >
-              <div className="text-3xl sm:text-4xl font-black text-primary mb-1">
+              <div className="text-3xl sm:text-4xl font-black gradient-text-new mb-1 tabular-nums">
                 <CountUp target={s.value} suffix={s.suffix} />
               </div>
               <p className="text-sm font-semibold text-foreground">{s.label}</p>
-              <p className="text-xs text-muted-foreground">{s.sublabel}</p>
+              <p className="text-xs text-muted-foreground/60">{s.sublabel}</p>
             </motion.div>
           ))}
         </div>

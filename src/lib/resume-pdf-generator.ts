@@ -33,7 +33,6 @@ const BASE: RenderConfig = {
 };
 
 const CONFIGS: Record<TemplateId, RenderConfig> = {
-  // --- Original 10 ---
   "minimal-ats":         { ...BASE, accentColor: charcoal, sectionStyle: "line" },
   "modern-professional": { ...BASE, accentColor: blue },
   "clean-fresher":       { ...BASE, accentColor: teal, fontScale: 0.95 },
@@ -44,51 +43,6 @@ const CONFIGS: Record<TemplateId, RenderConfig> = {
   "two-column-pro":      { ...BASE, accentColor: blue, twoColumn: true, sidebarWidth: 0.28 },
   "data-tech-focused":   { ...BASE, accentColor: darkBlue, sectionStyle: "box" },
   "ultra-compact":       { ...BASE, accentColor: slate, fontScale: 0.82 },
-  // --- Tech variants ---
-  "tech-dark":           { ...BASE, accentColor: purple, headerBg: charcoal },
-  "tech-sidebar":        { ...BASE, accentColor: blue, twoColumn: true, sidebarWidth: 0.3 },
-  "tech-minimal-color":  { ...BASE, accentColor: teal },
-  "tech-two-col":        { ...BASE, accentColor: purple, twoColumn: true, sidebarWidth: 0.26 },
-  "tech-compact-dark":   { ...BASE, accentColor: purple, headerBg: darkPurple, fontScale: 0.88 },
-  "tech-gradient":       { ...BASE, accentColor: blue, headerBg: darkBlue },
-  "tech-monochrome":     { ...BASE, accentColor: charcoal, sectionStyle: "line" },
-  "tech-card-layout":    { ...BASE, accentColor: blue, sectionStyle: "box" },
-  "tech-timeline":       { ...BASE, accentColor: teal, sectionStyle: "line" },
-  "tech-accent":         { ...BASE, accentColor: purple, sectionStyle: "box" },
-  // --- Fresher variants ---
-  "fresher-simple":      { ...BASE, accentColor: teal, fontScale: 0.95 },
-  "fresher-modern":      { ...BASE, accentColor: blue, fontScale: 0.95 },
-  "fresher-colorful":    { ...BASE, accentColor: green },
-  "fresher-internship":  { ...BASE, accentColor: amber },
-  "fresher-academic":    { ...BASE, accentColor: charcoal, sectionStyle: "line" },
-  "fresher-two-col":     { ...BASE, accentColor: teal, twoColumn: true, sidebarWidth: 0.26 },
-  "fresher-bold":        { ...BASE, accentColor: rose, sectionStyle: "box" },
-  "fresher-clean-dark":  { ...BASE, accentColor: darkBlue, headerBg: darkBlue },
-  // --- Executive variants ---
-  "exec-serif":          { ...BASE, accentColor: charcoal, fontScale: 1.05 },
-  "exec-premium":        { ...BASE, accentColor: darkPurple, headerBg: darkPurple, fontScale: 1.02 },
-  "exec-boardroom":      { ...BASE, accentColor: charcoal, sectionStyle: "line", fontScale: 1.0 },
-  "exec-classic":        { ...BASE, accentColor: darkBlue, fontScale: 1.0 },
-  "exec-two-page":       { ...BASE, accentColor: charcoal, fontScale: 0.98 },
-  "exec-minimal":        { ...BASE, accentColor: slate, sectionStyle: "plain", fontScale: 1.0 },
-  "exec-dark":           { ...BASE, accentColor: charcoal, headerBg: charcoal },
-  "exec-timeline":       { ...BASE, accentColor: darkGreen, sectionStyle: "line" },
-  // --- Creative variants ---
-  "creative-infographic":  { ...BASE, accentColor: rose, sectionStyle: "box" },
-  "creative-portfolio":    { ...BASE, accentColor: amber },
-  "creative-sidebar":      { ...BASE, accentColor: rose, twoColumn: true, sidebarWidth: 0.28 },
-  "creative-bold-color":   { ...BASE, accentColor: purple, headerBg: purple },
-  "creative-typographic":  { ...BASE, accentColor: charcoal, sectionStyle: "plain", fontScale: 1.02 },
-  "creative-icon-row":     { ...BASE, accentColor: teal },
-  "creative-pastel":       { ...BASE, accentColor: rgb(0.6, 0.4, 0.8) },
-  "creative-dark-accent":  { ...BASE, accentColor: rose, headerBg: charcoal },
-  // --- Minimal ATS variants ---
-  "ats-one-col":           { ...BASE, accentColor: charcoal, sectionStyle: "line" },
-  "ats-two-col":           { ...BASE, accentColor: slate, twoColumn: true, sidebarWidth: 0.24 },
-  "ats-clean-header":      { ...BASE, accentColor: blue },
-  "ats-compact":           { ...BASE, accentColor: charcoal, fontScale: 0.86 },
-  "ats-serif":             { ...BASE, accentColor: charcoal, fontScale: 1.0, sectionStyle: "line" },
-  "ats-wide-margin":       { ...BASE, accentColor: slate, fontScale: 0.96 },
 };
 
 export async function generateResumePdf(content: ResumeContent, templateId: TemplateId): Promise<Uint8Array> {
