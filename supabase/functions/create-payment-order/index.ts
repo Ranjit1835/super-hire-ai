@@ -126,11 +126,11 @@ serve(async (req) => {
 
     // --- Student discount logic ---
     const baseAmountMap: Record<string, number> = {
-      ONE_TIME_FIX: 29900, RESUME_FIX: 29900,
+      ONE_TIME_FIX: 9900, RESUME_FIX: 9900,
       EARLY_BIRD_ACCESS: 149900, UNLIMITED_PLAN: 199900,
       MOCK_INTERVIEW: 59900, AI_INTERVIEW: 59900,
-      RESUME_BUILDER: 39900, RESUME_BUILD: 39900,
-      COMBO_PLAN: 89900,
+      RESUME_BUILDER: 29900, RESUME_BUILD: 29900,
+      COMBO_PLAN: 59900,
     };
     let baseAmount = baseAmountMap[paymentType] ?? 29900;
     let amount = baseAmount;
@@ -170,10 +170,7 @@ serve(async (req) => {
         .eq("user_id", user.id)
         .single();
 
-      if ((paymentType === "ONE_TIME_FIX" || paymentType === "RESUME_FIX") && profile && !profile.first_time_fix_used) {
-        amount = 14900; // ₹149 (50% off)
-        discountApplied = true;
-      }
+      // Resume Fix is now flat ₹99, no student discount needed
       if ((paymentType === "EARLY_BIRD_ACCESS" || paymentType === "UNLIMITED_PLAN") && profile && !profile.first_time_early_bird_used) {
         amount = 149900; // ₹1,499 (student pricing for unlimited)
         discountApplied = true;

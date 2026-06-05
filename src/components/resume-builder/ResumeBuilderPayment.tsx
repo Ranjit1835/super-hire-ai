@@ -138,12 +138,12 @@ export function ResumeBuilderPayment({ resumeBuilderId, isPaid, onPaymentSuccess
         <h3 className="font-bold text-lg mb-1">Unlock Resume Download</h3>
         <p className="text-sm text-muted-foreground mb-2">Preview is available. Pay to download the full PDF.</p>
         <div className="mb-4">
-          <span className="text-2xl font-bold">₹399</span>
+          <span className="text-2xl font-bold">₹299</span>
           <Badge variant="secondary" className="ml-2 text-xs">One-time</Badge>
         </div>
         <Button onClick={handlePayment} disabled={loading} className="w-full max-w-xs">
           {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
-          {loading ? "Processing..." : "Unlock Resume Download – ₹399"}
+          {loading ? "Processing..." : "Unlock Resume Download – ₹299"}
         </Button>
       </CardContent>
     </Card>

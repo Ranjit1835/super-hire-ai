@@ -318,8 +318,8 @@ export const STUDIO_PLANS: StudioPlan[] = [
   {
     id: 'single',
     name: 'Studio Pass',
-    price: 299,
-    priceInPaise: 29900,
+    price: 149,
+    priceInPaise: 14900,
     duration: '24 hours',
     model: 'claude-haiku-4-5-20251001',
     modelDisplay: 'Claude Haiku 4.5',

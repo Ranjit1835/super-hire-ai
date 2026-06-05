@@ -65,13 +65,12 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
   }, [open, resumeAnalysisId]);
 
   const getFixPrice = () => {
-    if (discountInfo?.isStudent && discountInfo?.firstFix) return { price: "₹149", original: "₹299", discount: true };
-    return { price: "₹299", original: null, discount: false };
+    return { price: "₹99", original: null, discount: false };
   };
 
   const getPlanPrice = (type: PaymentType) => {
     if (type === "RESUME_FIX") return getFixPrice();
-    if (type === "COMBO_PLAN") return { price: "₹899", original: null, discount: false };
+    if (type === "COMBO_PLAN") return { price: "₹599", original: null, discount: false };
     if (type === "UNLIMITED_PLAN") return { price: "₹1,999", original: null, discount: false };
     return { price: "₹299", original: null, discount: false };
   };
@@ -251,7 +250,6 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">One-time payment for this resume only.</p>
-                    {fixPrice.discount && <Badge className="mt-1.5 bg-success/20 text-success border-success/30 text-xs">🎓 Student Discount Applied</Badge>}
                   </div>
                 </CardContent>
               </Card>
@@ -265,7 +263,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <p className="font-semibold">Combo Plan</p>
-                      <span className="text-lg font-bold">₹899</span>
+                      <span className="text-lg font-bold">₹599</span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">Resume Fix + AI Interview session.</p>
                   </div>

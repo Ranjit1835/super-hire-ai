@@ -11,6 +11,7 @@ import { useChatStream } from "../hooks/useChatStream";
 import { useVersionHistory } from "../hooks/useVersionHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { PersonaId, StudioTemplateId, StudioSuggestion, ResumeJSON } from "../types/studio.types";
 
 function StudioPage() {
@@ -37,6 +38,7 @@ function StudioPage() {
   } = useStudioSession(resumeId);
 
   const { versions, loading: versionsLoading, loadVersions, revertToVersion } = useVersionHistory(resumeId);
+  const isMobile = useIsMobile();
 
   const [showVersions, setShowVersions] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -233,15 +235,14 @@ function StudioPage() {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left: Chat panel — full width on mobile, 40% on desktop */}
         <AnimatePresence initial={false} mode="popLayout">
-          {(mobileTab === "chat" || typeof window === "undefined") && (
+          {(!isMobile || mobileTab === "chat") && (
             <motion.div
               key="chat-panel"
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="w-full md:w-[clamp(320px,40%,500px)] flex-shrink-0 border-r-0 md:border-r border-violet-500/10 overflow-hidden flex flex-col md:!flex"
-              style={{ display: mobileTab !== "chat" ? "none" : undefined }}
+              className="w-full md:w-[clamp(320px,40%,500px)] flex-shrink-0 border-r-0 md:border-r border-violet-500/10 overflow-hidden flex flex-col"
             >
               {sidePanel === "chat" ? (
                 <ChatPanel
@@ -284,15 +285,14 @@ function StudioPage() {
 
         {/* Right: Preview panel — full width on mobile, 60% on desktop */}
         <AnimatePresence initial={false} mode="popLayout">
-          {(mobileTab === "preview" || typeof window === "undefined") && (
+          {(!isMobile || mobileTab === "preview") && (
             <motion.div
               key="preview-panel"
               initial={{ x: 20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 20, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="w-full md:flex-1 overflow-hidden relative flex flex-col md:!flex"
-              style={{ display: mobileTab !== "preview" ? "none" : undefined }}
+              className="w-full md:flex-1 overflow-hidden relative flex flex-col"
             >
               <PreviewPanel
                 currentJson={resume.current_json}
@@ -349,7 +349,7 @@ function StudioPaywallModal({
   const [processing, setProcessing] = useState(false);
 
   const plans = [
-    { id: "single" as const, name: "Studio Pass", price: 299, duration: "24 hours", model: "Claude Haiku 4.5", paymentType: "STUDIO_SINGLE", badge: "" },
+    { id: "single" as const, name: "Studio Pass", price: 149, duration: "24 hours", model: "Claude Haiku 4.5", paymentType: "STUDIO_SINGLE", badge: "" },
     { id: "weekly" as const, name: "Pro Pass", price: 599, duration: "7 days", model: "Claude Sonnet 4.6", paymentType: "STUDIO_WEEKLY", badge: "RECOMMENDED" },
     { id: "yearly" as const, name: "Unlimited", price: 2499, duration: "1 year", model: "Claude Sonnet 4.6", paymentType: "STUDIO_YEARLY", badge: "BEST VALUE" },
   ];
