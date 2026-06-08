@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Download, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useCurrency } from "@/hooks/useCurrency";
 
 declare global {
   interface Window {
@@ -26,6 +27,7 @@ interface Props {
 
 export function ResumeBuilderPayment({ resumeBuilderId, isPaid, onPaymentSuccess, onDownload, userEmail }: Props) {
   const { toast } = useToast();
+  const { currency, pricing } = useCurrency();
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
@@ -44,6 +46,7 @@ export function ResumeBuilderPayment({ resumeBuilderId, isPaid, onPaymentSuccess
         body: JSON.stringify({
           paymentType: "RESUME_BUILD",
           resumeBuilderId,
+          currency,
         }),
       });
       const data = await createRes.json();
@@ -138,12 +141,12 @@ export function ResumeBuilderPayment({ resumeBuilderId, isPaid, onPaymentSuccess
         <h3 className="font-bold text-lg mb-1">Unlock Resume Download</h3>
         <p className="text-sm text-muted-foreground mb-2">Preview is available. Pay to download the full PDF.</p>
         <div className="mb-4">
-          <span className="text-2xl font-bold">₹299</span>
+          <span className="text-2xl font-bold">{pricing.RESUME_BUILD.display}</span>
           <Badge variant="secondary" className="ml-2 text-xs">One-time</Badge>
         </div>
         <Button onClick={handlePayment} disabled={loading} className="w-full max-w-xs">
           {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
-          {loading ? "Processing..." : "Unlock Resume Download – ₹299"}
+          {loading ? "Processing..." : `Unlock Resume Download – ${pricing.RESUME_BUILD.display}`}
         </Button>
       </CardContent>
     </Card>

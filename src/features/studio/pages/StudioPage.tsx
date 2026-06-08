@@ -12,6 +12,7 @@ import { useVersionHistory } from "../hooks/useVersionHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCurrency } from "@/hooks/useCurrency";
 import type { PersonaId, StudioTemplateId, StudioSuggestion, ResumeJSON } from "../types/studio.types";
 
 function StudioPage() {
@@ -348,10 +349,11 @@ function StudioPaywallModal({
   const { toast } = useToast();
   const [processing, setProcessing] = useState(false);
 
+  const { pricing: pricingTable, currency: userCurrency } = useCurrency();
   const plans = [
-    { id: "single" as const, name: "Studio Pass", price: 149, duration: "24 hours", model: "Claude Haiku 4.5", paymentType: "STUDIO_SINGLE", badge: "" },
-    { id: "weekly" as const, name: "Pro Pass", price: 599, duration: "7 days", model: "Claude Sonnet 4.6", paymentType: "STUDIO_WEEKLY", badge: "RECOMMENDED" },
-    { id: "yearly" as const, name: "Unlimited", price: 2499, duration: "1 year", model: "Claude Sonnet 4.6", paymentType: "STUDIO_YEARLY", badge: "BEST VALUE" },
+    { id: "single" as const, name: "Studio Pass", price: pricingTable.STUDIO_SINGLE.display, duration: "24 hours", model: "Claude Haiku 4.5", paymentType: "STUDIO_SINGLE", badge: "" },
+    { id: "weekly" as const, name: "Pro Pass", price: pricingTable.STUDIO_WEEKLY.display, duration: "7 days", model: "Claude Sonnet 4.6", paymentType: "STUDIO_WEEKLY", badge: "RECOMMENDED" },
+    { id: "yearly" as const, name: "Unlimited", price: pricingTable.STUDIO_YEARLY.display, duration: "1 year", model: "Claude Sonnet 4.6", paymentType: "STUDIO_YEARLY", badge: "BEST VALUE" },
   ];
 
   const handlePurchase = async (plan: typeof plans[0]) => {
@@ -359,7 +361,7 @@ function StudioPaywallModal({
     try {
       // Create payment order
       const { data: orderData, error: orderErr } = await supabase.functions.invoke("create-payment-order", {
-        body: { paymentType: plan.paymentType },
+        body: { paymentType: plan.paymentType, currency: userCurrency },
       });
       if (orderErr || !orderData?.orderId) throw new Error("Failed to create order");
 
@@ -377,7 +379,7 @@ function StudioPaywallModal({
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
-        currency: "INR",
+        currency: userCurrency,
         name: "HireResume.in",
         description: `Resume Studio ${plan.name}`,
         order_id: orderData.orderId,
@@ -456,7 +458,7 @@ function StudioPaywallModal({
                 <p className="text-xs text-muted-foreground mt-0.5">{plan.duration} · {plan.model}</p>
               </div>
               <div className="text-right">
-                <span className="text-lg font-bold text-foreground">₹{plan.price}</span>
+                <span className="text-lg font-bold text-foreground">{plan.price}</span>
               </div>
             </button>
           ))}

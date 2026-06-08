@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Zap, Crown, Star, Package, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
+import { useCurrency } from "@/hooks/useCurrency";
+import { formatPrice } from "@/config/pricing";
 
 declare global {
   interface Window { Razorpay: any; }
@@ -35,6 +37,7 @@ const PLAN_LABELS: Record<PaymentType, string> = {
 
 export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, userEmail, onSuccess }: PaymentDialogProps) {
   const { toast } = useToast();
+  const { currency, pricing } = useCurrency();
   const [step, setStep] = useState<DialogStep>("select");
   const [selectedPlan, setSelectedPlan] = useState<PaymentType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,14 +68,14 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
   }, [open, resumeAnalysisId]);
 
   const getFixPrice = () => {
-    return { price: "₹99", original: null, discount: false };
+    return { price: pricing.RESUME_FIX.display, original: null, discount: false };
   };
 
   const getPlanPrice = (type: PaymentType) => {
     if (type === "RESUME_FIX") return getFixPrice();
-    if (type === "COMBO_PLAN") return { price: "₹599", original: null, discount: false };
-    if (type === "UNLIMITED_PLAN") return { price: "₹1,999", original: null, discount: false };
-    return { price: "₹299", original: null, discount: false };
+    if (type === "COMBO_PLAN") return { price: pricing.COMBO_PLAN.display, original: null, discount: false };
+    if (type === "UNLIMITED_PLAN") return { price: pricing.UNLIMITED_PLAN.display, original: null, discount: false };
+    return { price: pricing.RESUME_BUILD.display, original: null, discount: false };
   };
 
   const handleSelectPlan = (plan: PaymentType) => {
@@ -93,6 +96,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
         body: JSON.stringify({
           paymentType: selectedPlan,
           resumeAnalysisId: selectedPlan === "RESUME_FIX" ? resumeAnalysisId : undefined,
+          currency,
         }),
       });
       const data = await createRes.json();
@@ -139,7 +143,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
             setReceipt({
               orderId: response.razorpay_order_id,
               paymentId: response.razorpay_payment_id,
-              plan: `${PLAN_LABELS[selectedPlan!]} (₹${data.amount / 100})`,
+              plan: `${PLAN_LABELS[selectedPlan!]} (${formatPrice(data.amount, data.currency)})`,
             });
             setStep("receipt");
             toast({ title: "Payment successful!" });
@@ -263,7 +267,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <p className="font-semibold">Combo Plan</p>
-                      <span className="text-lg font-bold">₹599</span>
+                      <span className="text-lg font-bold">{pricing.COMBO_PLAN.display}</span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">Resume Fix + AI Interview session.</p>
                   </div>
@@ -280,7 +284,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <p className="font-semibold">Unlimited Plan</p>
-                      <span className="text-lg font-bold">₹1,999<span className="text-xs font-normal text-muted-foreground">/year</span></span>
+                      <span className="text-lg font-bold">{pricing.UNLIMITED_PLAN.display}<span className="text-xs font-normal text-muted-foreground">/year</span></span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">3 resume builds + 2 interviews/month for 365 days.</p>
                   </div>

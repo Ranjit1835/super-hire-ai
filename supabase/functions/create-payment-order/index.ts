@@ -21,7 +21,9 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Unauthorized");
 
-    const { paymentType, resumeAnalysisId, resumeBuilderId } = await req.json();
+    const body = await req.json();
+    const { paymentType, resumeAnalysisId, resumeBuilderId } = body;
+    const currency: "INR" | "USD" = body.currency === "USD" ? "USD" : "INR";
 
     if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER", "MOCK_INTERVIEW",
           "RESUME_FIX", "RESUME_BUILD", "AI_INTERVIEW", "COMBO_PLAN", "UNLIMITED_PLAN"].includes(paymentType)) {
@@ -124,15 +126,25 @@ serve(async (req) => {
       }
     }
 
-    // --- Student discount logic ---
-    const baseAmountMap: Record<string, number> = {
+    // --- Pricing tables (INR in paise, USD in cents) ---
+    const INR_AMOUNTS: Record<string, number> = {
       ONE_TIME_FIX: 9900, RESUME_FIX: 9900,
       EARLY_BIRD_ACCESS: 149900, UNLIMITED_PLAN: 199900,
       MOCK_INTERVIEW: 59900, AI_INTERVIEW: 59900,
       RESUME_BUILDER: 29900, RESUME_BUILD: 29900,
       COMBO_PLAN: 59900,
+      STUDIO_SINGLE: 14900, STUDIO_WEEKLY: 59900, STUDIO_YEARLY: 249900,
     };
-    let baseAmount = baseAmountMap[paymentType] ?? 29900;
+    const USD_AMOUNTS: Record<string, number> = {
+      ONE_TIME_FIX: 400, RESUME_FIX: 400,
+      EARLY_BIRD_ACCESS: 2900, UNLIMITED_PLAN: 3900,
+      MOCK_INTERVIEW: 1900, AI_INTERVIEW: 1900,
+      RESUME_BUILDER: 900, RESUME_BUILD: 900,
+      COMBO_PLAN: 1900,
+      STUDIO_SINGLE: 500, STUDIO_WEEKLY: 1900, STUDIO_YEARLY: 7900,
+    };
+    const amountMap = currency === "USD" ? USD_AMOUNTS : INR_AMOUNTS;
+    let baseAmount = amountMap[paymentType] ?? (currency === "USD" ? 900 : 29900);
     let amount = baseAmount;
     let discountApplied = false;
     let isStudent = false;
@@ -170,14 +182,14 @@ serve(async (req) => {
         .eq("user_id", user.id)
         .single();
 
-      // Resume Fix is now flat ₹99, no student discount needed
+      // Student discount for unlimited plan
       if ((paymentType === "EARLY_BIRD_ACCESS" || paymentType === "UNLIMITED_PLAN") && profile && !profile.first_time_early_bird_used) {
-        amount = 149900; // ₹1,499 (student pricing for unlimited)
+        amount = currency === "USD" ? 2900 : 149900; // $29 or ₹1,499 (student pricing)
         discountApplied = true;
       }
     }
 
-    console.log(`[PAYMENT AUDIT] user=${user.id} type=${paymentType} baseAmount=${baseAmount} finalAmount=${amount} isStudent=${isStudent} discountApplied=${discountApplied}`);
+    console.log(`[PAYMENT AUDIT] user=${user.id} type=${paymentType} currency=${currency} baseAmount=${baseAmount} finalAmount=${amount} isStudent=${isStudent} discountApplied=${discountApplied}`);
 
     const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
     const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
@@ -191,7 +203,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         amount,
-        currency: "INR",
+        currency,
         receipt: crypto.randomUUID(),
         payment_capture: 1,
       }),
@@ -210,7 +222,7 @@ serve(async (req) => {
       resume_builder_id: resumeBuilderId || null,
       payment_type: paymentType,
       amount,
-      currency: "INR",
+      currency,
       razorpay_order_id: rpOrder.id,
       status: "INITIATED",
     }).select("id").single();
@@ -221,7 +233,7 @@ serve(async (req) => {
       orderId: rpOrder.id,
       keyId: RAZORPAY_KEY_ID,
       amount,
-      currency: "INR",
+      currency,
       paymentId: payment.id,
       discountApplied,
       isStudent,

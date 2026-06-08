@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Loader2, Mic } from "lucide-react";
 import { motion } from "framer-motion";
+import { useCurrency } from "@/hooks/useCurrency";
 
 declare global {
   interface Window {
@@ -24,6 +25,7 @@ interface Props {
 
 export function InterviewPayment({ accessInfo, userEmail, onPaymentSuccess }: Props) {
   const { toast } = useToast();
+  const { currency, pricing } = useCurrency();
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
@@ -39,7 +41,7 @@ export function InterviewPayment({ accessInfo, userEmail, onPaymentSuccess }: Pr
           Authorization: `Bearer ${session.access_token}`,
           apikey: SUPABASE_KEY,
         },
-        body: JSON.stringify({ paymentType: "AI_INTERVIEW" }),
+        body: JSON.stringify({ paymentType: "AI_INTERVIEW", currency }),
       });
       const data = await createRes.json();
       if (!createRes.ok) throw new Error(data?.error || "Failed to create order");
@@ -130,12 +132,12 @@ export function InterviewPayment({ accessInfo, userEmail, onPaymentSuccess }: Pr
               : "Get unlimited practice with AI-powered interviews."}
           </p>
           <div className="mb-4">
-            <span className="text-2xl font-bold">₹599</span>
+            <span className="text-2xl font-bold">{pricing.AI_INTERVIEW.display}</span>
             <Badge variant="secondary" className="ml-2 text-xs">Per Session</Badge>
           </div>
           <Button onClick={handlePayment} disabled={loading} className="w-full max-w-xs">
             {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
-            {loading ? "Processing..." : "Pay ₹599 – Start Interview"}
+            {loading ? "Processing..." : `Pay ${pricing.AI_INTERVIEW.display} – Start Interview`}
           </Button>
           <p className="text-xs text-muted-foreground mt-3">Unlimited Plan members get 2 free sessions/month</p>
         </CardContent>

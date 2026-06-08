@@ -1,107 +1,111 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Zap, Package, Crown, GraduationCap, FileEdit, Mic, ArrowRight } from "lucide-react";
+import { CheckCircle2, Zap, Package, Crown, GraduationCap, FileEdit, Mic, ArrowRight, Globe } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-
-const plans = [
-  {
-    id: "resume-fix",
-    icon: <Zap className="h-5 w-5 text-primary" />,
-    iconBg: "bg-primary/10",
-    name: "Resume Fix",
-    price: "₹99",
-    studentPrice: null,
-    period: "one-time",
-    description: "Fix one resume with AI",
-    features: [
-      "ATS keyword optimization",
-      "Quantified bullet points",
-      "Professional formatting",
-      "5 PDF template options",
-    ],
-    highlight: false,
-    badge: null,
-  },
-  {
-    id: "resume-build",
-    icon: <FileEdit className="h-5 w-5 text-orange-500" />,
-    iconBg: "bg-orange-500/10",
-    name: "Resume Build",
-    price: "₹299",
-    studentPrice: null,
-    period: "one-time",
-    description: "Build a new resume from scratch",
-    features: [
-      "50+ ATS-ready templates",
-      "Step-by-step AI guidance",
-      "PDF download",
-      "Recruiter-ready structure",
-    ],
-    highlight: false,
-    badge: null,
-  },
-  {
-    id: "ai-interview",
-    icon: <Mic className="h-5 w-5 text-green-500" />,
-    iconBg: "bg-green-500/10",
-    name: "AI Interview",
-    price: "₹599",
-    studentPrice: null,
-    period: "per session",
-    description: "AI-powered mock interview",
-    features: [
-      "Role-specific questions",
-      "Real-time AI feedback",
-      "Performance scoring",
-      "Detailed improvement tips",
-    ],
-    highlight: false,
-    badge: null,
-  },
-  {
-    id: "combo",
-    icon: <Package className="h-5 w-5 text-blue-500" />,
-    iconBg: "bg-blue-500/10",
-    name: "Combo Plan",
-    price: "₹599",
-    studentPrice: null,
-    period: "one-time",
-    description: "Resume Fix + AI Interview",
-    features: [
-      "Everything in Resume Fix",
-      "1 AI Interview session",
-      "Interview + Resume analysis",
-      "Save ₹99 vs buying separately",
-    ],
-    highlight: false,
-    badge: "POPULAR",
-  },
-  {
-    id: "unlimited",
-    icon: <Crown className="h-5 w-5 text-primary" />,
-    iconBg: "bg-primary/20",
-    name: "Unlimited Plan",
-    price: "₹1,999",
-    studentPrice: null,
-    period: "/year",
-    description: "Full access for serious job-seekers",
-    features: [
-      "3 resume builds/month",
-      "2 AI interviews/month",
-      "Priority AI processing",
-      "365-day access",
-    ],
-    highlight: true,
-    badge: "BEST VALUE",
-  },
-];
+import { useCurrency } from "@/hooks/useCurrency";
+import type { Currency } from "@/config/pricing";
 
 export function PricingSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { currency, setCurrency, pricing } = useCurrency();
+
+  const plans = [
+    {
+      id: "resume-fix",
+      icon: <Zap className="h-5 w-5 text-primary" />,
+      iconBg: "bg-primary/10",
+      name: "Resume Fix",
+      price: pricing.RESUME_FIX.display,
+      studentPrice: null,
+      period: "one-time",
+      description: "Fix one resume with AI",
+      features: [
+        "ATS keyword optimization",
+        "Quantified bullet points",
+        "Professional formatting",
+        "5 PDF template options",
+      ],
+      highlight: false,
+      badge: null,
+    },
+    {
+      id: "resume-build",
+      icon: <FileEdit className="h-5 w-5 text-orange-500" />,
+      iconBg: "bg-orange-500/10",
+      name: "Resume Build",
+      price: pricing.RESUME_BUILD.display,
+      studentPrice: null,
+      period: "one-time",
+      description: "Build a new resume from scratch",
+      features: [
+        "50+ ATS-ready templates",
+        "Step-by-step AI guidance",
+        "PDF download",
+        "Recruiter-ready structure",
+      ],
+      highlight: false,
+      badge: null,
+    },
+    {
+      id: "ai-interview",
+      icon: <Mic className="h-5 w-5 text-green-500" />,
+      iconBg: "bg-green-500/10",
+      name: "AI Interview",
+      price: pricing.AI_INTERVIEW.display,
+      studentPrice: null,
+      period: "per session",
+      description: "AI-powered mock interview",
+      features: [
+        "Role-specific questions",
+        "Real-time AI feedback",
+        "Performance scoring",
+        "Detailed improvement tips",
+      ],
+      highlight: false,
+      badge: null,
+    },
+    {
+      id: "combo",
+      icon: <Package className="h-5 w-5 text-blue-500" />,
+      iconBg: "bg-blue-500/10",
+      name: "Combo Plan",
+      price: pricing.COMBO_PLAN.display,
+      studentPrice: null,
+      period: "one-time",
+      description: "Resume Fix + AI Interview",
+      features: [
+        "Everything in Resume Fix",
+        "1 AI Interview session",
+        "Interview + Resume analysis",
+        `Save ${pricing.RESUME_FIX.display} vs buying separately`,
+      ],
+      highlight: false,
+      badge: "POPULAR",
+    },
+    {
+      id: "unlimited",
+      icon: <Crown className="h-5 w-5 text-primary" />,
+      iconBg: "bg-primary/20",
+      name: "Unlimited Plan",
+      price: pricing.UNLIMITED_PLAN.display,
+      studentPrice: null,
+      period: "/year",
+      description: "Full access for serious job-seekers",
+      features: [
+        "3 resume builds/month",
+        "2 AI interviews/month",
+        "Priority AI processing",
+        "365-day access",
+      ],
+      highlight: true,
+      badge: "BEST VALUE",
+    },
+  ];
+
   const handleCta = (planId: string) => {
     const isInterview = planId === "ai-interview";
     if (user) {
@@ -111,6 +115,8 @@ export function PricingSection() {
     }
   };
 
+  const toggleCurrency = () => setCurrency(currency === "INR" ? "USD" : "INR");
+
   return (
     <section className="py-16 sm:py-20 px-4 border-y border-border bg-secondary/10" id="pricing">
       <div className="container max-w-6xl">
@@ -118,6 +124,13 @@ export function PricingSection() {
           <Badge className="mb-3 bg-primary/10 text-primary border-primary/20 text-xs">Pricing</Badge>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Simple, Transparent Pricing</h2>
           <p className="text-muted-foreground text-sm">Pay only for what you need. No subscriptions, no hidden fees.</p>
+          <button
+            onClick={toggleCurrency}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border rounded-full px-3 py-1"
+          >
+            <Globe className="h-3 w-3" />
+            {currency === "INR" ? "Show prices in USD" : "Show prices in INR"}
+          </button>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">

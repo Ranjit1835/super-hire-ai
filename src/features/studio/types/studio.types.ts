@@ -305,8 +305,6 @@ export const QUICK_ACTIONS: QuickAction[] = [
 export interface StudioPlan {
   id: 'single' | 'weekly' | 'yearly';
   name: string;
-  price: number; // in INR
-  priceInPaise: number;
   duration: string;
   model: string;
   modelDisplay: string;
@@ -318,8 +316,6 @@ export const STUDIO_PLANS: StudioPlan[] = [
   {
     id: 'single',
     name: 'Studio Pass',
-    price: 149,
-    priceInPaise: 14900,
     duration: '24 hours',
     model: 'claude-haiku-4-5-20251001',
     modelDisplay: 'Claude Haiku 4.5',
@@ -328,8 +324,6 @@ export const STUDIO_PLANS: StudioPlan[] = [
   {
     id: 'weekly',
     name: 'Pro Pass',
-    price: 599,
-    priceInPaise: 59900,
     duration: '7 days',
     model: 'claude-sonnet-4-6',
     modelDisplay: 'Claude Sonnet 4.6',
@@ -339,8 +333,6 @@ export const STUDIO_PLANS: StudioPlan[] = [
   {
     id: 'yearly',
     name: 'Unlimited',
-    price: 2499,
-    priceInPaise: 249900,
     duration: '1 year',
     model: 'claude-sonnet-4-6',
     modelDisplay: 'Claude Sonnet 4.6',
