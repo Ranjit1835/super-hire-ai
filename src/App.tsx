@@ -31,6 +31,10 @@ const VoiceInterview = lazy(() => import("./pages/VoiceInterview"));
 const StudioPage = lazy(() => import("./features/studio/pages/StudioPage"));
 const StudioPaywallPage = lazy(() => import("./features/studio/pages/StudioPaywallPage"));
 const StudioSharedPage = lazy(() => import("./features/studio/pages/StudioSharedPage"));
+const ATSChecker = lazy(() => import("./pages/ATSChecker"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const About = lazy(() => import("./pages/About"));
+const Blog = lazy(() => import("./pages/Blog"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +65,10 @@ function AppRoutes() {
       <Route path="/fix/:id" element={<ProtectedRoute><FixResume /></ProtectedRoute>} />
       <Route path="/build-resume" element={<ProtectedRoute><ResumeBuilder /></ProtectedRoute>} />
       <Route path="/mock-interview" element={<ProtectedRoute><MockInterview /></ProtectedRoute>} />
+      <Route path="/ats-checker" element={<ATSChecker />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/blog" element={<Blog />} />
       <Route path="/college-placement" element={<CollegePlacement />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
       <Route path="/reels-campaign" element={<ReelsCampaign />} />

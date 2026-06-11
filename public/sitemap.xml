@@ -12,6 +12,38 @@
     <priority>1.0</priority>
   </url>
 
+  <!-- ATS Checker — high-value SEO landing page -->
+  <url>
+    <loc>https://hiresume.in/ats-checker</loc>
+    <lastmod>2026-06-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Pricing — public -->
+  <url>
+    <loc>https://hiresume.in/pricing</loc>
+    <lastmod>2026-06-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- About — public -->
+  <url>
+    <loc>https://hiresume.in/about</loc>
+    <lastmod>2026-06-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Blog — public, content hub -->
+  <url>
+    <loc>https://hiresume.in/blog</loc>
+    <lastmod>2026-06-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
   <!-- College Placement — public landing page -->
   <url>
     <loc>https://hiresume.in/college-placement</loc>
