@@ -168,7 +168,7 @@ export default function VoiceInterview() {
     setVoiceState("listening");
 
     const recognition = new SpeechRecognition();
-    recognition.lang = "en-IN";
+    recognition.lang = "en-US";
     recognition.continuous = true;
     recognition.interimResults = true;
 

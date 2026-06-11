@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { AnimatedGradientMesh } from "@/components/premium";
+import { SEOHead } from "@/components/SEOHead";
 
 const NotFound = () => {
   const location = useLocation();
@@ -12,6 +13,12 @@ const NotFound = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
+      <SEOHead
+        title="Page Not Found - HireResume"
+        description="The page you're looking for doesn't exist. Head back to HireResume to check your ATS resume score for free."
+        path={location.pathname}
+        noindex={true}
+      />
       <AnimatedGradientMesh />
       <motion.div
         initial={{ opacity: 0, y: 20 }}

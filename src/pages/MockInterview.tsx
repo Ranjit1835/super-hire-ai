@@ -14,6 +14,7 @@ import { InterviewReport } from "@/components/interview/InterviewReport";
 import { useSpeech } from "@/hooks/useSpeech";
 import { VoiceWaveform } from "@/components/interview/VoiceWaveform";
 import { AnimatedGradientMesh } from "@/components/premium";
+import { SEOHead } from "@/components/SEOHead";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -191,6 +192,13 @@ export default function MockInterview() {
 
   return (
     <div className="min-h-screen bg-background relative">
+      <SEOHead
+        title="AI Mock Interview Practice - Get Interview Ready | HireResume"
+        description="Practice job interviews with AI. Get role-specific questions, real-time feedback, and performance scores. Prepare for technical and behavioral interviews online."
+        path="/mock-interview"
+        keywords="AI mock interview, practice interview online, interview preparation, behavioral interview practice, technical interview simulator"
+        breadcrumbs={[{ name: "Home", path: "/" }, { name: "AI Mock Interview", path: "/mock-interview" }]}
+      />
       <AnimatedGradientMesh />
 
       <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">

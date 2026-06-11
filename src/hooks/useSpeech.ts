@@ -39,7 +39,7 @@ export function useSpeech(): UseSpeechReturn {
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.95;
-    utterance.lang = "en-IN";
+    utterance.lang = "en-US";
     utteranceRef.current = utterance;
 
     utterance.onstart = () => setIsSpeaking(true);
@@ -60,7 +60,7 @@ export function useSpeech(): UseSpeechReturn {
     if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
-    recognition.lang = "en-IN";
+    recognition.lang = "en-US";
     recognition.continuous = false;
     recognition.interimResults = true;
 

@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
+import { SEOHead } from "@/components/SEOHead";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection";
 import { SampleResultSection } from "@/components/landing/SampleResultSection";
@@ -30,7 +31,7 @@ export default function Landing() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    document.title = "HireResume – Free ATS Resume Checker & AI Resume Optimizer | hiresume.in";
+    document.title = "HireResume - Free ATS Resume Checker & AI Mock Interview Platform";
   }, []);
 
   const handleGuestUpload = async (file: File) => {
@@ -122,6 +123,13 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background relative">
+      <SEOHead
+        title="HireResume - Free ATS Resume Checker & AI Mock Interview Platform"
+        description="Check your ATS resume score free in 10 seconds. AI-powered resume analysis, keyword optimization, resume builder, and mock interviews. Trusted by job seekers worldwide."
+        path="/"
+        keywords="ATS resume checker, free resume analysis, AI resume optimizer, resume score checker, AI mock interview, resume builder, ATS score, job application tools"
+        breadcrumbs={[{ name: "Home", path: "/" }]}
+      />
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 glass-strong border-b border-border/30">
         <div className="container flex items-center justify-between h-16 px-4">

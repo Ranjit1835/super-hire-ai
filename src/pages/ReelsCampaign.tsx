@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { Zap, ArrowLeft, Play, TrendingUp, Users, Star, Upload } from "lucide-react";
+import { SEOHead } from "@/components/SEOHead";
 
 const STEPS = [
   { n: "01", title: "Upload your resume on hiresume.in", desc: "Takes 30 seconds. Paste the link or upload PDF." },
@@ -29,6 +30,12 @@ export default function ReelsCampaign() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="HireResume Reels Campaign - Share Your ATS Score & Win"
+        description="Record a 30-second Reel with your ATS resume score, tag #HireResume, and win a free resume fix. Join the challenge!"
+        path="/reels-campaign"
+        noindex={true}
+      />
       <header className="border-b border-border glass-strong sticky top-0 z-50">
         <div className="container flex items-center h-14">
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-2 mr-4">

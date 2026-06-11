@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Zap, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { ResumeBuilderWizard } from "@/components/resume-builder/ResumeBuilderWizard";
+import { SEOHead } from "@/components/SEOHead";
 import { ResumeTemplatePreview } from "@/components/resume-builder/ResumeTemplatePreview";
 import { ResumeBuilderPayment } from "@/components/resume-builder/ResumeBuilderPayment";
 import { ResumeContent, TemplateId, emptyResumeContent } from "@/lib/resume-builder-types";
@@ -140,6 +141,13 @@ export default function ResumeBuilder() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="Free AI Resume Builder - 50+ ATS-Friendly Templates | HireResume"
+        description="Build a professional ATS-optimized resume in minutes. 50+ templates, AI-powered content suggestions, and instant PDF download. Free to start."
+        path="/build-resume"
+        keywords="resume builder, ATS resume template, free resume maker, professional resume builder, AI resume builder, resume templates"
+        breadcrumbs={[{ name: "Home", path: "/" }, { name: "Resume Builder", path: "/build-resume" }]}
+      />
       {/* Header */}
       <header className="border-b border-border glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14">
@@ -170,7 +178,7 @@ export default function ResumeBuilder() {
         {phase === "preview" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold mb-1">Your AI-Enhanced Resume</h1>
+              <h2 className="text-2xl font-bold mb-1">Your AI-Enhanced Resume</h2>
               <p className="text-sm text-muted-foreground">
                 {enhancedContent ? "AI has improved your content. Switch templates and preview below." : "Preview your resume. Switch templates below."}
               </p>

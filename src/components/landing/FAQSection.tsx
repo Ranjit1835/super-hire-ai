@@ -22,7 +22,7 @@ const faqs = [
   },
   {
     q: "Is HireResume suitable for freshers with no work experience?",
-    a: "Absolutely. We have a special student pricing (₹149 for resume fix) and our AI knows how to highlight academic projects, internships, and skills effectively. Many freshers who used HireResume got their first job offer within 45 days of optimizing their resume.",
+    a: "Absolutely. We offer affordable student pricing and our AI knows how to highlight academic projects, internships, and skills effectively. Many freshers who used HireResume got their first job offer within 45 days of optimizing their resume.",
   },
   {
     q: "How is HireResume different from other resume checkers?",
@@ -30,7 +30,11 @@ const faqs = [
   },
   {
     q: "What payment methods do you accept?",
-    a: "We use Razorpay, which accepts all major UPI apps (GPay, PhonePe, Paytm), debit/credit cards (Visa, Mastercard, RuPay), net banking, and wallets. All transactions are secured with 256-bit encryption. Pricing starts at ₹149 for students.",
+    a: "We accept all major debit/credit cards (Visa, Mastercard), UPI, net banking, and digital wallets via our secure payment gateway. Pricing is available in both USD and INR, automatically detected based on your location. All transactions are secured with 256-bit encryption.",
+  },
+  {
+    q: "Does HireResume work for international job seekers?",
+    a: "Yes! HireResume works for job seekers worldwide — US, UK, Europe, India, and beyond. Our AI understands ATS systems used globally including Workday, Greenhouse, Lever, iCIMS, and Taleo. Whether you're applying to companies in San Francisco or Bangalore, we optimize your resume for the right ATS.",
   },
 ];
 

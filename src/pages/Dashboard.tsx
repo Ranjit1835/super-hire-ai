@@ -18,6 +18,7 @@ import {
   CountingNumber, PulseDot,
 } from "@/components/premium";
 import { type PlanType, planLabel, hasActivePlan, isEarlyBirdActive } from "@/integrations/supabase/extended-types";
+import { SEOHead } from "@/components/SEOHead";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -175,6 +176,12 @@ export default function Dashboard() {
      ═══════════════════════════════════════════════════ */
   return (
     <div className="min-h-screen bg-background relative">
+      <SEOHead
+        title="Dashboard - HireResume"
+        description="View your resume analyses, ATS scores, and optimization history."
+        path="/dashboard"
+        noindex={true}
+      />
       {/* ── ANIMATED MESH BACKGROUND ────────────── */}
       <AnimatedGradientMesh />
 

@@ -1,16 +1,20 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+Allow: /college-placement
+Allow: /leaderboard
+
+# Protected/authenticated routes — no value for crawlers
+Disallow: /dashboard
+Disallow: /analysis/
+Disallow: /fix/
+Disallow: /build-resume
+Disallow: /mock-interview
+Disallow: /voice-interview
+Disallow: /weekly-stats
+Disallow: /studio
+Disallow: /auth
+Disallow: /verify-otp
+Disallow: /reset-password
+Disallow: /auth/callback
 
 Sitemap: https://hiresume.in/sitemap.xml

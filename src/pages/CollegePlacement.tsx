@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { GraduationCap, Users, Zap, TrendingUp, CheckCircle2, ArrowLeft, Building2, Trophy, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AnimatedGradientMesh, SparkleParticles, CountingNumber } from "@/components/premium";
+import { SEOHead } from "@/components/SEOHead";
 
 const BENEFITS = [
   { icon: Users, title: "Bulk Resume Analysis", desc: "Analyse hundreds of student resumes at once. Get a class-wide ATS report." },
@@ -56,6 +57,13 @@ export default function CollegePlacement() {
 
   return (
     <div className="min-h-screen bg-background relative">
+      <SEOHead
+        title="College Placement Program - Bulk Resume Analysis for Universities | HireResume"
+        description="Boost your college placement rates with AI-powered bulk resume analysis. ATS optimization, leaderboard gamification, and actionable feedback for every student."
+        path="/college-placement"
+        keywords="college placement program, bulk resume analysis, university placement cell, student resume optimization, campus placement tools"
+        breadcrumbs={[{ name: "Home", path: "/" }, { name: "College Placement", path: "/college-placement" }]}
+      />
       <AnimatedGradientMesh />
 
       {/* Header */}

@@ -39,7 +39,7 @@ export function ReferralWidget() {
   };
 
   const shareWhatsApp = () => {
-    const msg = `Hey! I've been using HireResume to improve my ATS score — it's amazing for the Indian job market! Sign up with my link and check your resume free 🚀\n${referralUrl}`;
+    const msg = `Hey! I've been using HireResume to improve my ATS score — it's amazing for job seekers! Sign up with my link and check your resume free 🚀\n${referralUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 

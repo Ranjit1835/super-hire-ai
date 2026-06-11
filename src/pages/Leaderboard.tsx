@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Trophy, Zap, ArrowLeft, Upload, TrendingUp, Medal, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AnimatedGradientMesh } from "@/components/premium";
+import { SEOHead } from "@/components/SEOHead";
 
 interface LeaderboardEntry {
   id: string;
@@ -63,6 +64,13 @@ export default function Leaderboard() {
 
   return (
     <div className="min-h-screen bg-background relative">
+      <SEOHead
+        title="Resume Score Leaderboard - Top ATS Scores | HireResume"
+        description="See the top-scoring resumes on HireResume. Compare your ATS resume score with other job seekers and climb the leaderboard."
+        path="/leaderboard"
+        keywords="resume score leaderboard, ATS score ranking, best resume scores, resume competition"
+        breadcrumbs={[{ name: "Home", path: "/" }, { name: "Leaderboard", path: "/leaderboard" }]}
+      />
       <AnimatedGradientMesh />
 
       <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
@@ -87,7 +95,7 @@ export default function Leaderboard() {
               <h1 className="text-3xl font-bold gradient-text-new">Resume Leaderboard</h1>
             </div>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Opt-in scores from job seekers across India. See where you rank — and get inspired to improve.
+              Opt-in scores from job seekers worldwide. See where you rank — and get inspired to improve.
             </p>
             <motion.button
               whileHover={{ scale: 1.03 }}

@@ -11,6 +11,7 @@ import { Zap, LogIn, UserPlus, Mail, Lock, User, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
+import { SEOHead } from "@/components/SEOHead";
 
 const PASSWORD_RULES = {
   minLength: 8,
@@ -183,6 +184,12 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden px-4">
+      <SEOHead
+        title="Sign In to HireResume - ATS Resume Checker & AI Interview Platform"
+        description="Sign in or create your free HireResume account. Access AI resume analysis, resume builder, and mock interview tools."
+        path="/auth"
+        noindex={true}
+      />
       <AnimatedGradientMesh />
 
       <motion.div

@@ -5,19 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- ══════════════════════════════════════
-         PRIMARY SEO — keyword-rich title & description
+         FALLBACK SEO — overridden per-page by react-helmet-async
     ══════════════════════════════════════ -->
-    <title>HireResume – Free ATS Resume Checker & AI Resume Optimizer | hiresume.in</title>
-    <meta name="description" content="Check your ATS resume score free in 10 seconds. HireResume uses AI to find why your resume is rejected, fix keywords, rewrite bullet points, and boost interview callbacks. Trusted by 1,200+ job seekers in India.">
-    <meta name="keywords" content="ATS resume checker, resume score checker, free resume analysis, AI resume optimizer, ATS score, resume improvement India, resume keywords, HireResume, hiresume, resume builder, mock interview AI">
+    <title>HireResume - Free ATS Resume Checker & AI Mock Interview Platform</title>
+    <meta name="description" content="Check your ATS resume score free in 10 seconds. AI-powered resume analysis, keyword optimization, resume builder, and mock interviews. Trusted by job seekers worldwide." />
+    <meta name="keywords" content="ATS resume checker, free resume analysis, AI resume optimizer, resume score checker, AI mock interview, resume builder, ATS score, resume keywords, job application tools" />
     <meta name="author" content="HireResume" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
     <meta name="theme-color" content="#8b5cf6" />
     <meta name="application-name" content="HireResume" />
-    <meta name="google-site-verification" content="REPLACE_WITH_YOUR_GSC_VERIFICATION_CODE" />
-
-    <!-- Canonical -->
-    <link rel="canonical" href="https://hiresume.in/" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -25,37 +21,38 @@
     <link rel="manifest" href="/manifest.json" />
 
     <!-- ══════════════════════════════════════
-         OPEN GRAPH — WhatsApp, LinkedIn, Facebook
+         FALLBACK OPEN GRAPH — overridden per-page by react-helmet-async
     ══════════════════════════════════════ -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="HireResume" />
-    <meta property="og:title" content="HireResume – Free ATS Resume Checker & AI Resume Optimizer" />
-    <meta property="og:description" content="Check your ATS resume score free in 10 seconds. AI-powered analysis, keyword optimization, and smart rewriting to get more interview callbacks." />
+    <meta property="og:title" content="HireResume - Free ATS Resume Checker & AI Mock Interview Platform" />
+    <meta property="og:description" content="Check your ATS resume score free in 10 seconds. AI-powered resume analysis, keyword optimization, and mock interviews for job seekers worldwide." />
     <meta property="og:url" content="https://hiresume.in/" />
-    <meta property="og:image" content="https://hiresume.in/og-image.svg" />
+    <meta property="og:image" content="https://hiresume.in/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="HireResume – Free ATS Resume Score Checker and AI Resume Optimizer" />
-    <meta property="og:locale" content="en_IN" />
+    <meta property="og:image:alt" content="HireResume - Free ATS Resume Checker and AI Mock Interview Platform" />
+    <meta property="og:locale" content="en_US" />
 
     <!-- ══════════════════════════════════════
-         TWITTER / X CARD
+         FALLBACK TWITTER / X CARD — overridden per-page by react-helmet-async
     ══════════════════════════════════════ -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@hiresume_in" />
     <meta name="twitter:creator" content="@hiresume_in" />
-    <meta name="twitter:title" content="HireResume – Free ATS Resume Checker & AI Resume Optimizer" />
-    <meta name="twitter:description" content="Check your ATS resume score in 10 seconds — free. AI resume analysis to get more interview callbacks. No sign-up needed." />
-    <meta name="twitter:image" content="https://hiresume.in/og-image.svg" />
+    <meta name="twitter:title" content="HireResume - Free ATS Resume Checker & AI Mock Interview Platform" />
+    <meta name="twitter:description" content="Check your ATS resume score in 10 seconds - free. AI resume analysis, mock interviews, and resume builder for job seekers worldwide." />
+    <meta name="twitter:image" content="https://hiresume.in/og-image.png" />
     <meta name="twitter:image:alt" content="HireResume ATS Resume Score Dashboard" />
 
     <!-- ══════════════════════════════════════
-         FONTS (non-blocking)
+         FONTS — Inter (primary), Roboto, Libre Caslon Text, Roboto Mono
+         Geist Mono removed (unused). Inter preloaded as critical font.
     ══════════════════════════════════════ -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..900&display=swap" media="print" onload="this.media='all'" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..900&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&display=swap" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'" />
@@ -76,7 +73,8 @@
       "name": "HireResume",
       "alternateName": ["hiresume.in", "HireResume AI"],
       "url": "https://hiresume.in",
-      "description": "Free AI-powered ATS resume checker, keyword optimizer, and resume builder for job seekers in India.",
+      "description": "Free AI-powered ATS resume checker, keyword optimizer, resume builder, and mock interview platform for job seekers worldwide.",
+      "inLanguage": "en",
       "potentialAction": {
         "@type": "SearchAction",
         "target": { "@type": "EntryPoint", "urlTemplate": "https://hiresume.in/?q={search_term_string}" },
@@ -93,10 +91,10 @@
       "name": "HireResume",
       "url": "https://hiresume.in",
       "logo": { "@type": "ImageObject", "url": "https://hiresume.in/favicon.ico" },
-      "description": "HireResume is an AI-powered resume analysis and optimization platform that helps job seekers in India pass ATS systems and get more interview callbacks.",
+      "description": "HireResume is an AI-powered resume analysis and optimization platform that helps job seekers pass ATS systems and get more interview callbacks.",
       "foundingDate": "2024",
-      "areaServed": "IN",
-      "contactPoint": { "@type": "ContactPoint", "contactType": "customer support", "availableLanguage": ["English", "Hindi"] }
+      "areaServed": "Worldwide",
+      "contactPoint": { "@type": "ContactPoint", "contactType": "customer support", "availableLanguage": ["English"] }
     }
     </script>
 
@@ -111,20 +109,19 @@
       "applicationSubCategory": "Resume Builder",
       "url": "https://hiresume.in",
       "description": "AI-powered ATS resume checker and optimizer. Get your ATS score, keyword analysis, and AI-rewritten resume in 10 seconds. Free to analyze.",
-      "screenshot": "https://hiresume.in/og-image.svg",
+      "screenshot": "https://hiresume.in/og-image.png",
       "featureList": ["Free ATS resume score check","AI resume keyword optimization","Recruiter scan simulation","AI mock interview with voice","Resume builder with 50+ templates"],
       "offers": [
-        { "@type": "Offer", "name": "Free ATS Analysis", "price": "0", "priceCurrency": "INR" },
-        { "@type": "Offer", "name": "Resume Fix", "price": "99", "priceCurrency": "INR" },
+        { "@type": "Offer", "name": "Free ATS Analysis", "price": "0", "priceCurrency": "USD" },
         { "@type": "Offer", "name": "Resume Fix", "price": "4", "priceCurrency": "USD" },
-        { "@type": "Offer", "name": "Resume Build", "price": "299", "priceCurrency": "INR" },
         { "@type": "Offer", "name": "Resume Build", "price": "9", "priceCurrency": "USD" },
-        { "@type": "Offer", "name": "AI Interview Session", "price": "599", "priceCurrency": "INR" },
         { "@type": "Offer", "name": "AI Interview Session", "price": "19", "priceCurrency": "USD" },
-        { "@type": "Offer", "name": "Combo Plan", "price": "599", "priceCurrency": "INR" },
         { "@type": "Offer", "name": "Combo Plan", "price": "19", "priceCurrency": "USD" },
-        { "@type": "Offer", "name": "Unlimited Plan", "price": "1999", "priceCurrency": "INR" },
-        { "@type": "Offer", "name": "Unlimited Plan", "price": "39", "priceCurrency": "USD" }
+        { "@type": "Offer", "name": "Unlimited Plan", "price": "39", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "Resume Fix", "price": "99", "priceCurrency": "INR" },
+        { "@type": "Offer", "name": "Resume Build", "price": "299", "priceCurrency": "INR" },
+        { "@type": "Offer", "name": "Combo Plan", "price": "599", "priceCurrency": "INR" },
+        { "@type": "Offer", "name": "Unlimited Plan", "price": "1999", "priceCurrency": "INR" }
       ],
       "aggregateRating": {
         "@type": "AggregateRating",
@@ -145,17 +142,17 @@
         {
           "@type": "Question",
           "name": "What is an ATS resume checker?",
-          "acceptedAnswer": { "@type": "Answer", "text": "An ATS (Applicant Tracking System) resume checker analyzes your resume against the criteria that automated hiring software uses to filter candidates. HireResume checks keyword density, formatting, structure, and impact metrics to give you a score out of 100 — free." }
+          "acceptedAnswer": { "@type": "Answer", "text": "An ATS (Applicant Tracking System) resume checker analyzes your resume against the criteria that automated hiring software uses to filter candidates. HireResume checks keyword density, formatting, structure, and impact metrics to give you a score out of 100 - free." }
         },
         {
           "@type": "Question",
           "name": "Is HireResume free to use?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes! The ATS resume analysis and score check is completely free — no sign-up required. You only pay if you want AI to fix and optimize your resume (starting at ₹99 / $4)." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes! The ATS resume analysis and score check is completely free - no sign-up required. You only pay if you want AI to fix and optimize your resume (starting at $4 / Rs.99)." }
         },
         {
           "@type": "Question",
           "name": "How does AI resume optimization work?",
-          "acceptedAnswer": { "@type": "Answer", "text": "HireResume's AI analyzes your resume, identifies missing keywords, weak bullet points, and formatting issues, then rewrites it with quantified achievements and ATS-friendly formatting — typically improving your score by 30-50 points." }
+          "acceptedAnswer": { "@type": "Answer", "text": "HireResume's AI analyzes your resume, identifies missing keywords, weak bullet points, and formatting issues, then rewrites it with quantified achievements and ATS-friendly formatting - typically improving your score by 30-50 points." }
         },
         {
           "@type": "Question",
@@ -165,17 +162,22 @@
         {
           "@type": "Question",
           "name": "How long does resume analysis take?",
-          "acceptedAnswer": { "@type": "Answer", "text": "HireResume analyzes your resume in under 10 seconds. Just upload your PDF and get your ATS score, keyword gap analysis, and improvement suggestions instantly — no waiting, no sign-up." }
+          "acceptedAnswer": { "@type": "Answer", "text": "HireResume analyzes your resume in under 10 seconds. Just upload your PDF and get your ATS score, keyword gap analysis, and improvement suggestions instantly - no waiting, no sign-up." }
         },
         {
           "@type": "Question",
           "name": "Does HireResume work for students and freshers?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes! HireResume offers Resume Fix at just ₹99 / $4 — affordable for everyone including students and freshers. We have 50+ templates and specific guidance for freshers with no work experience." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes! HireResume offers Resume Fix starting at just $4 - affordable for everyone including students and freshers. We have 50+ templates and specific guidance for freshers with no work experience." }
         },
         {
           "@type": "Question",
           "name": "What is the AI Mock Interview feature?",
-          "acceptedAnswer": { "@type": "Answer", "text": "HireResume's AI Mock Interview simulates a real job interview with role-specific questions. You can respond by typing or by voice. The AI gives you feedback, scores your performance, and identifies improvement areas — all from your browser." }
+          "acceptedAnswer": { "@type": "Answer", "text": "HireResume's AI Mock Interview simulates a real job interview with role-specific questions. You can respond by typing or by voice. The AI gives you feedback, scores your performance, and identifies improvement areas - all from your browser." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does HireResume work for international job seekers?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Absolutely! HireResume works for job seekers worldwide - US, Europe, India, and beyond. Our AI understands ATS systems used globally including Workday, Greenhouse, Lever, and Taleo. Pricing is available in both USD and INR." }
         }
       ]
     }
