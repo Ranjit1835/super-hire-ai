@@ -30,12 +30,19 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check early bird
+    // Check plan type and early bird
     const { data: profile } = await admin
       .from("profiles")
-      .select("early_bird_active, early_bird_expiry_date")
+      .select("early_bird_active, early_bird_expiry_date, plan_type, plan_expiry_date")
       .eq("user_id", user.id)
       .single();
+
+    // UNLIMITED plan bypasses all limits
+    if (profile?.plan_type === "UNLIMITED" && profile.plan_expiry_date && new Date(profile.plan_expiry_date) > new Date()) {
+      return new Response(JSON.stringify({ canAccess: true, reason: "UNLIMITED_PLAN" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (profile?.early_bird_active && profile.early_bird_expiry_date && new Date(profile.early_bird_expiry_date) > new Date()) {
       return new Response(JSON.stringify({ canAccess: true, reason: "EARLY_BIRD_ACCESS" }), {

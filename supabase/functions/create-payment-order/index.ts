@@ -36,6 +36,14 @@ serve(async (req) => {
     );
 
     // Idempotency checks
+    // Check UNLIMITED plan upfront — auto-unlock for all paid features
+    const { data: unlimitedCheck } = await admin
+      .from("profiles")
+      .select("plan_type, plan_expiry_date")
+      .eq("user_id", user.id)
+      .single();
+    const isUnlimitedPlan = unlimitedCheck?.plan_type === "UNLIMITED" && unlimitedCheck?.plan_expiry_date && new Date(unlimitedCheck.plan_expiry_date) > new Date();
+
     if (paymentType === "ONE_TIME_FIX") {
       if (!resumeAnalysisId) throw new Error("resumeAnalysisId required for ONE_TIME_FIX");
       const { data: resume } = await admin
@@ -44,7 +52,10 @@ serve(async (req) => {
         .eq("id", resumeAnalysisId)
         .single();
       if (!resume || resume.user_id !== user.id) throw new Error("Resume not found");
-      if (resume.is_paid_fix_unlocked) {
+      if (resume.is_paid_fix_unlocked || isUnlimitedPlan) {
+        if (isUnlimitedPlan && !resume.is_paid_fix_unlocked) {
+          await admin.from("resume_analyses").update({ is_paid_fix_unlocked: true }).eq("id", resumeAnalysisId);
+        }
         return new Response(JSON.stringify({ alreadyUnlocked: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -66,7 +77,13 @@ serve(async (req) => {
 
     if (paymentType === "RESUME_BUILDER") {
       if (!resumeBuilderId) throw new Error("resumeBuilderId required for RESUME_BUILDER");
-      // Check early bird access first — resume builder is free for early bird users
+      // Check UNLIMITED plan or early bird access — resume builder is free for these users
+      if (isUnlimitedPlan) {
+        await admin.from("resume_builders").update({ is_paid: true, paid_at: new Date().toISOString() }).eq("id", resumeBuilderId);
+        return new Response(JSON.stringify({ alreadyUnlocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const { data: ebProfile } = await admin
         .from("profiles")
         .select("early_bird_active, early_bird_expiry_date")
@@ -97,7 +114,12 @@ serve(async (req) => {
       if (!resumeAnalysisId) throw new Error("resumeAnalysisId required for RESUME_FIX");
       const { data: resume } = await admin.from("resume_analyses").select("id, user_id, is_paid_fix_unlocked").eq("id", resumeAnalysisId).single();
       if (!resume || resume.user_id !== user.id) throw new Error("Resume not found");
-      if (resume.is_paid_fix_unlocked) return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (resume.is_paid_fix_unlocked || isUnlimitedPlan) {
+        if (isUnlimitedPlan && !resume.is_paid_fix_unlocked) {
+          await admin.from("resume_analyses").update({ is_paid_fix_unlocked: true }).eq("id", resumeAnalysisId);
+        }
+        return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     if (paymentType === "RESUME_BUILD") {

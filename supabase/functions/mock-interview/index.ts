@@ -36,13 +36,15 @@ serve(async (req) => {
     if (action === "check-access") {
       const { data: profile, error: profileErr } = await admin
         .from("profiles")
-        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date")
+        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date, plan_type, plan_expiry_date")
         .eq("user_id", user.id)
         .single();
 
       if (profileErr) console.error("[MOCK-INTERVIEW] profile fetch error:", profileErr.message);
 
+      const isUnlimited = profile?.plan_type === "UNLIMITED" && profile?.plan_expiry_date && new Date(profile.plan_expiry_date) > new Date();
       const isEarlyBird = profile?.early_bird_active && profile?.early_bird_expiry_date && new Date(profile.early_bird_expiry_date) > new Date();
+      const hasPaidAccess = isUnlimited || isEarlyBird;
 
       // Reset monthly count if new month
       let monthlyCount = profile?.monthly_interview_count || 0;
@@ -56,15 +58,17 @@ serve(async (req) => {
         }).eq("user_id", user.id);
       }
 
-      const monthlyLimit = isEarlyBird ? 10 : 2;
-      const canAccess = isEarlyBird && monthlyCount < monthlyLimit;
+      // UNLIMITED plan has no monthly limit
+      const monthlyLimit = isUnlimited ? Infinity : isEarlyBird ? 10 : 2;
+      const canAccess = hasPaidAccess && monthlyCount < monthlyLimit;
       return new Response(JSON.stringify({
         canAccess,
         isEarlyBird: !!isEarlyBird,
-        planType: isEarlyBird ? "EARLY_BIRD" : "FREE",
+        isUnlimited: !!isUnlimited,
+        planType: isUnlimited ? "UNLIMITED" : isEarlyBird ? "EARLY_BIRD" : "FREE",
         monthlyCount,
-        monthlyLimit,
-        reason: canAccess ? "PLAN_ACCESS" : isEarlyBird ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
+        monthlyLimit: isUnlimited ? 999 : (isEarlyBird ? 10 : 2),
+        reason: canAccess ? "PLAN_ACCESS" : hasPaidAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -75,13 +79,17 @@ serve(async (req) => {
       // Verify access before starting — guard against clients that skip check-access
       const { data: accessProfile } = await admin
         .from("profiles")
-        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date")
+        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date, plan_type, plan_expiry_date")
         .eq("user_id", user.id)
         .single();
 
+      const isUnlimited = accessProfile?.plan_type === "UNLIMITED" &&
+        accessProfile?.plan_expiry_date &&
+        new Date(accessProfile.plan_expiry_date) > new Date();
       const isEarlyBird = accessProfile?.early_bird_active &&
         accessProfile?.early_bird_expiry_date &&
         new Date(accessProfile.early_bird_expiry_date) > new Date();
+      const hasPaidAccess = isUnlimited || isEarlyBird;
 
       let monthlyCount = accessProfile?.monthly_interview_count || 0;
       const lastReset = accessProfile?.last_interview_reset_date
@@ -96,11 +104,12 @@ serve(async (req) => {
         }).eq("user_id", user.id);
       }
 
-      const startMonthlyLimit = isEarlyBird ? 10 : 2;
-      if (!isEarlyBird || monthlyCount >= startMonthlyLimit) {
+      // UNLIMITED plan has no monthly limit
+      const startMonthlyLimit = isUnlimited ? Infinity : isEarlyBird ? 10 : 2;
+      if (!hasPaidAccess || monthlyCount >= startMonthlyLimit) {
         return new Response(JSON.stringify({
-          error: isEarlyBird ? "Monthly interview limit reached" : "Payment required to start interview",
-          reason: isEarlyBird ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
+          error: hasPaidAccess ? "Monthly interview limit reached" : "Payment required to start interview",
+          reason: hasPaidAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
         }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 

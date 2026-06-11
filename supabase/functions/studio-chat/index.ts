@@ -55,8 +55,16 @@ serve(async (req) => {
     if (session.user_id !== user.id) throw new Error("Unauthorized");
     if (new Date(session.expires_at) < new Date()) throw new Error("Session expired");
 
-    // Check free tier message limit
-    if (session.pass_type === "free" && session.messages_used >= FREE_MESSAGE_LIMIT) {
+    // Check if user has UNLIMITED plan — bypasses free tier limits
+    const { data: chatProfile } = await admin
+      .from("profiles")
+      .select("plan_type, plan_expiry_date")
+      .eq("user_id", user.id)
+      .single();
+    const isUnlimitedUser = chatProfile?.plan_type === "UNLIMITED" && chatProfile?.plan_expiry_date && new Date(chatProfile.plan_expiry_date) > new Date();
+
+    // Check free tier message limit (UNLIMITED plan users bypass this)
+    if (!isUnlimitedUser && session.pass_type === "free" && session.messages_used >= FREE_MESSAGE_LIMIT) {
       return new Response(
         JSON.stringify({ error: "Free message limit reached", code: "LIMIT_REACHED" }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -105,10 +113,10 @@ serve(async (req) => {
       console.error("[STUDIO CHAT] Failed to save user message:", msgErr.message);
     }
 
-    // Determine model based on pass_type
-    const model = session.pass_type === "free" || session.pass_type === "single"
-      ? "claude-haiku-4-5-20251001"
-      : "claude-sonnet-4-6";
+    // Determine model based on pass_type (UNLIMITED plan users get premium model)
+    const model = isUnlimitedUser || session.pass_type === "weekly" || session.pass_type === "yearly"
+      ? "claude-sonnet-4-6"
+      : "claude-haiku-4-5-20251001";
 
     // Build system prompt
     const personaInstructions = PERSONA_INSTRUCTIONS[currentPersona] || PERSONA_INSTRUCTIONS["big-tech"];
@@ -123,8 +131,8 @@ serve(async (req) => {
       { role: "user", content: userMessage },
     ];
 
-    // Use Claude for all tiers — non-streaming JSON response for free, SSE for paid
-    if (session.pass_type === "free") {
+    // Use Claude for all tiers — non-streaming JSON response for free (non-unlimited), SSE for paid/unlimited
+    if (session.pass_type === "free" && !isUnlimitedUser) {
       return await handleClaudeJson(admin, session, resume, messages, systemPrompt, model, userMsg?.id, corsHeaders);
     } else {
       return await handleClaudeStream(admin, session, resume, messages, systemPrompt, model, userMsg?.id, corsHeaders);
