@@ -19,7 +19,7 @@ export function StudioNavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Don't show on studio editor pages, auth pages, or landing
-  const hideOn = ["/studio/", "/auth", "/verify-otp", "/reset-password", "/auth/callback"];
+  const hideOn = ["/studio/", "/auth", "/verify-otp", "/reset-password", "/auth/callback", "/ats-checker", "/pricing", "/about", "/blog"];
   if (hideOn.some((p) => location.pathname.startsWith(p))) return null;
   if (/^\/studio\/[a-f0-9-]+$/.test(location.pathname)) return null;
 
