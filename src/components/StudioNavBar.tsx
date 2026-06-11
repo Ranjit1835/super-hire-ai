@@ -19,7 +19,9 @@ export function StudioNavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Don't show on studio editor pages, auth pages, or landing
-  const hideOn = ["/studio/", "/auth", "/verify-otp", "/reset-password", "/auth/callback", "/ats-checker", "/pricing", "/about", "/blog"];
+  // Hide on pages that have their own nav/header
+  const hideOn = ["/studio/", "/auth", "/verify-otp", "/reset-password", "/auth/callback", "/ats-checker", "/pricing", "/about", "/blog", "/college-placement", "/leaderboard", "/reels-campaign"];
+  if (location.pathname === "/") return null;
   if (hideOn.some((p) => location.pathname.startsWith(p))) return null;
   if (/^\/studio\/[a-f0-9-]+$/.test(location.pathname)) return null;
 
