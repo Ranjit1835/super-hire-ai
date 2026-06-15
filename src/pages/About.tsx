@@ -1,11 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Zap, ArrowLeft, Target, Users, Shield, Globe, BarChart3, Brain, ArrowRight } from "lucide-react";
+import { Zap, Target, Users, Shield, Globe, BarChart3, Brain, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { AnimatedGradientMesh, CountingNumber } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
+import { PublicNavbar } from "@/components/PublicNavbar";
+import { PublicFooter } from "@/components/PublicFooter";
 
 const STATS = [
   { value: 10000, suffix: "+", label: "Resumes Analyzed" },
@@ -35,23 +37,7 @@ export default function About() {
       />
       <AnimatedGradientMesh />
 
-      {/* Header */}
-      <nav className="fixed top-0 w-full z-50 glass-strong border-b border-border/30">
-        <div className="container flex items-center justify-between h-16 px-4">
-          <a href="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-lg text-foreground tracking-tight">HireResume</span>
-          </a>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
-              <ArrowLeft className="h-3 w-3 mr-1" /> Home
-            </Button>
-            <Button size="sm" onClick={() => navigate("/auth")}>Sign In</Button>
-          </div>
-        </div>
-      </nav>
+      <PublicNavbar />
 
       {/* Hero */}
       <section className="pt-28 sm:pt-36 pb-16 px-4 relative z-10">
@@ -172,18 +158,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-8 px-4 border-t border-border text-center">
-        <div className="container max-w-4xl flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-          <a href="/" className="hover:text-foreground transition-colors">Home</a>
-          <a href="/ats-checker" className="hover:text-foreground transition-colors">ATS Checker</a>
-          <a href="/pricing" className="hover:text-foreground transition-colors">Pricing</a>
-          <a href="/blog" className="hover:text-foreground transition-colors">Blog</a>
-          <a href="/about" className="hover:text-foreground transition-colors">About</a>
-          <a href="/college-placement" className="hover:text-foreground transition-colors">College Placement</a>
-        </div>
-        <p className="text-xs text-muted-foreground/60 mt-4">&copy; {new Date().getFullYear()} HireResume. All rights reserved.</p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

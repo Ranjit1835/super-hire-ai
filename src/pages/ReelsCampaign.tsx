@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { Zap, ArrowLeft, Play, TrendingUp, Users, Star, Upload } from "lucide-react";
+import { Play, TrendingUp, Upload } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
+import { PublicNavbar } from "@/components/PublicNavbar";
+import { PublicFooter } from "@/components/PublicFooter";
 
 const STEPS = [
   { n: "01", title: "Upload your resume on hiresume.in", desc: "Takes 30 seconds. Paste the link or upload PDF." },
@@ -36,24 +38,11 @@ export default function ReelsCampaign() {
         path="/reels-campaign"
         noindex={true}
       />
-      <header className="border-b border-border glass-strong sticky top-0 z-50">
-        <div className="container flex items-center h-14">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-2 mr-4">
-            <ArrowLeft className="h-4 w-4" /> Home
-          </Button>
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold">HireResume</span>
-            <Badge className="bg-pink-500/20 text-pink-400 border-pink-500/30 text-xs ml-1">#HireResume Reels</Badge>
-          </div>
-        </div>
-      </header>
+      <PublicNavbar />
 
       <main>
         {/* Hero */}
-        <section className="gradient-bg py-20 px-4 text-center">
+        <section className="gradient-bg pt-24 sm:pt-28 pb-20 px-4 text-center">
           <motion.div {...fadeUp(0)} className="max-w-2xl mx-auto">
             <Badge className="mb-4 bg-pink-500/20 text-pink-400 border-pink-500/30 text-sm">
               🎬 Trending on Instagram &amp; TikTok
@@ -166,6 +155,8 @@ export default function ReelsCampaign() {
           </div>
         </section>
       </main>
+
+      <PublicFooter />
     </div>
   );
 }

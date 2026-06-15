@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Zap, Menu, X, Home, FileText, Mic, Trophy } from "lucide-react";
+import { Sparkles, Menu, X, Home, FileText, Mic, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { PulseDot } from "@/components/premium";
 
@@ -37,10 +37,8 @@ export function StudioNavBar() {
             onClick={() => navigate(user ? "/dashboard" : "/")}
             className="flex items-center gap-2 group"
           >
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/30 transition-shadow">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="font-bold text-sm text-foreground tracking-tight">HireResume</span>
+            <img src="/logo.svg" alt="HireSume" className="w-6 h-6 rounded-md shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/30 transition-shadow" />
+            <span className="font-bold text-sm text-foreground tracking-tight">HireSume</span>
           </button>
 
           {/* Desktop nav links */}

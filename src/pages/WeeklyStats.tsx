@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { Zap, ArrowLeft, Copy, Check, BarChart3, TrendingUp } from "lucide-react";
+import { ArrowLeft, Copy, Check, BarChart3, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AnimatedGradientMesh } from "@/components/premium";
 
@@ -47,10 +47,8 @@ export default function WeeklyStats() {
             <ArrowLeft className="h-4 w-4" /> Dashboard
           </button>
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-foreground">HireResume</span>
+            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HireSume</span>
             <Badge className="bg-violet-500/10 text-violet-300 border-violet-500/20 text-xs ml-1">Weekly Stats</Badge>
           </div>
         </div>

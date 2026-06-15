@@ -159,10 +159,8 @@ export default function Dashboard() {
         <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50">
           <div className="container flex items-center justify-between h-14">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-                <Zap className="h-4 w-4 text-white" />
-              </div>
-              <span className="font-bold text-foreground tracking-tight">HireResume</span>
+              <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
+              <span className="font-bold text-foreground tracking-tight">HireSume</span>
             </div>
           </div>
         </header>
@@ -189,13 +187,13 @@ export default function Dashboard() {
       <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-2">
-            <motion.div
+            <motion.img
+              src="/logo.svg"
+              alt="HireSume"
               whileHover={{ scale: 1.1, rotate: 5 }}
-              className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/25"
-            >
-              <Zap className="h-4 w-4 text-white" />
-            </motion.div>
-            <span className="font-bold text-foreground tracking-tight">HireResume</span>
+              className="h-7 w-7 rounded-lg"
+            />
+            <span className="font-bold text-foreground tracking-tight">HireSume</span>
             {planType === "UNLIMITED" && (
               <Badge className="bg-violet-500/15 text-violet-300 border-violet-500/25 text-[10px] ml-2 hidden sm:inline-flex gap-1">
                 <Crown className="h-2.5 w-2.5" /> Unlimited

@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Upload, CheckCircle2, Zap, FileSearch, Target, BarChart3, ArrowRight, Shield, Clock, Star } from "lucide-react";
+import { Upload, CheckCircle2, FileSearch, Target, BarChart3, ArrowRight, Shield, Clock, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { AnimatedGradientMesh } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
+import { PublicNavbar } from "@/components/PublicNavbar";
+import { PublicFooter } from "@/components/PublicFooter";
 
 const FEATURES = [
   { icon: FileSearch, title: "Keyword Gap Analysis", desc: "Identifies missing job-specific keywords that ATS systems look for. Compare your resume against any job description." },
@@ -43,21 +45,7 @@ export default function ATSChecker() {
       />
       <AnimatedGradientMesh />
 
-      {/* Header */}
-      <nav className="fixed top-0 w-full z-50 glass-strong border-b border-border/30">
-        <div className="container flex items-center justify-between h-16 px-4">
-          <a href="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-lg text-foreground tracking-tight">HireResume</span>
-          </a>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/pricing")}>Pricing</Button>
-            <Button size="sm" onClick={() => navigate("/auth")}>Sign In</Button>
-          </div>
-        </div>
-      </nav>
+      <PublicNavbar />
 
       {/* Hero */}
       <section className="relative pt-28 sm:pt-36 pb-16 px-4">
@@ -197,19 +185,7 @@ export default function ATSChecker() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-8 px-4 border-t border-border text-center">
-        <div className="container max-w-4xl flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-          <a href="/" className="hover:text-foreground transition-colors">Home</a>
-          <a href="/ats-checker" className="hover:text-foreground transition-colors">ATS Checker</a>
-          <a href="/pricing" className="hover:text-foreground transition-colors">Pricing</a>
-          <a href="/blog" className="hover:text-foreground transition-colors">Blog</a>
-          <a href="/about" className="hover:text-foreground transition-colors">About</a>
-          <a href="/college-placement" className="hover:text-foreground transition-colors">College Placement</a>
-          <a href="/leaderboard" className="hover:text-foreground transition-colors">Leaderboard</a>
-        </div>
-        <p className="text-xs text-muted-foreground/60 mt-4">&copy; {new Date().getFullYear()} HireResume. All rights reserved.</p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { Trophy, Zap, ArrowLeft, Upload, TrendingUp, Medal, Loader2 } from "lucide-react";
+import { Trophy, Upload, TrendingUp, Medal, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AnimatedGradientMesh } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
+import { PublicNavbar } from "@/components/PublicNavbar";
+import { PublicFooter } from "@/components/PublicFooter";
 
 interface LeaderboardEntry {
   id: string;
@@ -73,21 +75,9 @@ export default function Leaderboard() {
       />
       <AnimatedGradientMesh />
 
-      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
-        <div className="container flex items-center h-14">
-          <button onClick={() => navigate("/")} className="flex items-center gap-2 mr-4 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Home
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-foreground">HireResume</span>
-          </div>
-        </div>
-      </header>
+      <PublicNavbar />
 
-      <main className="container max-w-3xl py-10 px-4 relative z-10">
+      <main className="container max-w-3xl pt-24 sm:pt-28 pb-10 px-4 relative z-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2 mb-3">
@@ -174,6 +164,8 @@ export default function Leaderboard() {
           )}
         </motion.div>
       </main>
+
+      <PublicFooter />
     </div>
   );
 }

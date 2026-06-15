@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, CheckCircle2, Zap } from "lucide-react";
+import { Lock, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
 
@@ -133,9 +133,9 @@ export default function ResetPassword() {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200 }}
-              className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/30"
+              className="mx-auto mb-4"
             >
-              <Zap className="h-7 w-7 text-white" />
+              <img src="/logo.svg" alt="HireSume" className="h-14 w-14 rounded-2xl shadow-lg shadow-violet-500/30" />
             </motion.div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Reset Password</h1>
             <p className="text-sm text-muted-foreground mt-1">Enter your new password below</p>

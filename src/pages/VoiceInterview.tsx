@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Mic, MicOff, Zap, ArrowLeft, PhoneOff, BarChart3, Loader2,
+  Mic, MicOff, ArrowLeft, PhoneOff, BarChart3, Loader2,
 } from "lucide-react";
 import { InterviewReport } from "@/components/interview/InterviewReport";
 import { InterviewPayment } from "@/components/interview/InterviewPayment";
@@ -307,10 +307,8 @@ export default function VoiceInterview() {
       <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-foreground">HireResume</span>
+            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HireSume</span>
             <Badge className="text-xs bg-violet-500/10 text-violet-300 border-violet-500/20">Voice Interview</Badge>
           </div>
           <button onClick={() => navigate("/mock-interview")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">

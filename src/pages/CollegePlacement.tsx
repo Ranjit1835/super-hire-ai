@@ -4,10 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
-import { GraduationCap, Users, Zap, TrendingUp, CheckCircle2, ArrowLeft, Building2, Trophy, Star } from "lucide-react";
+import { GraduationCap, Users, Zap, TrendingUp, CheckCircle2, Building2, Trophy, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AnimatedGradientMesh, SparkleParticles, CountingNumber } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
+import { PublicNavbar } from "@/components/PublicNavbar";
+import { PublicFooter } from "@/components/PublicFooter";
 
 const BENEFITS = [
   { icon: Users, title: "Bulk Resume Analysis", desc: "Analyse hundreds of student resumes at once. Get a class-wide ATS report." },
@@ -66,21 +68,7 @@ export default function CollegePlacement() {
       />
       <AnimatedGradientMesh />
 
-      {/* Header */}
-      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
-        <div className="container flex items-center h-14">
-          <button onClick={() => navigate("/")} className="flex items-center gap-2 mr-4 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Home
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-foreground">HireResume</span>
-            <Badge className="bg-violet-500/10 text-violet-300 border-violet-500/20 text-xs ml-1">For Colleges</Badge>
-          </div>
-        </div>
-      </header>
+      <PublicNavbar />
 
       <main className="relative z-10">
         {/* Hero */}
@@ -339,6 +327,7 @@ export default function CollegePlacement() {
           </div>
         </section>
       </main>
+      <PublicFooter />
     </div>
   );
 }

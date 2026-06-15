@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Zap, LogIn, UserPlus, Mail, Lock, User, KeyRound } from "lucide-react";
+import { LogIn, UserPlus, Mail, Lock, User, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
@@ -206,11 +206,11 @@ export default function Auth() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-              className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/30"
+              className="mx-auto mb-4"
             >
-              <Zap className="h-7 w-7 text-white" />
+              <img src="/logo.svg" alt="HireSume" className="h-14 w-14 rounded-2xl shadow-lg shadow-violet-500/30" />
             </motion.div>
-            <h1 className="text-2xl font-bold tracking-tight gradient-text-new">HireResume</h1>
+            <h1 className="text-2xl font-bold tracking-tight gradient-text-new">HireSume</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {returnTo === "guest" ? "Sign in to unlock your full analysis" : returnTo === "analyze" ? "Sign in to see your analysis results" : "Resume Intelligence Platform"}
             </p>

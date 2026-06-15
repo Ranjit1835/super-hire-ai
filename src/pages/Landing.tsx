@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Zap, ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { PublicNavbar } from "@/components/PublicNavbar";
+import { PublicFooter } from "@/components/PublicFooter";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
@@ -106,16 +108,7 @@ export default function Landing() {
   if (processing) {
     return (
       <div className="min-h-screen bg-background">
-        <nav className="fixed top-0 w-full z-50 glass-strong">
-          <div className="container flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center">
-                <Zap className="h-4 w-4 text-white" />
-              </div>
-              <span className="font-bold text-lg text-foreground tracking-tight">HireResume</span>
-            </div>
-          </div>
-        </nav>
+        <PublicNavbar />
         <ScanningAnimation />
       </div>
     );
@@ -130,35 +123,7 @@ export default function Landing() {
         keywords="ATS resume checker, free resume analysis, AI resume optimizer, resume score checker, AI mock interview, resume builder, ATS score, job application tools"
         breadcrumbs={[{ name: "Home", path: "/" }]}
       />
-      {/* Nav */}
-      <nav className="fixed top-0 w-full z-50 glass-strong border-b border-border/30">
-        <div className="container flex items-center justify-between h-16 px-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-lg text-foreground tracking-tight">HireResume</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate("/studio")}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-violet-300 border border-violet-500/30 hover:bg-violet-500/10 transition-colors"
-            >
-              <Sparkles className="h-3.5 w-3.5" /> Studio
-            </motion.button>
-            <Button
-              onClick={() => navigate(user ? "/dashboard" : "/auth")}
-              size="sm"
-              className="bg-gradient-to-r from-violet-600 to-cyan-600 border-0 shadow-lg shadow-violet-500/20"
-            >
-              {user ? "Dashboard" : "Get Started"}
-              <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <PublicNavbar />
 
       <HeroSection
         dragOver={dragOver}
@@ -188,17 +153,7 @@ export default function Landing() {
 
       <BottomCtaSection onCtaClick={() => fileInputRef.current?.click()} />
 
-      {/* Footer */}
-      <footer className="py-8 border-t border-border/30 bg-background/50 backdrop-blur-sm">
-        <div className="container text-center text-sm text-muted-foreground space-y-3">
-          <div className="flex flex-wrap justify-center gap-4">
-            <button onClick={() => navigate("/leaderboard")} className="hover:text-violet-400 transition-colors">Resume Leaderboard</button>
-            <button onClick={() => navigate("/college-placement")} className="hover:text-violet-400 transition-colors">For Colleges</button>
-            <button onClick={() => navigate("/reels-campaign")} className="hover:text-violet-400 transition-colors">#HireResume Reels</button>
-          </div>
-          <div className="text-muted-foreground/60">© 2026 HireResume. All rights reserved.</div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

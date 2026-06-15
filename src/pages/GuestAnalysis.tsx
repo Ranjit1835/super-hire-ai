@@ -6,7 +6,7 @@ import { ScoreMeter } from "@/components/ScoreMeter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { Lock, LogIn, UserPlus, Zap, XCircle, AlertTriangle, Lightbulb } from "lucide-react";
+import { Lock, LogIn, UserPlus, XCircle, AlertTriangle, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AnimatedGradientMesh } from "@/components/premium";
 
@@ -130,10 +130,8 @@ export default function GuestAnalysis() {
       <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-foreground">HireResume</span>
+            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HireSume</span>
           </div>
           <div className="flex items-center gap-2">
             <motion.button

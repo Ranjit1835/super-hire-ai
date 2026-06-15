@@ -5,10 +5,9 @@
       <stop offset="50%" style="stop-color:#130d22"/>
       <stop offset="100%" style="stop-color:#0a1220"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#8b5cf6"/>
-      <stop offset="50%" style="stop-color:#3b82f6"/>
-      <stop offset="100%" style="stop-color:#06b6d4"/>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1565ff"/>
+      <stop offset="100%" style="stop-color:#ff5a0f"/>
     </linearGradient>
     <linearGradient id="card" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1"/>
@@ -30,15 +29,16 @@
   <rect width="1200" height="630" fill="url(#grid)"/>
 
   <!-- Glow orbs -->
-  <ellipse cx="200" cy="150" rx="200" ry="150" fill="#8b5cf620"/>
-  <ellipse cx="1000" cy="480" rx="180" ry="130" fill="#3b82f618"/>
+  <ellipse cx="200" cy="150" rx="200" ry="150" fill="#1565ff20"/>
+  <ellipse cx="1000" cy="480" rx="180" ry="130" fill="#ff5a0f18"/>
 
   <!-- Logo icon -->
-  <rect x="80" y="70" width="52" height="52" rx="14" fill="url(#accent)" filter="url(#glow)"/>
-  <text x="106" y="104" font-family="Arial, sans-serif" font-size="28" font-weight="900" fill="white" text-anchor="middle">H</text>
+  <rect x="80" y="70" width="52" height="52" rx="12" fill="url(#accent)" filter="url(#glow)"/>
+  <text x="100" y="104" font-family="'Space Grotesk', Arial, sans-serif" font-size="28" font-weight="700" fill="white">H</text>
+  <rect x="114" y="82" width="5" height="20" rx="2" fill="white"/>
 
   <!-- Brand name -->
-  <text x="148" y="106" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="white">HireResume</text>
+  <text x="148" y="106" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="white">HireSume</text>
 
   <!-- Main headline -->
   <text x="80" y="200" font-family="Arial, sans-serif" font-size="58" font-weight="900" fill="white">Is Your Resume</text>
@@ -93,5 +93,5 @@
 
   <!-- Bottom bar -->
   <rect x="0" y="570" width="1200" height="60" fill="#08080f"/>
-  <text x="600" y="605" font-family="Arial, sans-serif" font-size="18" fill="#8b8ba8" text-anchor="middle">hiresume.in · Free ATS Resume Checker · AI Resume Optimizer</text>
+  <text x="600" y="605" font-family="Arial, sans-serif" font-size="18" fill="#8b8ba8" text-anchor="middle">hiresume.in · Free ATS Resume Checker · AI Resume Optimizer · AI Mock Interview</text>
 </svg>

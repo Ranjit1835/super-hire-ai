@@ -1,14 +1,16 @@
 {
-  "name": "HireResume – ATS Resume Checker",
-  "short_name": "HireResume",
+  "name": "HireSume – ATS Resume Checker",
+  "short_name": "HireSume",
   "description": "Free AI-powered ATS resume checker and optimizer. Check your resume score in 10 seconds.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d0d14",
-  "theme_color": "#8b5cf6",
+  "theme_color": "#1565ff",
   "orientation": "portrait-primary",
   "icons": [
-    { "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" }
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" },
+    { "src": "/logo.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
   ],
   "categories": ["business", "productivity", "education"],
   "lang": "en"

@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Zap, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { ResumeBuilderWizard } from "@/components/resume-builder/ResumeBuilderWizard";
 import { SEOHead } from "@/components/SEOHead";
@@ -152,10 +152,8 @@ export default function ResumeBuilder() {
       <header className="border-b border-border glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-foreground">HireResume</span>
+            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HireSume</span>
             <Badge variant="secondary" className="text-xs">Builder</Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
