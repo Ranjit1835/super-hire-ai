@@ -113,7 +113,7 @@ export default function CollegePlacement() {
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
                   <div className="text-2xl font-bold font-mono gradient-text-new">
-                    {stat.prefix}<CountingNumber value={stat.value} />{stat.suffix}
+                    <CountingNumber target={stat.value} prefix={stat.prefix} suffix={stat.suffix} />
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
                 </div>

@@ -65,7 +65,7 @@ export default function About() {
                 transition={{ delay: i * 0.1 }}
               >
                 <div className="text-2xl sm:text-3xl font-black gradient-text-new">
-                  <CountingNumber end={stat.value} suffix={stat.suffix} />
+                  <CountingNumber target={stat.value} suffix={stat.suffix} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
               </motion.div>
