@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, ArrowRight } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { isB2BPath } from "@/features/b2b/lib/paths";
 
 const ONBOARDING_KEY = "studio_onboarding_shown";
 
 export function StudioOnboardingTooltip() {
   const [show, setShow] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     if (localStorage.getItem(ONBOARDING_KEY)) return;
@@ -17,6 +20,8 @@ export function StudioOnboardingTooltip() {
     setShow(false);
     localStorage.setItem(ONBOARDING_KEY, "true");
   };
+
+  if (isB2BPath(location.pathname)) return null;
 
   return (
     <AnimatePresence>

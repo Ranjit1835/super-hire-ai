@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { isB2BPath } from "@/features/b2b/lib/paths";
 
 const DISMISSED_KEY = "studio_fab_dismissed";
 
@@ -22,6 +23,7 @@ export function StudioFAB() {
   // Don't show on studio pages, auth pages, or when not logged in
   const hideOn = ["/studio", "/auth", "/verify-otp", "/reset-password", "/auth/callback"];
   if (hideOn.some((p) => location.pathname.startsWith(p))) return null;
+  if (isB2BPath(location.pathname)) return null;
   if (!user || dismissed) return null;
 
   const handleDismiss = (e: React.MouseEvent) => {

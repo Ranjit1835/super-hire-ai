@@ -101,9 +101,11 @@ describe("students", () => {
 
   it("helper functions reveal nothing about other orgs", async () => {
     await asUser(db, u.studentA1, async (tx) => {
-      const r = await tx.query<{ role: string | null; member: boolean }>(
-        "SELECT public.org_role_of($1) AS role, public.is_org_member($1) AS member", [org.b]);
-      expect(r.rows[0]).toEqual({ role: null, member: false });
+      const r = await tx.query<{ role: string | null; member: boolean; staff: boolean; admin: boolean }>(
+        "SELECT public.org_role_of($1) AS role, public.is_org_member($1) AS member, " +
+        "public.is_org_staff($1) AS staff, public.is_org_admin($1) AS admin", [org.b]);
+      // Must be false, not NULL: `IF NOT is_org_staff(x)` with NULL silently skips the guard.
+      expect(r.rows[0]).toEqual({ role: null, member: false, staff: false, admin: false });
     });
   });
 });

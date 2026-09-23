@@ -97,12 +97,12 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.is_org_staff(_org_id UUID)
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT public.org_role_of(_org_id) IN ('org_admin', 'trainer')
+  SELECT COALESCE(public.org_role_of(_org_id) IN ('org_admin', 'trainer'), false)
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_org_admin(_org_id UUID)
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT public.org_role_of(_org_id) = 'org_admin'
+  SELECT COALESCE(public.org_role_of(_org_id) = 'org_admin', false)
 $$;
 
 CREATE OR REPLACE FUNCTION public.my_batch_ids()

@@ -35,6 +35,9 @@ const ATSChecker = lazy(() => import("./pages/ATSChecker"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
+const SuperAdminOrgs = lazy(() => import("./features/b2b/pages/SuperAdminOrgs"));
+const OrgHome = lazy(() => import("./features/b2b/pages/OrgHome"));
+const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,6 +80,11 @@ function AppRoutes() {
       <Route path="/studio" element={<ProtectedRoute><StudioPaywallPage /></ProtectedRoute>} />
       <Route path="/studio/:resumeId" element={<ProtectedRoute><StudioPage /></ProtectedRoute>} />
       <Route path="/studio/shared/:shareToken" element={<StudioSharedPage />} />
+      {/* B2B: institutions */}
+      <Route path="/admin/orgs" element={<ProtectedRoute><SuperAdminOrgs /></ProtectedRoute>} />
+      <Route path="/org" element={<ProtectedRoute><OrgHome /></ProtectedRoute>} />
+      <Route path="/org/:orgId" element={<ProtectedRoute><OrgHome /></ProtectedRoute>} />
+      <Route path="/learn" element={<ProtectedRoute><LearnHome /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

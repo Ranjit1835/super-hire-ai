@@ -28,6 +28,7 @@ const SUPABASE_STUB = `
   GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
 
   -- From 20260215160118 (the pieces B2B depends on)
   CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
@@ -68,16 +69,28 @@ export async function createUser(db: PGlite, opts: { superAdmin?: boolean } = {}
   return id;
 }
 
-/** Run fn as a PostgREST request from `userId` (null = anon). Always rolled back. */
-export async function asUser<T>(db: PGlite, userId: string | null, fn: (tx: Transaction) => Promise<T>): Promise<T> {
+async function runAs<T>(
+  db: PGlite, role: "anon" | "authenticated" | "service_role", userId: string | null,
+  fn: (tx: Transaction) => Promise<T>, commit: boolean,
+): Promise<T> {
   let result: T;
   await db.transaction(async (tx) => {
     await tx.query("SELECT set_config('request.jwt.claim.sub', $1, true)", [userId ?? ""]);
-    await tx.exec(userId ? "SET LOCAL ROLE authenticated" : "SET LOCAL ROLE anon");
+    await tx.exec(`SET LOCAL ROLE ${role}`);
     result = await fn(tx);
-    await tx.rollback();
+    if (!commit) await tx.rollback();
   });
   return result!;
+}
+
+/** Run fn as a PostgREST request from `userId` (null = anon). Always rolled back. */
+export function asUser<T>(db: PGlite, userId: string | null, fn: (tx: Transaction) => Promise<T>): Promise<T> {
+  return runAs(db, userId ? "authenticated" : "anon", userId, fn, false);
+}
+
+/** Run fn as an edge function holding the service-role key. Committed. */
+export function asService<T>(db: PGlite, fn: (tx: Transaction) => Promise<T>): Promise<T> {
+  return runAs(db, "service_role", null, fn, true);
 }
 
 /**

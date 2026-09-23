@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Menu, X, Home, FileText, Mic, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { PulseDot } from "@/components/premium";
+import { isB2BPath } from "@/features/b2b/lib/paths";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: Home, authOnly: true },
@@ -22,6 +23,7 @@ export function StudioNavBar() {
   // Hide on pages that have their own nav/header
   const hideOn = ["/studio/", "/auth", "/verify-otp", "/reset-password", "/auth/callback", "/ats-checker", "/pricing", "/about", "/blog", "/college-placement", "/leaderboard", "/reels-campaign"];
   if (location.pathname === "/") return null;
+  if (isB2BPath(location.pathname)) return null;
   if (hideOn.some((p) => location.pathname.startsWith(p))) return null;
   if (/^\/studio\/[a-f0-9-]+$/.test(location.pathname)) return null;
 
