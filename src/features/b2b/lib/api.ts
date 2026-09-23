@@ -118,3 +118,31 @@ export const interviewApi = {
   end: (interviewId: string) =>
     callB2B<InterviewPayload>("b2b-interview", { action: "end", interviewId }, { timeoutMs: 15_000 }),
 };
+
+// ── b2b-evaluate ─────────────────────────────────────────────────────────────
+export interface EvaluationRow {
+  id: string;
+  interview_id: string;
+  evaluator_version: string;
+  status: "pending" | "completed" | "failed";
+  result: import("./shared").EvaluationResult | null;
+  audio_metrics: import("./shared").AudioMetrics | null;
+  overall_score: number | null;
+  readiness_level: "not_ready" | "developing" | "ready" | null;
+  primary_gap: string | null;
+  completed_at: string | null;
+}
+export interface EvaluationResponse {
+  status: "completed" | "pending" | "failed" | "unavailable" | "none" | "in_progress";
+  evaluation: EvaluationRow | null;
+  reason?: string;
+  error?: string | null;
+}
+
+export const evaluateApi = {
+  /** Runs (or joins) the evaluation; can take up to ~1 minute. */
+  evaluate: (interviewId: string) =>
+    callB2B<EvaluationResponse>("b2b-evaluate", { action: "evaluate", interviewId }, { timeoutMs: 120_000 }),
+  get: (interviewId: string) =>
+    callB2B<EvaluationResponse>("b2b-evaluate", { action: "get", interviewId }, { timeoutMs: 15_000 }),
+};

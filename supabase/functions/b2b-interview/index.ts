@@ -23,6 +23,7 @@ import {
 } from "../_shared/interview-prompts.ts";
 import { callTool, type LlmUsage } from "../_shared/b2b-llm.ts";
 import { sanitizeAnswerMeta, sanitizeClientMeta } from "../_shared/interview-meta.ts";
+import { evaluateInBackground } from "../_shared/evaluate-interview.ts";
 
 const MAX_ANSWER_CHARS = 4000;
 
@@ -208,6 +209,7 @@ serve(handle("B2B-INTERVIEW", async (req, body) => {
       // Time ran out while the student was away: close it and let the evaluator use what exists.
       await admin.rpc("b2b_end_interview", { _interview_id: iv.id, _user_id: user.id, _state: null, _reason: "time_limit" });
       iv = await loadInterview(admin, interviewId, user.id);
+      if (iv.status === "completed") evaluateInBackground(admin, iv.id);
     }
     return json(payload(iv, await loadTurns(admin, iv.id)));
   }
@@ -218,6 +220,7 @@ serve(handle("B2B-INTERVIEW", async (req, body) => {
     if (error) throw error;
     if ((data as { ok: boolean }).ok === false) throw new HttpError(404, "NOT_FOUND", "Interview not found.");
     const iv = await loadInterview(admin, interviewId, user.id);
+    if (iv.status === "completed") evaluateInBackground(admin, iv.id);
     return json(payload(iv, await loadTurns(admin, iv.id), { refunded: !!(data as { refunded?: boolean }).refunded }));
   }
 
@@ -320,6 +323,7 @@ serve(handle("B2B-INTERVIEW", async (req, body) => {
       if (r.reason === "TURN_CONFLICT") return json({ ...payload(fresh, turns), error: "Out of sync — showing the latest question.", code: "TURN_CONFLICT" }, 409);
       throw new HttpError(409, r.reason ?? "CONFLICT", "This interview has already finished.");
     }
+    if (fresh.status === "completed" && !r.duplicate) evaluateInBackground(admin, fresh.id);
     console.log(`[B2B-INTERVIEW] answer interview=${iv.id} turn=${expected + 1} end=${out.endReason ?? "-"} overrides=${out.overrides.join(",") || "-"} llm_ms=${usage.map((u) => u.latency_ms).join("+") || 0}`);
     return json(payload(fresh, turns, { duplicate: !!r.duplicate }));
   }

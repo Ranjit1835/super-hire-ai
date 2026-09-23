@@ -30,7 +30,8 @@ vi.mock("../hooks/useVoiceAnswer", async (orig) => ({
 }));
 
 const api = vi.hoisted(() => ({ current: vi.fn(), start: vi.fn(), resume: vi.fn(), answer: vi.fn(), end: vi.fn() }));
-vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), interviewApi: api }));
+const evalApi = vi.hoisted(() => ({ evaluate: vi.fn(), get: vi.fn() }));
+vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), interviewApi: api, evaluateApi: evalApi }));
 
 import InterviewRoom from "./InterviewRoom";
 import { ApiError } from "../lib/api";
@@ -62,6 +63,8 @@ beforeEach(() => {
   sessionStorage.clear();
   voice.support = { stt: true, tts: true };
   api.current.mockResolvedValue({ interview: null });
+  evalApi.evaluate.mockResolvedValue({ status: "pending", evaluation: null });
+  evalApi.get.mockResolvedValue({ status: "pending", evaluation: null });
 });
 
 describe("InterviewRoom", () => {
@@ -89,6 +92,8 @@ describe("InterviewRoom", () => {
     expect(first.clientTurnId).not.toBe(second.clientTurnId);
     expect(await screen.findByText("Interview complete")).toBeInTheDocument();
     expect(screen.getByText(/2 questions across 2 of 2 topics/)).toBeInTheDocument();
+    expect(await screen.findByText("Scoring your answers…")).toBeInTheDocument();
+    expect(evalApi.evaluate).toHaveBeenCalledWith("iv-1");
   });
 
   it("text mode (no speech support): typed answers are submitted", async () => {

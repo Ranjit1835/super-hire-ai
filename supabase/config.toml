@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.b2b-interview]
 verify_jwt = false
+
+[functions.b2b-evaluate]
+verify_jwt = false

@@ -7,6 +7,7 @@ import { ModuleMeta } from "../components/ModuleMeta";
 import { useMyMemberships, useMyQuota, useStudentModules } from "../hooks/useB2B";
 import { useMyInterviews } from "../hooks/useLiveInterview";
 import { daysLeft, formatDate } from "../lib/format";
+import { READINESS_LABEL, READINESS_STYLE } from "../lib/report-style";
 import { COMPANY_PACK_DISCLAIMER, MODULE_TYPE_LABEL } from "../lib/shared";
 
 /** Student home: remaining interviews + the modules their institution enabled. */
@@ -98,6 +99,32 @@ export default function LearnHome() {
           )}
           {hasPacks && <p className="text-xs text-muted-foreground mt-3">Company-style modules: {COMPANY_PACK_DISCLAIMER}</p>}
         </section>
+
+        {(interviews.data ?? []).some((i) => i.status !== "in_progress") && (
+          <section>
+            <h2 className="font-semibold mb-3">Your interviews</h2>
+            <ul className="rounded-lg border border-border/60 divide-y divide-border/60">
+              {(interviews.data ?? []).filter((i) => i.status !== "in_progress").map((i) => (
+                <li key={i.id}>
+                  <Link to={`/learn/report/${i.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-white/5">
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm truncate">{i.module_name}</span>
+                      <span className="block text-xs text-muted-foreground">{formatDate(i.started_at)} · {Number(i.turn_count)} answers</span>
+                    </span>
+                    {i.readiness_level ? (
+                      <>
+                        <span className="text-sm tabular-nums">{i.overall_score ?? "—"}/10</span>
+                        <Badge variant="outline" className={READINESS_STYLE[i.readiness_level]}>{READINESS_LABEL[i.readiness_level]}</Badge>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Report pending</span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </B2BShell>
   );

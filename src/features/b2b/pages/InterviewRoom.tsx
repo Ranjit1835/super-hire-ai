@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { B2BShell, CenteredSpinner, EmptyState } from "../components/B2BShell";
 import { ModuleMeta } from "../components/ModuleMeta";
+import { ReportPanel } from "../components/ReportPanel";
 import { useMyMemberships, useMyQuota, useStudentModules } from "../hooks/useB2B";
 import { MicError, STT_LANG, useVoiceAnswer, voiceSupport } from "../hooks/useVoiceAnswer";
 import { ApiError, interviewApi, type InterviewPayload } from "../lib/api";
@@ -245,16 +246,20 @@ export default function InterviewRoom() {
     const iv = data.interview;
     const cancelled = iv.status === "cancelled";
     return shell(
-      <div className="text-center py-12 space-y-3">
-        <CheckCircle2 className={`h-12 w-12 mx-auto ${cancelled ? "text-muted-foreground" : "text-emerald-400"}`} />
-        <h2 className="text-xl font-semibold">{cancelled ? "Interview cancelled" : "Interview complete"}</h2>
-        <p className="text-sm text-muted-foreground">
-          {cancelled
-            ? "No answers were recorded, so your interview credit was returned."
-            : `You answered ${iv.turn_count} question${iv.turn_count === 1 ? "" : "s"} across ${iv.topics_covered} of ${iv.topics_total} topics.`}
-        </p>
-        {!cancelled && <p className="text-sm text-muted-foreground">Your detailed report is being prepared and will appear on your practice page.</p>}
-        <Button asChild className="mt-2"><Link to="/learn">Back to practice</Link></Button>
+      <div className="space-y-6">
+        <div className="text-center pt-8 space-y-2">
+          <CheckCircle2 className={`h-12 w-12 mx-auto ${cancelled ? "text-muted-foreground" : "text-emerald-400"}`} />
+          <h2 className="text-xl font-semibold">{cancelled ? "Interview cancelled" : "Interview complete"}</h2>
+          <p className="text-sm text-muted-foreground">
+            {cancelled
+              ? "No answers were recorded, so your interview credit was returned."
+              : `You answered ${iv.turn_count} question${iv.turn_count === 1 ? "" : "s"} across ${iv.topics_covered} of ${iv.topics_total} topics.`}
+          </p>
+        </div>
+        {!cancelled && iv.turn_count > 0 && (
+          <ReportPanel interviewId={iv.id} passMark={mod?.spec.pass_threshold ?? 6} moduleName={iv.module_name} />
+        )}
+        <div className="text-center"><Button asChild><Link to="/learn">Back to practice</Link></Button></div>
       </div>,
     );
   }

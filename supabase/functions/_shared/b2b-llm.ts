@@ -30,6 +30,10 @@ export function interviewModel(): string {
   return Deno.env.get("B2B_INTERVIEW_MODEL") || Deno.env.get("HIRESUME_MODEL_FAST") || "gemini-3.6-flash";
 }
 
+export function evaluatorModel(): string {
+  return Deno.env.get("B2B_EVALUATOR_MODEL") || Deno.env.get("HIRESUME_MODEL_SMART") || interviewModel();
+}
+
 interface ToolDef { name: string; description: string; parameters: Record<string, unknown> }
 
 export async function callTool(opts: {
@@ -41,12 +45,16 @@ export async function callTool(opts: {
   temperature?: number;
   timeoutMs?: number;
   maxAttempts?: number;
+  /** Overrides B2B_REASONING_EFFORT for this call ("" = omit). */
+  reasoningEffort?: string;
 }): Promise<{ args: Record<string, unknown>; usage: LlmUsage }> {
   const key = (Deno.env.get("GEMINI_API_KEY") || "").trim();
   if (!key) throw new LlmError("GEMINI_API_KEY not configured", 500);
   const model = opts.model || interviewModel();
   const effortEnv = Deno.env.get("B2B_REASONING_EFFORT");
-  let reasoning: string | null = effortEnv === undefined ? "low" : effortEnv || null;
+  let reasoning: string | null = opts.reasoningEffort !== undefined
+    ? opts.reasoningEffort || null
+    : effortEnv === undefined ? "low" : effortEnv || null;
   const maxAttempts = opts.maxAttempts ?? 2;
   const started = Date.now();
   let lastStatus = 0;
