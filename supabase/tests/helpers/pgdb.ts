@@ -83,9 +83,11 @@ async function runAs<T>(
   return result!;
 }
 
-/** Run fn as a PostgREST request from `userId` (null = anon). Always rolled back. */
-export function asUser<T>(db: PGlite, userId: string | null, fn: (tx: Transaction) => Promise<T>): Promise<T> {
-  return runAs(db, userId ? "authenticated" : "anon", userId, fn, false);
+/** Run fn as a PostgREST request from `userId` (null = anon). Rolled back unless `commit`. */
+export function asUser<T>(
+  db: PGlite, userId: string | null, fn: (tx: Transaction) => Promise<T>, opts: { commit?: boolean } = {},
+): Promise<T> {
+  return runAs(db, userId ? "authenticated" : "anon", userId, fn, !!opts.commit);
 }
 
 /** Run fn as an edge function holding the service-role key. Committed. */

@@ -36,6 +36,7 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
 const SuperAdminOrgs = lazy(() => import("./features/b2b/pages/SuperAdminOrgs"));
+const SuperAdminCosts = lazy(() => import("./features/b2b/pages/SuperAdminCosts"));
 const OrgLayout = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgLayout })));
 const OrgRedirect = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgRedirect })));
 const OrgOverview = lazy(() => import("./features/b2b/pages/OrgHome"));
@@ -95,6 +96,7 @@ function AppRoutes() {
       <Route path="/studio/shared/:shareToken" element={<StudioSharedPage />} />
       {/* B2B: institutions */}
       <Route path="/admin/orgs" element={<ProtectedRoute><SuperAdminOrgs /></ProtectedRoute>} />
+      <Route path="/admin/costs" element={<ProtectedRoute><SuperAdminCosts /></ProtectedRoute>} />
       <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
       <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
         <Route index element={<OrgOverview />} />

@@ -47,9 +47,12 @@ export default function SuperAdminOrgs() {
       title="HiResume for Institutions"
       subtitle={`Super-admin · ${user?.email ?? ""}`}
       actions={
-        <Button size="sm" onClick={() => setCreating(true)} disabled={!plans.data}>
-          <Plus className="h-4 w-4 mr-1" /> New institution
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" asChild><Link to="/admin/costs">Costs</Link></Button>
+          <Button size="sm" onClick={() => setCreating(true)} disabled={!plans.data}>
+            <Plus className="h-4 w-4 mr-1" /> New institution
+          </Button>
+        </div>
       }
     >
       {orgs.isLoading ? (
