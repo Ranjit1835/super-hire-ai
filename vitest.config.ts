@@ -8,7 +8,9 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "supabase/tests/**/*.test.ts"],
+    testTimeout: 30000,
+    hookTimeout: 60000,
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
