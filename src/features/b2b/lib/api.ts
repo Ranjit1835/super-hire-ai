@@ -6,6 +6,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export class ApiError extends Error {
   status: number;
   code: string;
+  data?: unknown;
   constructor(status: number, code: string, message: string) {
     super(message);
     this.status = status;
@@ -14,20 +15,32 @@ export class ApiError extends Error {
 }
 
 /** POST to a B2B edge function. B2B functions return real HTTP status codes. */
-export async function callB2B<T>(fn: string, body: Record<string, unknown>, opts: { auth?: boolean } = {}): Promise<T> {
+export async function callB2B<T>(
+  fn: string, body: Record<string, unknown>, opts: { auth?: boolean; timeoutMs?: number } = {},
+): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json", apikey: SUPABASE_KEY };
   if (opts.auth !== false) {
     const { data } = await supabase.auth.getSession();
     if (data.session) headers.Authorization = `Bearer ${data.session.access_token}`;
   }
   let res: Response;
+  const ctrl = new AbortController();
+  const timer = opts.timeoutMs ? setTimeout(() => ctrl.abort(), opts.timeoutMs) : null;
   try {
-    res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, { method: "POST", headers, body: JSON.stringify(body) });
+    res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+      method: "POST", headers, body: JSON.stringify(body), signal: ctrl.signal,
+    });
   } catch {
     throw new ApiError(0, "NETWORK", "Can't reach HiResume. Check your internet connection and try again.");
+  } finally {
+    if (timer) clearTimeout(timer);
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data?.code ?? "ERROR", data?.error ?? `Request failed (${res.status})`);
+  if (!res.ok) {
+    const err = new ApiError(res.status, data?.code ?? "ERROR", data?.error ?? `Request failed (${res.status})`);
+    err.data = data;
+    throw err;
+  }
   return data as T;
 }
 
@@ -74,3 +87,34 @@ export function takePendingInvite(): string | null {
     return null;
   }
 }
+
+// ── b2b-interview ────────────────────────────────────────────────────────────
+export interface InterviewPayload {
+  interview: {
+    id: string; module_id: string; module_name: string;
+    status: "in_progress" | "completed" | "abandoned" | "cancelled";
+    end_reason: string | null; started_at: string; deadline_at: string; server_now: string;
+    turn_count: number; max_turns: number; topics_total: number; topics_covered: number; current_topic: string | null;
+  } | null;
+  question?: string | null;
+  closing?: string | null;
+  transcript?: Array<{ turn: number; role: "interviewer" | "student"; content: string }>;
+  resumed?: boolean;
+  refunded?: boolean;
+  duplicate?: boolean;
+  credit?: { remaining?: number; limit?: number } | null;
+}
+
+const TURN_TIMEOUT_MS = 45_000; // server allows ~20 s per model call + one regenerate
+
+export const interviewApi = {
+  current: () => callB2B<InterviewPayload>("b2b-interview", { action: "current" }, { timeoutMs: 15_000 }),
+  start: (moduleId: string, clientMeta: Record<string, unknown>) =>
+    callB2B<InterviewPayload>("b2b-interview", { action: "start", moduleId, clientMeta }, { timeoutMs: TURN_TIMEOUT_MS }),
+  resume: (interviewId: string) =>
+    callB2B<InterviewPayload>("b2b-interview", { action: "resume", interviewId }, { timeoutMs: 15_000 }),
+  answer: (a: { interviewId: string; clientTurnId: string; turnCount: number; answer: string; meta: Record<string, unknown> }) =>
+    callB2B<InterviewPayload>("b2b-interview", { action: "answer", ...a }, { timeoutMs: TURN_TIMEOUT_MS }),
+  end: (interviewId: string) =>
+    callB2B<InterviewPayload>("b2b-interview", { action: "end", interviewId }, { timeoutMs: 15_000 }),
+};

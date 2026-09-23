@@ -45,6 +45,7 @@ const InviteAccept = lazy(() => import("./features/b2b/pages/InviteAccept"));
 const OrgModules = lazy(() => import("./features/b2b/pages/OrgModules"));
 const ModuleEditor = lazy(() => import("./features/b2b/pages/ModuleEditor"));
 const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
+const InterviewRoom = lazy(() => import("./features/b2b/pages/InterviewRoom"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -99,6 +100,7 @@ function AppRoutes() {
       </Route>
       <Route path="/invite/:token" element={<InviteAccept />} />
       <Route path="/learn" element={<ProtectedRoute><LearnHome /></ProtectedRoute>} />
+      <Route path="/learn/interview/:moduleId" element={<ProtectedRoute><InterviewRoom /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

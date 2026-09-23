@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.b2b-invites]
 verify_jwt = false
+
+[functions.b2b-interview]
+verify_jwt = false

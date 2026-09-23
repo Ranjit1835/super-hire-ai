@@ -17,6 +17,8 @@ const hooks = vi.hoisted(() => ({
   useStudentModules: vi.fn(),
 }));
 vi.mock("../hooks/useB2B", () => hooks);
+const live = vi.hoisted(() => ({ useMyInterviews: vi.fn() }));
+vi.mock("../hooks/useLiveInterview", () => live);
 
 const auth = vi.hoisted(() => ({
   user: null as null | { id: string; email: string },
@@ -115,6 +117,7 @@ beforeEach(() => {
   hooks.useOrgInvites.mockReturnValue(ok({ invites: [], batches: [] }));
   hooks.useOrgModules.mockReturnValue(ok({ own: [], library: LIBRARY }));
   hooks.useStudentModules.mockReturnValue(ok([]));
+  live.useMyInterviews.mockReturnValue(ok([]));
 });
 
 describe("org overview", () => {
@@ -334,5 +337,36 @@ describe("student modules", () => {
     expect(screen.getByText("SQL")).toBeInTheDocument();
     expect(screen.getByText("Topic one")).toBeInTheDocument();
     expect(screen.getByText("12 questions")).toBeInTheDocument();
+  });
+});
+
+describe("student start / resume", () => {
+  beforeEach(() => {
+    hooks.useMyMemberships.mockReturnValue(ok(studentMembership));
+    hooks.useStudentModules.mockReturnValue(ok([mod("m1", "SQL", "skill", { org_id: "org-a" }), mod("m2", "Java", "skill", { org_id: "org-a" })]));
+    hooks.useMyQuota.mockReturnValue(ok([{ org_id: "org-a", interviews_used: 1, interviews_limit: 6, interviews_remaining: 5, plan_ends_at: null }]));
+  });
+
+  it("links each module to its interview room and shows completed counts", () => {
+    live.useMyInterviews.mockReturnValue(ok([{ id: "i1", module_id: "m1", status: "completed", module_name: "SQL", turn_count: 8 }]));
+    renderApp("/learn");
+    const links = screen.getAllByRole("link", { name: /Start interview/ });
+    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/learn/interview/m1", "/learn/interview/m2"]);
+    expect(screen.getByText("Completed 1×")).toBeInTheDocument();
+  });
+
+  it("offers resume for a live interview and blocks starting others", () => {
+    live.useMyInterviews.mockReturnValue(ok([{ id: "i2", module_id: "m2", status: "in_progress", module_name: "Java", turn_count: 3 }]));
+    renderApp("/learn");
+    expect(screen.getByText(/Continue your/)).toHaveTextContent("Continue your Java interview (question 4)");
+    expect(screen.getByRole("link", { name: /Resume/ }).getAttribute("href")).toBe("/learn/interview/m2");
+    expect(screen.queryAllByRole("link", { name: /Start interview/ })).toHaveLength(0);
+    expect(screen.getByRole("button", { name: /Start interview/ })).toBeDisabled();
+  });
+
+  it("disables starting when no interviews are left", () => {
+    hooks.useMyQuota.mockReturnValue(ok([{ org_id: "org-a", interviews_used: 6, interviews_limit: 6, interviews_remaining: 0, plan_ends_at: null }]));
+    renderApp("/learn");
+    for (const b of screen.getAllByRole("button", { name: /Start interview/ })) expect(b).toBeDisabled();
   });
 });

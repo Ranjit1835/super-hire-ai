@@ -1,8 +1,11 @@
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { Mic, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { B2BShell, CenteredSpinner, EmptyState, StatCard } from "../components/B2BShell";
 import { ModuleMeta } from "../components/ModuleMeta";
 import { useMyMemberships, useMyQuota, useStudentModules } from "../hooks/useB2B";
+import { useMyInterviews } from "../hooks/useLiveInterview";
 import { daysLeft, formatDate } from "../lib/format";
 import { COMPANY_PACK_DISCLAIMER, MODULE_TYPE_LABEL } from "../lib/shared";
 
@@ -13,6 +16,7 @@ export default function LearnHome() {
   const studentOf = (memberships.data ?? []).filter((m) => m.role === "student");
   const first = studentOf[0];
   const modules = useStudentModules(first?.org_id);
+  const interviews = useMyInterviews(first?.org_id);
 
   if (memberships.isLoading || quota.isLoading) return <CenteredSpinner />;
   if (!first) return <Navigate to="/dashboard" replace />;
@@ -21,6 +25,10 @@ export default function LearnHome() {
   const q = (quota.data ?? []).find((x) => x.org_id === first.org_id);
   const left = daysLeft(q?.plan_ends_at);
   const hasPacks = (modules.data ?? []).some((m) => m.type === "company_pack");
+  const liveIv = interviews.data?.find((i) => i.status === "in_progress");
+  const doneByModule = new Map<string, number>();
+  for (const i of interviews.data ?? []) if (i.status === "completed") doneByModule.set(i.module_id, (doneByModule.get(i.module_id) ?? 0) + 1);
+  const noneLeft = !!q && q.interviews_remaining <= 0;
 
   return (
     <B2BShell title={org.name} subtitle="Interview practice" logoUrl={org.logo_url} isDemo={org.is_demo}>
@@ -40,6 +48,16 @@ export default function LearnHome() {
               tone={left !== null && left <= 0 ? "warn" : undefined}
             />
           </div>
+        )}
+
+        {liveIv && (
+          <Link
+            to={`/learn/interview/${liveIv.module_id}`}
+            className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 hover:bg-emerald-500/15"
+          >
+            <RotateCcw className="h-5 w-5 text-emerald-300" />
+            <span className="text-sm flex-1">Continue your <strong>{liveIv.module_name}</strong> interview (question {Number(liveIv.turn_count) + 1})</span>
+          </Link>
         )}
 
         <section>
@@ -62,7 +80,18 @@ export default function LearnHome() {
                     <summary className="cursor-pointer">What you'll be asked about</summary>
                     <ul className="list-disc pl-4 mt-1 space-y-0.5">{m.spec.topics.map((t) => <li key={t}>{t}</li>)}</ul>
                   </details>
-                  <p className="text-xs text-muted-foreground mt-auto pt-1">Voice interviews open here shortly.</p>
+                  <div className="mt-auto pt-2 flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {doneByModule.get(m.id) ? `Completed ${doneByModule.get(m.id)}×` : "Not attempted yet"}
+                    </span>
+                    {liveIv?.module_id === m.id ? (
+                      <Button size="sm" asChild><Link to={`/learn/interview/${m.id}`}><RotateCcw className="h-4 w-4 mr-1" /> Resume</Link></Button>
+                    ) : (
+                      <Button size="sm" asChild={!noneLeft && !liveIv} disabled={noneLeft || !!liveIv}>
+                        {!noneLeft && !liveIv ? <Link to={`/learn/interview/${m.id}`}><Mic className="h-4 w-4 mr-1" /> Start interview</Link> : <span><Mic className="h-4 w-4 mr-1 inline" /> Start interview</span>}
+                      </Button>
+                    )}
+                  </div>
                 </article>
               ))}
             </div>

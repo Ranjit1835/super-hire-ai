@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:db": "vitest run supabase/tests"
+    "test:db": "vitest run supabase/tests",
+    "load-test:b2b": "node scripts/b2b-load-test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
