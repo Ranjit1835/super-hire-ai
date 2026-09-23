@@ -117,7 +117,7 @@ export default function OrgDashboard() {
         department !== ALL ? department : null,
         view !== "all" ? QUICK_VIEWS.find((v) => v.id === view)?.label : null,
       ].filter(Boolean).join(" · ");
-      const buf = await buildBatchWorkbook({ orgName: org.name, scopeLabel: scope, rows: sorted, summary });
+      const buf = await buildBatchWorkbook({ orgName: org.name, scopeLabel: scope, rows: sorted, summary, isDemo: org.is_demo });
       downloadBlob(`${org.slug}-readiness-${new Date().toISOString().slice(0, 10)}.xlsx`, buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     } catch (e) {
       toast({ title: "Export failed", description: (e as Error).message, variant: "destructive" });

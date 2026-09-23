@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:db": "vitest run supabase/tests",
     "load-test:b2b": "node scripts/b2b-load-test.ts",
-    "calibrate:b2b": "node scripts/b2b-calibrate.ts"
+    "calibrate:b2b": "node scripts/b2b-calibrate.ts",
+    "demo:b2b": "node scripts/b2b-demo.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

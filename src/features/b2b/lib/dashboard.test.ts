@@ -46,6 +46,19 @@ describe("summarize + batchSummary", () => {
     expect(rows.find((r) => r.student.user_id === "d")).toMatchObject({ gap: "not_attempted", readiness: null, latest: null });
   });
 
+  it("readiness is the weakest module's latest result, not simply the latest interview", () => {
+    const mixed = summarize([student("x")], [
+      ev("x", 4, "not_ready", dims(4), { module_id: "sql" }),
+      ev("x", 8, "ready", dims(8), { module_id: "hr", module_name: "HR" }),
+    ]);
+    expect(mixed[0].readiness).toBe("not_ready");
+    const retaken = summarize([student("y")], [
+      ev("y", 4, "not_ready", dims(4), { module_id: "sql" }),
+      ev("y", 7, "ready", dims(7), { module_id: "sql" }),
+    ]);
+    expect(retaken[0].readiness).toBe("ready");
+  });
+
   it("scopes to a module", () => {
     const java = summarize(roster, evals, "java");
     expect(java.filter((r) => r.latest).map((r) => r.student.user_id)).toEqual(["c"]);

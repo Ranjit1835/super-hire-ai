@@ -10,6 +10,7 @@ const READINESS_TEXT = { ready: "Ready", developing: "Developing", not_ready: "N
 export interface WorkbookInput {
   orgName: string;
   scopeLabel: string; // e.g. "All modules · CSE 2026 A"
+  isDemo?: boolean;
   rows: StudentSummary[];
   summary: BatchSummary;
   generatedAt?: Date;
@@ -34,6 +35,10 @@ export async function buildBatchWorkbook(input: WorkbookInput): Promise<ArrayBuf
   sum.addRow([input.orgName]).font = { bold: true, size: 14 };
   sum.addRow([`Interview readiness report · ${input.scopeLabel}`]);
   sum.addRow([`Generated ${(input.generatedAt ?? new Date()).toLocaleString("en-IN")}`]);
+  if (input.isDemo) {
+    const demo = sum.addRow(["DEMO INSTITUTION - all students and scores are fictional"]);
+    demo.font = { bold: true, color: { argb: "FFB45309" } };
+  }
   sum.addRow([]);
   const kv = (k: string, v: string | number | null) => sum.addRow([k, v ?? "—"]);
   kv("Students", s.students);
@@ -64,7 +69,7 @@ export async function buildBatchWorkbook(input: WorkbookInput): Promise<ArrayBuf
   sum.addRow(["Scores are AI-assisted and indicative. Evidence for every score is available in each student's report."]).font = { italic: true, color: { argb: "FF666666" } };
 
   // ── Students ──
-  const st = wb.addWorksheet("Students", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
+  const st = wb.addWorksheet(input.isDemo ? "Students (DEMO)" : "Students", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
   const header = [
     "Roll no", "Name", "Email", "Batch", "Department", "Scored interviews", "Latest module", "Latest date",
     "Overall (latest)", "Readiness", "Focus area", "Main gap (AI)", ...DIMENSIONS.map((d) => DIMENSION_LABEL[d]),

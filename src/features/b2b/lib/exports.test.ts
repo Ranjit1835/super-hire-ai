@@ -37,6 +37,15 @@ describe("buildBatchWorkbook", () => {
     expect(tp.getRow(2).values).toEqual([undefined, "Indexes", 5, 1]);
     expect(wb.getWorksheet("Summary")!.getRow(1).getCell(1).value).toBe("SVR College");
   });
+
+  it("labels demo exports", async () => {
+    const rows = summarize(roster, evals);
+    const buf = await buildBatchWorkbook({ orgName: "Demo Engineering College", scopeLabel: "All", rows, summary: batchSummary(rows), isDemo: true });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    expect(wb.worksheets.map((w) => w.name)).toContain("Students (DEMO)");
+    expect(wb.getWorksheet("Summary")!.getRow(4).getCell(1).value).toMatch(/DEMO INSTITUTION/);
+  });
 });
 
 describe("buildStudentPdf", () => {
@@ -65,6 +74,14 @@ describe("buildStudentPdf", () => {
     const bytes = await buildStudentPdf({
       orgName: "శ్రీ కాలేజ్ College", logo: { bytes: png, type: "png" },
       student: { full_name: "రవి Kumar", roll_no: null, batch_name: null, department: null },
+      interviews: [], latest: null,
+    });
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+  });
+
+  it("watermarks demo reports", async () => {
+    const bytes = await buildStudentPdf({
+      orgName: "Demo Engineering College", isDemo: true, student: { full_name: "Demo Student", roll_no: null, batch_name: null, department: null },
       interviews: [], latest: null,
     });
     expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);

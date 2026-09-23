@@ -37,6 +37,8 @@ export interface StudentSummary {
   student: RosterStudent;
   interviews: DashEval[];          // oldest first, within the current module filter
   latest: DashEval | null;
+  /** Latest interview per module (readiness is the lowest of these). */
+  latest_by_module: DashEval[];
   first: DashEval | null;
   readiness: Readiness | null;
   gap: GapCategory;
@@ -61,6 +63,18 @@ export const GAP_LABEL: Record<GapCategory, string> = {
   analytical: "Needs analytical",
   not_attempted: "Not attempted",
 };
+
+const READINESS_ORDER: Readiness[] = ["not_ready", "developing", "ready"];
+
+/**
+ * A student is only as ready as their weakest module: take the latest interview of each
+ * module attempted and use the lowest readiness. (A good HR round must not hide weak SQL.)
+ */
+export function studentReadiness(latestByModule: DashEval[]): Readiness | null {
+  const levels = latestByModule.map((e) => e.readiness_level).filter((r): r is Readiness => !!r);
+  if (!levels.length) return null;
+  return READINESS_ORDER[Math.min(...levels.map((r) => READINESS_ORDER.indexOf(r)))];
+}
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 export const round1 = (n: number | null) => (n === null ? null : Math.round(n * 10) / 10);
@@ -99,11 +113,14 @@ export function summarize(roster: RosterStudent[], evals: DashEval[], moduleId?:
     const first = interviews[0] ?? null;
     const dims = latestNonNull(interviews, [...DIMENSIONS], (e) => e.dimensions);
     const topics = latestNonNull(interviews, topicKeys, (e) => e.per_topic);
-    const readiness = latest?.readiness_level ?? null;
+    const byModule = new Map<string, DashEval>();
+    for (const e of interviews) byModule.set(e.module_id, e); // oldest → newest
+    const latestByModule = [...byModule.values()];
+    const readiness = studentReadiness(latestByModule);
     const overallLatest = latest?.overall_score ?? null;
     const overallFirst = first?.overall_score ?? null;
     return {
-      student, interviews, latest, first, readiness,
+      student, interviews, latest, first, readiness, latest_by_module: latestByModule,
       gap: latest ? gapCategory(dims, readiness) : "not_attempted",
       primary_gap: latest?.primary_gap ?? null,
       overall_latest: overallLatest,

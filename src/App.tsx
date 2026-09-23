@@ -49,6 +49,8 @@ const StudentDetail = lazy(() => import("./features/b2b/pages/StudentDetail"));
 const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
 const InterviewRoom = lazy(() => import("./features/b2b/pages/InterviewRoom"));
 const StudentReport = lazy(() => import("./features/b2b/pages/StudentReport"));
+// Dev-only in-memory preview of the demo dashboard (tree-shaken out of production builds).
+const DemoPreview = import.meta.env.DEV ? lazy(() => import("./features/b2b/dev/DemoPreview")) : null;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +109,7 @@ function AppRoutes() {
       <Route path="/learn" element={<ProtectedRoute><LearnHome /></ProtectedRoute>} />
       <Route path="/learn/interview/:moduleId" element={<ProtectedRoute><InterviewRoom /></ProtectedRoute>} />
       <Route path="/learn/report/:interviewId" element={<ProtectedRoute><StudentReport /></ProtectedRoute>} />
+      {DemoPreview && <Route path="/dev/b2b-demo/*" element={<DemoPreview />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -7,9 +7,9 @@ import { OrgContext } from "../components/OrgContext";
 
 const dash = vi.hoisted(() => ({ useDashboardData: vi.fn(), useStudentDetail: vi.fn(), useInterviewTranscript: vi.fn() }));
 vi.mock("../hooks/useDashboard", () => dash);
-const xlsx = vi.hoisted(() => ({ buildBatchWorkbook: vi.fn(async () => new ArrayBuffer(8)), downloadBlob: vi.fn() }));
+const xlsx = vi.hoisted(() => ({ buildBatchWorkbook: vi.fn(async (_input: unknown) => new ArrayBuffer(8)), downloadBlob: vi.fn() }));
 vi.mock("../lib/export-xlsx", () => xlsx);
-const pdf = vi.hoisted(() => ({ buildStudentPdf: vi.fn(async () => new Uint8Array([37])), fetchLogo: vi.fn(async () => null), pdfSafe: (s: string) => s }));
+const pdf = vi.hoisted(() => ({ buildStudentPdf: vi.fn(async (_input: unknown) => new Uint8Array([37])), fetchLogo: vi.fn(async () => null), pdfSafe: (s: string) => s }));
 vi.mock("../lib/export-pdf", () => pdf);
 
 import OrgDashboard from "./OrgDashboard";

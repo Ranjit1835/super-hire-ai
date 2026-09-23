@@ -33,7 +33,7 @@ export function B2BShell({ title, subtitle, logoUrl, isDemo, tabs, actions, chil
           Demo institution — all students and scores are fictional
         </div>
       )}
-      <header className="border-b border-border/60 bg-card/40 backdrop-blur sticky top-0 z-40">
+      <header className="border-b border-border/60 bg-background sticky top-0 z-40">
         <div className="container max-w-6xl flex items-center gap-3 h-14 px-4">
           {logoUrl ? (
             <img src={logoUrl} alt="" className="h-8 w-8 rounded-md object-contain bg-white/5" />
@@ -63,7 +63,7 @@ export function B2BShell({ title, subtitle, logoUrl, isDemo, tabs, actions, chil
           </button>
         </div>
         {tabs && tabs.length > 0 && (
-          <nav className="container max-w-6xl px-4 flex gap-1 overflow-x-auto" aria-label="Sections">
+          <nav className="container max-w-6xl px-4 flex gap-1 overflow-x-auto overflow-y-hidden" aria-label="Sections">
             {tabs.map((t) => (
               <NavLink
                 key={t.to}

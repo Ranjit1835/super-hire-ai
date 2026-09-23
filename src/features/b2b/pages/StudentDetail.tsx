@@ -56,6 +56,7 @@ export default function StudentDetail() {
       });
       const bytes = await buildStudentPdf({
         orgName: org.name,
+        isDemo: org.is_demo,
         logo: await fetchLogo(org.logo_url),
         student: q.data.student,
         interviews: rows,
