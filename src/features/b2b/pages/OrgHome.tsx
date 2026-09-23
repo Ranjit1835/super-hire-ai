@@ -99,7 +99,9 @@ export default function OrgOverview() {
                 return (
                   <TableRow key={st.id}>
                     <TableCell className="tabular-nums">{st.roll_no ?? "—"}</TableCell>
-                    <TableCell>{st.full_name ?? "—"}</TableCell>
+                    <TableCell>
+                      <Link to={`/org/${org.id}/students/${st.user_id}`} className="hover:underline">{st.full_name ?? "—"}</Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{st.email ?? "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">{st.interviews_used}</TableCell>
                     <TableCell className={`text-right tabular-nums ${remaining === 0 ? "text-amber-300" : ""}`}>{remaining}</TableCell>

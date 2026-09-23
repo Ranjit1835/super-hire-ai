@@ -65,9 +65,10 @@ export function AudioMetricsPanel({ m }: { m: AudioMetrics }) {
 }
 
 export function EvaluationReport({
-  result, metrics, passMark, moduleName,
-}: { result: EvaluationResult; metrics: AudioMetrics | null; passMark: number; moduleName?: string }) {
+  result, metrics, passMark, moduleName, audience = "student",
+}: { result: EvaluationResult; metrics: AudioMetrics | null; passMark: number; moduleName?: string; audience?: "student" | "staff" }) {
   const r = result;
+  const staff = audience === "staff";
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-4">
@@ -99,7 +100,7 @@ export function EvaluationReport({
 
       <section>
         <h3 className="font-semibold mb-2">Skills</h3>
-        <p className="text-xs text-muted-foreground mb-2">Tap a skill to see why, with quotes from your answers.</p>
+        <p className="text-xs text-muted-foreground mb-2">Tap a skill to see why, with quotes from {staff ? "the student's" : "your"} answers.</p>
         <div className="space-y-2">
           {DIMENSIONS.map((d) => <ScoreRow key={d} label={DIMENSION_LABEL[d]} item={r.dimensions[d]} pass={passMark} />)}
         </div>
@@ -114,7 +115,7 @@ export function EvaluationReport({
 
       {metrics && (
         <section>
-          <h3 className="font-semibold mb-2">How you spoke</h3>
+          <h3 className="font-semibold mb-2">{staff ? "How the student spoke" : "How you spoke"}</h3>
           <AudioMetricsPanel m={metrics} />
         </section>
       )}

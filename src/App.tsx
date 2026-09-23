@@ -44,6 +44,8 @@ const OrgImport = lazy(() => import("./features/b2b/pages/OrgImport"));
 const InviteAccept = lazy(() => import("./features/b2b/pages/InviteAccept"));
 const OrgModules = lazy(() => import("./features/b2b/pages/OrgModules"));
 const ModuleEditor = lazy(() => import("./features/b2b/pages/ModuleEditor"));
+const OrgDashboard = lazy(() => import("./features/b2b/pages/OrgDashboard"));
+const StudentDetail = lazy(() => import("./features/b2b/pages/StudentDetail"));
 const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
 const InterviewRoom = lazy(() => import("./features/b2b/pages/InterviewRoom"));
 const StudentReport = lazy(() => import("./features/b2b/pages/StudentReport"));
@@ -94,6 +96,8 @@ function AppRoutes() {
       <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
       <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
         <Route index element={<OrgOverview />} />
+        <Route path="dashboard" element={<OrgDashboard />} />
+        <Route path="students/:userId" element={<StudentDetail />} />
         <Route path="modules" element={<OrgModules />} />
         <Route path="modules/:moduleId" element={<ModuleEditor />} />
         <Route path="invites" element={<OrgInvites />} />

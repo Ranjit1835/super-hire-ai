@@ -102,7 +102,19 @@ export default function LearnHome() {
 
         {(interviews.data ?? []).some((i) => i.status !== "in_progress") && (
           <section>
-            <h2 className="font-semibold mb-3">Your interviews</h2>
+            <h2 className="font-semibold mb-1">Your interviews</h2>
+            {(() => {
+              const scored = (interviews.data ?? []).filter((i) => i.overall_score !== null).reverse(); // oldest first
+              if (scored.length < 2) return <div className="mb-3" />;
+              const first = Number(scored[0].overall_score), last = Number(scored.at(-1)!.overall_score);
+              const d = Math.round((last - first) * 10) / 10;
+              return (
+                <p className="text-sm text-muted-foreground mb-3">
+                  Your progress: first <strong className="text-foreground">{first}</strong> → latest <strong className="text-foreground">{last}</strong>{" "}
+                  <span className={d > 0 ? "text-emerald-300" : d < 0 ? "text-red-300" : ""}>({d > 0 ? "+" : ""}{d})</span>
+                </p>
+              );
+            })()}
             <ul className="rounded-lg border border-border/60 divide-y divide-border/60">
               {(interviews.data ?? []).filter((i) => i.status !== "in_progress").map((i) => (
                 <li key={i.id}>
