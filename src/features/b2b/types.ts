@@ -91,3 +91,16 @@ export interface OrgInvite {
   email_error: string | null;
   created_at: string;
 }
+
+export interface InterviewModule {
+  id: string;
+  org_id: string | null;
+  spec: import("./lib/shared").ModuleSpec;
+  name: string;
+  type: import("./lib/shared").ModuleType;
+  is_active: boolean;
+  template_id: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}

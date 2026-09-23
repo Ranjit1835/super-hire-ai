@@ -13,6 +13,8 @@ const hooks = vi.hoisted(() => ({
   useOrgInvites: vi.fn(),
   useAllOrgs: vi.fn(),
   usePlans: vi.fn(),
+  useOrgModules: vi.fn(),
+  useStudentModules: vi.fn(),
 }));
 vi.mock("../hooks/useB2B", () => hooks);
 
@@ -34,9 +36,17 @@ const orgRow = {
   id: "org-a", name: "SVR Engineering College", slug: "svr", type: "college", logo_url: null, is_demo: false,
   plan_id: "pilot", plan_starts_at: "2026-09-01T00:00:00Z", plan_ends_at: "2099-10-13T00:00:00Z", created_at: "",
 };
+const db = vi.hoisted(() => ({
+  insert: vi.fn(async () => ({ error: null as null | { message: string } })),
+  update: vi.fn(() => ({ eq: async () => ({ error: null }) })),
+}));
 vi.mock("../lib/db", () => ({
   b2bDb: {
-    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: orgRow, error: null }) }) }) }),
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: orgRow, error: null }) }) }),
+      insert: db.insert,
+      update: db.update,
+    }),
   },
 }));
 
@@ -46,6 +56,8 @@ import OrgImport from "./OrgImport";
 import OrgInvites from "./OrgInvites";
 import LearnHome from "./LearnHome";
 import InviteAccept from "./InviteAccept";
+import OrgModules from "./OrgModules";
+import ModuleEditor from "./ModuleEditor";
 
 const ok = <T,>(data: T) => ({ data, isLoading: false, error: null });
 
@@ -60,6 +72,8 @@ function renderApp(path: string, extra?: ReactNode) {
             <Route index element={<OrgOverview />} />
             <Route path="invites" element={<OrgInvites />} />
             <Route path="import" element={<OrgImport />} />
+            <Route path="modules" element={<OrgModules />} />
+            <Route path="modules/:moduleId" element={<ModuleEditor />} />
           </Route>
           <Route path="/learn" element={<LearnHome />} />
           <Route path="/invite/:token" element={<InviteAccept />} />
@@ -71,6 +85,13 @@ function renderApp(path: string, extra?: ReactNode) {
     </QueryClientProvider>,
   );
 }
+
+const mod = (id: string, name: string, type: string, extra: Record<string, unknown> = {}) => ({
+  id, org_id: null, name, type, is_active: true, template_id: null, version: 1, created_at: "", updated_at: "",
+  spec: { name, type, topics: ["Topic one", "Topic two"], pass_threshold: 6, max_turns: 12, max_minutes: 15 },
+  ...extra,
+});
+const LIBRARY = [mod("t-sql", "SQL", "skill"), mod("t-tcs", "TCS-style fresher round (practice)", "company_pack")];
 
 const adminMembership = [{ org_id: "org-a", role: "org_admin", organizations: orgRow }];
 const studentMembership = [{ org_id: "org-a", role: "student", organizations: orgRow }];
@@ -92,6 +113,8 @@ beforeEach(() => {
     { id: "m2", user_id: "s2", full_name: "Divya R", email: "divya@x.in", roll_no: "21A91A0502", interviews_used: 1 },
   ]));
   hooks.useOrgInvites.mockReturnValue(ok({ invites: [], batches: [] }));
+  hooks.useOrgModules.mockReturnValue(ok({ own: [], library: LIBRARY }));
+  hooks.useStudentModules.mockReturnValue(ok([]));
 });
 
 describe("org overview", () => {
@@ -122,7 +145,7 @@ describe("org overview", () => {
   it("/org routes staff to their org, students to /learn, B2C users to the dashboard", async () => {
     hooks.useMyMemberships.mockReturnValue(ok(studentMembership));
     const a = renderApp("/org");
-    expect(await screen.findByText("Your interview modules will appear here")).toBeInTheDocument();
+    expect(await screen.findByText("No modules yet")).toBeInTheDocument();
     a.unmount();
     hooks.useMyMemberships.mockReturnValue(ok([]));
     renderApp("/org");
@@ -246,5 +269,70 @@ describe("student home", () => {
   it("redirects non-students", () => {
     renderApp("/learn");
     expect(screen.getByText("b2c dashboard")).toBeInTheDocument();
+  });
+});
+
+describe("modules", () => {
+  beforeEach(() => hooks.useMyMemberships.mockReturnValue(ok(adminMembership)));
+
+  it("enables a library template as an org copy and shows company packs with the disclaimer", async () => {
+    renderApp("/org/org-a/modules");
+    expect(await screen.findByText("No modules enabled yet")).toBeInTheDocument();
+    expect(screen.getByText(/Not an official interview and not affiliated/)).toBeInTheDocument();
+    const buttons = screen.getAllByRole("button", { name: "Enable for students" });
+    expect(buttons).toHaveLength(2); // pilot plan includes packs
+    fireEvent.click(buttons[0]);
+    await waitFor(() => expect(db.insert).toHaveBeenCalledWith(expect.objectContaining({
+      org_id: "org-a", template_id: "t-sql", spec: LIBRARY[0].spec,
+    })));
+  });
+
+  it("locks company packs when the plan doesn't include them", async () => {
+    hooks.useOrgUsageSummary.mockReturnValue(ok({
+      org_id: "org-a", plan: { id: "basic", name: "Basic", interviews_per_student: 4, max_students: null, company_packs_enabled: false, dashboard_enabled: false },
+      plan_starts_at: "", plan_ends_at: null, students: 0, interviews_used: 0, students_exhausted: 0,
+    }));
+    renderApp("/org/org-a/modules");
+    expect(await screen.findByText("Included in Pilot and Pro plans")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Enable for students" })).toHaveLength(1);
+  });
+
+  it("marks enabled templates and hides management from trainers", async () => {
+    hooks.useMyMemberships.mockReturnValue(ok([{ ...adminMembership[0], role: "trainer" }]));
+    hooks.useOrgModules.mockReturnValue(ok({ own: [mod("m1", "SQL", "skill", { org_id: "org-a", template_id: "t-sql" })], library: LIBRARY }));
+    renderApp("/org/org-a/modules");
+    expect(await screen.findByText("Enabled")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enable for students" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Edit/ })).toBeNull();
+  });
+
+  it("editor validates per field, then saves a normalised spec", async () => {
+    renderApp("/org/org-a/modules/new");
+    fireEvent.click(await screen.findByRole("button", { name: /Create module/ }));
+    expect(await screen.findByText("Give the module a name")).toBeInTheDocument();
+    expect(screen.getByText("Add at least one topic")).toBeInTheDocument();
+    expect(db.insert).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "  Spring   Boot " } });
+    const topic = screen.getByPlaceholderText(/Type a topic/);
+    fireEvent.change(topic, { target: { value: "REST controllers, Dependency injection; rest controllers" } });
+    fireEvent.keyDown(topic, { key: "Enter" });
+    expect(screen.getAllByRole("listitem")).toHaveLength(2); // de-duplicated
+    fireEvent.click(screen.getByRole("button", { name: /Create module/ }));
+    await waitFor(() => expect(db.insert).toHaveBeenCalledWith(expect.objectContaining({
+      org_id: "org-a",
+      spec: { name: "Spring Boot", type: "skill", topics: ["REST controllers", "Dependency injection"], pass_threshold: 6, max_turns: 12, max_minutes: 15 },
+    })));
+  });
+});
+
+describe("student modules", () => {
+  it("lists enabled modules with topics", () => {
+    hooks.useMyMemberships.mockReturnValue(ok(studentMembership));
+    hooks.useStudentModules.mockReturnValue(ok([mod("m1", "SQL", "skill", { org_id: "org-a" })]));
+    renderApp("/learn");
+    expect(screen.getByText("SQL")).toBeInTheDocument();
+    expect(screen.getByText("Topic one")).toBeInTheDocument();
+    expect(screen.getByText("12 questions")).toBeInTheDocument();
   });
 });

@@ -51,6 +51,7 @@ export function OrgLayout() {
   const base = `/org/${org.data.id}`;
   const tabs: ShellTab[] = [
     { to: base, label: "Overview", end: true },
+    { to: `${base}/modules`, label: "Modules" },
     { to: `${base}/invites`, label: "Invites" },
     ...(canManage ? [{ to: `${base}/import`, label: "Add students" }] : []),
   ];

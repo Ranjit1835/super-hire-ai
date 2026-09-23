@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { b2bDb } from "../lib/db";
 import type {
-  Batch, InterviewQuota, MembershipWithOrg, OrgInvite, OrgMembership, OrgUsageSummary, Organization, Plan, StudentUsage,
+  Batch, InterviewModule, InterviewQuota, MembershipWithOrg, OrgInvite, OrgMembership, OrgUsageSummary, Organization, Plan, StudentUsage,
 } from "../types";
 
 async function unwrap<T>(p: PromiseLike<{ data: unknown; error: unknown }>): Promise<T> {
@@ -129,5 +129,36 @@ export function useOrgInvites(orgId: string | undefined) {
       ]);
       return { invites, batches };
     },
+  });
+}
+
+const MODULE_COLUMNS = "id, org_id, spec, name, type, is_active, template_id, version, created_at, updated_at";
+
+/** Staff view: the org's own modules (incl. archived) + the HiResume library. */
+export function useOrgModules(orgId: string | undefined) {
+  return useQuery({
+    queryKey: ["b2b", "modules", orgId],
+    enabled: !!orgId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const [own, library] = await Promise.all([
+        unwrap<InterviewModule[]>(b2bDb.from("interview_modules").select(MODULE_COLUMNS).eq("org_id", orgId!).order("created_at")),
+        unwrap<InterviewModule[]>(b2bDb.from("interview_modules").select(MODULE_COLUMNS).is("org_id", null).order("name")),
+      ]);
+      return { own, library };
+    },
+  });
+}
+
+/** Student view: active modules their institution enabled (RLS applies the plan's company-pack rule). */
+export function useStudentModules(orgId: string | undefined) {
+  return useQuery({
+    queryKey: ["b2b", "student-modules", orgId],
+    enabled: !!orgId,
+    staleTime: 60_000,
+    queryFn: () =>
+      unwrap<InterviewModule[]>(
+        b2bDb.from("interview_modules").select(MODULE_COLUMNS).eq("org_id", orgId!).eq("is_active", true).order("name"),
+      ),
   });
 }

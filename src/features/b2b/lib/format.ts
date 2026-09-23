@@ -21,6 +21,9 @@ const DB_ERRORS: Array<[RegExp, string]> = [
   [/organizations_slug_key|duplicate key.*slug/, "That link name is already taken. Choose another."],
   [/organizations_slug_check/, "Link name must be 3–50 lowercase letters, numbers or hyphens."],
   [/organizations_plan_window/, "Plan end date must be after the start date."],
+  [/PLAN_FEATURE/, "Company-style packs aren't included in this institution's plan."],
+  [/idx_interview_modules_org_name|duplicate key.*interview_modules/, "You already have an active module with this name."],
+  [/b2b_valid_module_spec|interview_modules_spec_check/, "The module isn't valid. Check the highlighted fields."],
 ];
 
 /** Turn a Postgres/PostgREST error into something an admin can act on. */

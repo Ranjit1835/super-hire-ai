@@ -42,6 +42,8 @@ const OrgOverview = lazy(() => import("./features/b2b/pages/OrgHome"));
 const OrgInvites = lazy(() => import("./features/b2b/pages/OrgInvites"));
 const OrgImport = lazy(() => import("./features/b2b/pages/OrgImport"));
 const InviteAccept = lazy(() => import("./features/b2b/pages/InviteAccept"));
+const OrgModules = lazy(() => import("./features/b2b/pages/OrgModules"));
+const ModuleEditor = lazy(() => import("./features/b2b/pages/ModuleEditor"));
 const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
 
 const queryClient = new QueryClient({
@@ -90,6 +92,8 @@ function AppRoutes() {
       <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
       <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
         <Route index element={<OrgOverview />} />
+        <Route path="modules" element={<OrgModules />} />
+        <Route path="modules/:moduleId" element={<ModuleEditor />} />
         <Route path="invites" element={<OrgInvites />} />
         <Route path="import" element={<OrgImport />} />
       </Route>
