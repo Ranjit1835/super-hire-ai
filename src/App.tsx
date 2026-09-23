@@ -36,7 +36,12 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
 const SuperAdminOrgs = lazy(() => import("./features/b2b/pages/SuperAdminOrgs"));
-const OrgHome = lazy(() => import("./features/b2b/pages/OrgHome"));
+const OrgLayout = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgLayout })));
+const OrgRedirect = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgRedirect })));
+const OrgOverview = lazy(() => import("./features/b2b/pages/OrgHome"));
+const OrgInvites = lazy(() => import("./features/b2b/pages/OrgInvites"));
+const OrgImport = lazy(() => import("./features/b2b/pages/OrgImport"));
+const InviteAccept = lazy(() => import("./features/b2b/pages/InviteAccept"));
 const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
 
 const queryClient = new QueryClient({
@@ -82,8 +87,13 @@ function AppRoutes() {
       <Route path="/studio/shared/:shareToken" element={<StudioSharedPage />} />
       {/* B2B: institutions */}
       <Route path="/admin/orgs" element={<ProtectedRoute><SuperAdminOrgs /></ProtectedRoute>} />
-      <Route path="/org" element={<ProtectedRoute><OrgHome /></ProtectedRoute>} />
-      <Route path="/org/:orgId" element={<ProtectedRoute><OrgHome /></ProtectedRoute>} />
+      <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
+      <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
+        <Route index element={<OrgOverview />} />
+        <Route path="invites" element={<OrgInvites />} />
+        <Route path="import" element={<OrgImport />} />
+      </Route>
+      <Route path="/invite/:token" element={<InviteAccept />} />
       <Route path="/learn" element={<ProtectedRoute><LearnHome /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

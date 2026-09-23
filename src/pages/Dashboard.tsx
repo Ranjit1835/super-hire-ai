@@ -19,6 +19,7 @@ import {
 } from "@/components/premium";
 import { type PlanType, planLabel, hasActivePlan, isEarlyBirdActive } from "@/integrations/supabase/extended-types";
 import { SEOHead } from "@/components/SEOHead";
+import { InstitutionBanner } from "@/features/b2b/components/InstitutionBanner";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -221,6 +222,7 @@ export default function Dashboard() {
       </header>
 
       <main className="container py-8 sm:py-10 max-w-5xl px-4 relative z-10">
+        <InstitutionBanner />
         <motion.div variants={stagger.container} initial="hidden" animate="show">
 
           {/* ═══════════════════════════════════════════

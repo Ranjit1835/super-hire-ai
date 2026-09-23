@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.studio-share-link]
 verify_jwt = false
+
+[functions.b2b-invites]
+verify_jwt = false

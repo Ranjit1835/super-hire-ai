@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { b2bDb } from "../lib/db";
 import type {
-  InterviewQuota, MembershipWithOrg, OrgMembership, OrgUsageSummary, Organization, Plan, StudentUsage,
+  Batch, InterviewQuota, MembershipWithOrg, OrgInvite, OrgMembership, OrgUsageSummary, Organization, Plan, StudentUsage,
 } from "../types";
 
 async function unwrap<T>(p: PromiseLike<{ data: unknown; error: unknown }>): Promise<T> {
@@ -108,5 +108,26 @@ export function usePlans(enabled: boolean) {
     enabled,
     staleTime: 5 * 60_000,
     queryFn: () => unwrap<Plan[]>(b2bDb.from("plans").select("*").order("interviews_per_student")),
+  });
+}
+
+export function useOrgInvites(orgId: string | undefined) {
+  return useQuery({
+    queryKey: ["b2b", "org-invites", orgId],
+    enabled: !!orgId,
+    staleTime: 10_000,
+    queryFn: async () => {
+      const [invites, batches] = await Promise.all([
+        unwrap<OrgInvite[]>(
+          b2bDb
+            .from("org_invites")
+            .select("id, org_id, batch_id, full_name, email, roll_no, status, expires_at, accepted_at, email_sent_at, email_error, created_at")
+            .eq("org_id", orgId!)
+            .order("created_at", { ascending: false }),
+        ),
+        unwrap<Batch[]>(b2bDb.from("batches").select("*").eq("org_id", orgId!).order("name")),
+      ]);
+      return { invites, batches };
+    },
   });
 }

@@ -1,44 +1,19 @@
 import { useMemo, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { B2BShell, CenteredSpinner, EmptyState, StatCard } from "../components/B2BShell";
-import { useIsSuperAdmin, useMyMemberships, useOrgStudents, useOrgUsageSummary } from "../hooks/useB2B";
-import { b2bDb } from "../lib/db";
+import { CenteredSpinner, EmptyState, StatCard } from "../components/B2BShell";
+import { useOrgStudents, useOrgUsageSummary } from "../hooks/useB2B";
 import { daysLeft, formatDate, friendlyDbError } from "../lib/format";
-import type { Organization } from "../types";
+import { useOrgContext } from "../components/OrgContext";
 
-/** /org → first org the user staffs; /org/:orgId → that org (staff or super-admin). */
-export default function OrgHome() {
-  const { orgId: routeOrgId } = useParams();
-  const memberships = useMyMemberships();
-  const isSuper = useIsSuperAdmin();
-
-  const staffOrgId = memberships.data?.find((m) => m.role !== "student")?.org_id;
-  const orgId = routeOrgId ?? staffOrgId;
-
-  if (memberships.isLoading || isSuper.isLoading) return <CenteredSpinner />;
-  if (!orgId) {
-    if (memberships.data?.some((m) => m.role === "student")) return <Navigate to="/learn" replace />;
-    if (isSuper.data) return <Navigate to="/admin/orgs" replace />;
-    return <Navigate to="/dashboard" replace />;
-  }
-  return <OrgOverview orgId={orgId} />;
-}
-
-function OrgOverview({ orgId }: { orgId: string }) {
-  const org = useQuery({
-    queryKey: ["b2b", "org", orgId],
-    queryFn: async () => {
-      const { data, error } = await b2bDb.from("organizations").select("*").eq("id", orgId).maybeSingle();
-      if (error) throw error;
-      return data as Organization | null;
-    },
-  });
-  const summary = useOrgUsageSummary(orgId);
-  const students = useOrgStudents(orgId);
+/** /org/:orgId — plan usage + student roster. */
+export default function OrgOverview() {
+  const { org, canManage } = useOrgContext();
+  const summary = useOrgUsageSummary(org.id);
+  const students = useOrgStudents(org.id);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -49,28 +24,22 @@ function OrgOverview({ orgId }: { orgId: string }) {
     );
   }, [students.data, search]);
 
-  if (org.isLoading || summary.isLoading) return <CenteredSpinner />;
-  if (!org.data || summary.error) {
-    return (
-      <B2BShell title="Institution">
-        <EmptyState title="You don't have access to this institution" body={summary.error ? friendlyDbError(summary.error) : undefined} />
-      </B2BShell>
-    );
+  if (summary.isLoading) return <CenteredSpinner />;
+  if (summary.error || !summary.data) {
+    return <EmptyState title="Couldn't load usage" body={friendlyDbError(summary.error)} />;
   }
 
-  const s = summary.data!;
+  const s = summary.data;
   const perStudent = s.plan.interviews_per_student;
   const allocated = s.students * perStudent;
   const usedPct = allocated ? Math.round((s.interviews_used / allocated) * 100) : 0;
   const left = daysLeft(s.plan_ends_at);
 
   return (
-    <B2BShell
-      title={org.data.name}
-      subtitle={`${s.plan.name} plan · ${formatDate(s.plan_starts_at)} – ${formatDate(s.plan_ends_at)}`}
-      logoUrl={org.data.logo_url}
-      isDemo={org.data.is_demo}
-    >
+    <>
+      <p className="text-sm text-muted-foreground mb-4">
+        {s.plan.name} plan · {formatDate(s.plan_starts_at)} – {formatDate(s.plan_ends_at)}
+      </p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard
           label="Students enrolled"
@@ -104,7 +73,14 @@ function OrgOverview({ orgId }: { orgId: string }) {
       {students.isLoading ? (
         <CenteredSpinner />
       ) : !students.data?.length ? (
-        <EmptyState title="No students yet" body="Students appear here once they accept their invite (bulk CSV onboarding comes next)." />
+        <EmptyState
+          title="No students yet"
+          body="Students appear here once they accept their invite. Upload your roster to send invites."
+        >
+          {canManage && (
+            <Button asChild><Link to={`/org/${org.id}/import`}>Add students</Link></Button>
+          )}
+        </EmptyState>
       ) : (
         <div className="rounded-lg border border-border/60 overflow-x-auto">
           <Table>
@@ -134,6 +110,6 @@ function OrgOverview({ orgId }: { orgId: string }) {
           </Table>
         </div>
       )}
-    </B2BShell>
+    </>
   );
 }

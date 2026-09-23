@@ -74,3 +74,20 @@ export interface OrgUsageSummary {
   interviews_used: number;
   students_exhausted: number;
 }
+
+export type OrgInviteStatus = "pending" | "accepted" | "revoked";
+
+export interface OrgInvite {
+  id: string;
+  org_id: string;
+  batch_id: string | null;
+  full_name: string;
+  email: string;
+  roll_no: string;
+  status: OrgInviteStatus;
+  expires_at: string;
+  accepted_at: string | null;
+  email_sent_at: string | null;
+  email_error: string | null;
+  created_at: string;
+}

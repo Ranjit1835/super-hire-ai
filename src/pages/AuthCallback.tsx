@@ -1,19 +1,26 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { takePendingInvite } from "@/features/b2b/lib/api";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // A student who started from an institution invite link goes back to it.
+    const goHome = () => {
+      const invite = takePendingInvite();
+      navigate(invite ? `/invite/${invite}` : "/dashboard", { replace: true });
+    };
+
     // Supabase automatically detects and processes the OAuth code/token in the URL.
     // We just listen for the resulting auth state change.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         navigate("/reset-password", { replace: true });
       } else if (event === "SIGNED_IN" && session) {
-        navigate("/dashboard", { replace: true });
+        goHome();
       }
     });
 
@@ -24,7 +31,7 @@ export default function AuthCallback() {
         return;
       }
       if (session) {
-        navigate("/dashboard", { replace: true });
+        goHome();
       }
     });
 
