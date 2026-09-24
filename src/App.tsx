@@ -52,6 +52,7 @@ const Blog = preloadable(() => import("./pages/Blog"));
 const BlogPost = preloadable(() => import("./pages/BlogPost"));
 const SuperAdminOrgs = lazy(() => import("./features/b2b/pages/SuperAdminOrgs"));
 const SuperAdminCosts = lazy(() => import("./features/b2b/pages/SuperAdminCosts"));
+const SuperAdminEnquiries = lazy(() => import("./features/b2b/pages/SuperAdminEnquiries"));
 const OrgLeads = lazy(() => import("./features/b2b/pages/OrgLeads"));
 const PublicTest = lazy(() => import("./features/b2b/pages/PublicTest"));
 const OrgLayout = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgLayout })));
@@ -115,6 +116,7 @@ function AppRoutes() {
       {/* B2B: institutions */}
       <Route path="/admin/orgs" element={<ProtectedRoute><SuperAdminOrgs /></ProtectedRoute>} />
       <Route path="/admin/costs" element={<ProtectedRoute><SuperAdminCosts /></ProtectedRoute>} />
+      <Route path="/admin/enquiries" element={<ProtectedRoute><SuperAdminEnquiries /></ProtectedRoute>} />
       <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
       <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
         <Route index element={<OrgOverview />} />

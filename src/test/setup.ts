@@ -23,3 +23,13 @@ if (typeof window !== "undefined" && !("ResizeObserver" in window)) {
     disconnect() {}
   };
 }
+
+// jsdom has no IntersectionObserver; framer-motion's whileInView needs one.
+if (typeof window !== "undefined" && !("IntersectionObserver" in window)) {
+  (window as unknown as { IntersectionObserver: unknown }).IntersectionObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() { return []; }
+  };
+}

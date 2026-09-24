@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { B2BShell, CenteredSpinner, EmptyState } from "../components/B2BShell";
 import { useAllOrgs, useIsSuperAdmin, usePlans, type OrgWithCounts } from "../hooks/useB2B";
+import { useNewEnquiryCount } from "./SuperAdminEnquiries";
 import { b2bDb } from "../lib/db";
 import { SLUG_RE, daysLeft, formatDate, friendlyDbError, slugify } from "../lib/format";
 import type { OrgMemberRole, OrgType, Plan } from "../types";
@@ -30,6 +31,7 @@ function endOfDayIso(date: string): string | null {
 export default function SuperAdminOrgs() {
   const { user } = useAuth();
   const isSuper = useIsSuperAdmin();
+  const newEnquiries = useNewEnquiryCount(isSuper.data === true);
   const enabled = isSuper.data === true;
   const orgs = useAllOrgs(enabled);
   const plans = usePlans(enabled);
@@ -48,6 +50,11 @@ export default function SuperAdminOrgs() {
       subtitle={`Super-admin · ${user?.email ?? ""}`}
       actions={
         <div className="flex gap-2">
+          <Button size="sm" variant="ghost" asChild>
+            <Link to="/admin/enquiries">
+              Enquiries{newEnquiries.data ? <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground" aria-label={`${newEnquiries.data} new`}>{newEnquiries.data}</span> : null}
+            </Link>
+          </Button>
           <Button size="sm" variant="ghost" asChild><Link to="/admin/costs">Costs</Link></Button>
           <Button size="sm" onClick={() => setCreating(true)} disabled={!plans.data}>
             <Plus className="h-4 w-4 mr-1" /> New institution

@@ -9,6 +9,7 @@ import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
+import { b2bDb } from "@/features/b2b/lib/db";
 
 const BENEFITS = [
   { icon: Users, title: "Bulk Student Onboarding", desc: "Upload a CSV of your batch. Students get invite links, give consent, and appear in your dashboard as they join." },
@@ -37,20 +38,51 @@ const fadeItem = {
 
 const ENQUIRY_EMAIL = "support@hiresume.in";
 
+const REASONS: Record<string, string> = {
+  MISSING_FIELDS: "Please fill in your name, role and institution.",
+  INVALID_EMAIL: "Please enter a valid email address.",
+  INVALID_PHONE: "Please enter a valid phone number, or leave it empty.",
+  TOO_LONG: "One of the fields is too long — please shorten your message.",
+  ALREADY_RECEIVED: "We've already received enquiries from this email today — we'll be in touch.",
+  RATE_LIMITED: "Too many enquiries from your network just now. Please try again later or email us.",
+};
+
 export default function CollegePlacement() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", role: "", college: "", email: "", phone: "", students: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [website, setWebsite] = useState(""); // honeypot — hidden from people, filled by bots
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const mailtoHref = () => {
     const body = [
       `Name: ${form.name}`, `Role: ${form.role}`, `Institution: ${form.college}`,
       `Email: ${form.email}`, `Phone: ${form.phone || "-"}`, `Students: ${form.students || "-"}`,
       "", form.message,
     ].join("\n");
-    window.location.href = `mailto:${ENQUIRY_EMAIL}?subject=${encodeURIComponent(`Institution enquiry: ${form.college}`)}&body=${encodeURIComponent(body)}`;
-    setSubmitted(true);
+    return `mailto:${ENQUIRY_EMAIL}?subject=${encodeURIComponent(`Institution enquiry: ${form.college}`)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const { data, error: rpcError } = await b2bDb.rpc("submit_institution_enquiry", {
+        _name: form.name, _role: form.role, _institution: form.college, _email: form.email,
+        _phone: form.phone || null, _students: form.students || null, _message: form.message || null,
+        _source: "/college-placement", _website: website,
+      });
+      if (rpcError) throw rpcError;
+      const r = data as { ok: boolean; reason?: string };
+      if (r.ok || r.reason === "ALREADY_RECEIVED") setSubmitted(true);
+      else setError(REASONS[r.reason ?? ""] ?? "Something went wrong. Please try again.");
+    } catch {
+      setError("mailto");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -217,7 +249,7 @@ export default function CollegePlacement() {
               className="text-center mb-8"
             >
               <h2 className="text-3xl font-bold mb-3 text-foreground">Partner With Us</h2>
-              <p className="text-muted-foreground">Tell us about your institution. Submitting opens your email app with these details addressed to support@hiresume.in.</p>
+              <p className="text-muted-foreground">Tell us about your institution and we'll get back to you by email.</p>
             </motion.div>
             {submitted ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
@@ -228,14 +260,16 @@ export default function CollegePlacement() {
                 >
                   <CheckCircle2 className="h-16 w-16 text-emerald-400 mx-auto mb-4" />
                 </motion.div>
-                <h3 className="text-xl font-bold mb-2 text-foreground">Almost done — send the email</h3>
-                <p className="text-muted-foreground">Your email app should have opened with your details. Press send there so we receive it.</p>
-                <p className="text-sm text-muted-foreground mt-3">Didn't open? Email <a className="text-primary hover:underline" href={`mailto:${ENQUIRY_EMAIL}`}>{ENQUIRY_EMAIL}</a> directly.</p>
+                <h3 className="text-xl font-bold mb-2 text-foreground">Thanks — we've received your enquiry</h3>
+                <p className="text-muted-foreground">We'll reply to {form.email}. You can also reach us at <a className="text-primary hover:underline" href={`mailto:${ENQUIRY_EMAIL}`}>{ENQUIRY_EMAIL}</a>.</p>
               </motion.div>
             ) : (
               <div className="glass rounded-2xl border border-violet-500/15 overflow-hidden">
                 <div className="p-6">
                   <form onSubmit={handleSubmit} className="space-y-4">
+                    <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+                      <label>Website <input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
+                    </div>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium mb-1 block text-foreground">Your Name *</label>
@@ -268,13 +302,21 @@ export default function CollegePlacement() {
                       <label className="text-sm font-medium mb-1 block text-foreground">Message (optional)</label>
                       <Textarea placeholder="Tell us about your placement drive timeline or specific requirements..." value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} rows={3} className="bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
                     </div>
+                    {error && (
+                      <p role="alert" className="text-sm text-red-300">
+                        {error === "mailto"
+                          ? <>We couldn't send your enquiry just now. <a className="underline" href={mailtoHref()}>Email it to us instead</a>.</>
+                          : error}
+                      </p>
+                    )}
                     <motion.button
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                       type="submit"
+                      disabled={submitting}
                       className="w-full py-3 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50"
                     >
-                      Send enquiry by email
+                      {submitting ? "Sending…" : "Send enquiry"}
                     </motion.button>
                   </form>
                 </div>
