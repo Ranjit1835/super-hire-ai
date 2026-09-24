@@ -7,7 +7,7 @@ function getInitialCurrency(): Currency {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "INR" || stored === "USD") return stored;
-  } catch {}
+  } catch { /* storage unavailable (private mode) */ }
   return detectCurrency();
 }
 
@@ -25,7 +25,7 @@ export function useCurrency() {
 
   const setCurrency = (c: Currency) => {
     setCurrencyState(c);
-    try { localStorage.setItem(STORAGE_KEY, c); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, c); } catch { /* storage unavailable */ }
   };
 
   const pricing: PricingTable = getPricing(currency);

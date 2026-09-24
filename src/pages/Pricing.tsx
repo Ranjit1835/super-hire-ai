@@ -10,6 +10,7 @@ import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCurrency } from "@/hooks/useCurrency";
+import { PRICING } from "@/config/pricing";
 
 const COMPARISON = [
   { feature: "ATS Resume Score Check", free: true, fix: true, combo: true, unlimited: true },
@@ -34,7 +35,7 @@ export default function Pricing() {
       icon: <Zap className="h-5 w-5 text-green-500" />,
       iconBg: "bg-green-500/10",
       name: "Free",
-      price: "$0",
+      price: `${pricing.symbol}0`,
       period: "forever",
       description: "Check your ATS score — no limits",
       features: ["Unlimited ATS score checks", "Keyword gap analysis", "Formatting assessment", "Impact score breakdown", "No signup required"],
@@ -71,7 +72,7 @@ export default function Pricing() {
       iconBg: "bg-primary/20",
       name: "Unlimited Plan",
       price: pricing.UNLIMITED_PLAN.display,
-      period: "/year",
+      period: "for 1 year",
       description: "Full access to everything",
       features: ["Unlimited resume fixes", "Unlimited AI interviews", "Resume Builder access", "Resume Studio (AI Coach)", "Voice interview practice", "Priority processing", "365-day access"],
       highlight: true,
@@ -90,7 +91,7 @@ export default function Pricing() {
     <div className="min-h-screen bg-background relative">
       <SEOHead
         title="Pricing - ATS Resume Checker & AI Interview Plans | HiResume"
-        description="Simple, transparent pricing for HiResume. Free ATS resume score check forever. Resume Fix from $4, Combo Plan from $19, Unlimited from $39/year. No hidden fees."
+        description={`HiResume pricing: free ATS resume check forever. Resume Fix ${PRICING.INR.RESUME_FIX.display}, Combo Plan ${PRICING.INR.COMBO_PLAN.display}, Unlimited ${PRICING.INR.UNLIMITED_PLAN.display} for a year. One-time payments, nothing auto-renews.`}
         path="/pricing"
         keywords="HiResume pricing, resume checker pricing, ATS checker cost, AI resume optimizer price, resume builder pricing"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "Pricing", path: "/pricing" }]}

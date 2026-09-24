@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+import { describeAnalysisError } from "@/hooks/useGuestResumeUpload";
 import {
   Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown,
   FileEdit, Mic, Crown, Package, Sparkles, ArrowRight, MessageSquare, Eye, LayoutGrid, ArrowUpRight,
@@ -103,8 +105,21 @@ export default function Dashboard() {
     handlePendingAnalysis(pending.resumeText, pending.fileName, pending.contentHash);
   }, [searchParams, user]);
 
+  /** Friendly failure toast with a retry that reuses the same resume text. */
+  const showAnalysisError = (raw: string | undefined, status: number | undefined, retry: () => void) => {
+    const d = describeAnalysisError(raw, status);
+    toast({
+      title: d.title,
+      description: d.message,
+      variant: "destructive",
+      duration: 15000,
+      action: d.kind === "unreadable" || d.kind === "invalid" ? undefined : <ToastAction altText="Try again" onClick={retry}>Try again</ToastAction>,
+    });
+  };
+
   const handlePendingAnalysis = async (resumeText: string, fileName: string, contentHash: string) => {
     setUploading(true);
+    let status: number | undefined;
     try {
       const { data: cached } = await supabase.from("resume_analyses").select("id").eq("user_id", user!.id).eq("content_hash", contentHash).maybeSingle();
       if (cached) { await new Promise(r => setTimeout(r, 1800)); navigate(`/analysis/${cached.id}`); return; }
@@ -114,11 +129,12 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
         body: JSON.stringify({ resumeText, fileName, contentHash }),
       });
-      const data = await res.json();
+      status = res.status;
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Analysis failed");
       if (data?.id) navigate(`/analysis/${data.id}`);
     } catch (err: any) {
-      toast({ title: "Analysis failed", description: err.message, variant: "destructive" });
+      showAnalysisError(err?.message, status, () => handlePendingAnalysis(resumeText, fileName, contentHash));
     } finally { setUploading(false); }
   };
 
@@ -126,6 +142,7 @@ export default function Dashboard() {
     const err = validateFile(file);
     if (err) { toast({ title: "Invalid file", description: err, variant: "destructive" }); return; }
     setUploading(true);
+    let status: number | undefined;
     try {
       const text = await extractTextFromPdf(file);
       if (!text.trim()) throw new Error("Could not extract text. Try a different PDF.");
@@ -139,11 +156,12 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
         body: JSON.stringify({ resumeText: text, fileName: file.name, contentHash, previousAnalysisId }),
       });
-      const data = await res.json();
+      status = res.status;
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Analysis failed");
       if (data?.id) navigate(`/analysis/${data.id}`);
     } catch (err: any) {
-      toast({ title: "Analysis failed", description: err.message, variant: "destructive" });
+      showAnalysisError(err?.message, status, () => handleFile(file));
     } finally { setUploading(false); }
   };
 

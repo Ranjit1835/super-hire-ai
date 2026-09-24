@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Mic, Brain, BarChart3, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCurrency } from "@/hooks/useCurrency";
 
 const features = [
   "Role-specific questions for 10+ job profiles",
@@ -29,6 +30,7 @@ function WaveBar({ delay, height }: { delay: number; height: number }) {
 export function VoiceInterviewSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { pricing } = useCurrency();
 
   const handleStart = () => navigate(user ? "/voice-interview" : "/auth?redirect=/voice-interview");
 
@@ -38,7 +40,7 @@ export function VoiceInterviewSection() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
 
           {/* Left — Content */}
-          <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
+          <motion.div className="min-w-0" initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 text-xs">
               <Mic className="h-3 w-3 mr-1" /> New — AI Voice Interview
             </Badge>
@@ -54,13 +56,13 @@ export function VoiceInterviewSection() {
               {features.map((f, i) => (
                 <motion.li
                   key={i}
-                  className="flex items-center gap-2.5 text-sm"
+                  className="flex items-start gap-2.5 text-sm"
                   initial={{ opacity: 0, x: -10 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08 }}
                 >
-                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
                   <span>{f}</span>
                 </motion.li>
               ))}
@@ -72,17 +74,18 @@ export function VoiceInterviewSection() {
               ))}
             </div>
 
-            <div className="flex items-center gap-4">
-              <Button onClick={handleStart} size="lg">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <Button onClick={handleStart} size="lg" className="w-full sm:w-auto">
                 <Mic className="h-4 w-4 mr-2" /> Start Practice Interview
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
-              <p className="text-xs text-muted-foreground">₹599/session · Unlimited plan: 2 free/month</p>
+              <p className="text-xs text-muted-foreground text-center sm:text-left">{pricing.AI_INTERVIEW.display} per session · Unlimited plan includes 2 a month</p>
             </div>
           </motion.div>
 
           {/* Right — Visual mockup */}
           <motion.div
+            className="min-w-0"
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}

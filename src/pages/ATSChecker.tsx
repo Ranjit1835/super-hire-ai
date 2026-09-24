@@ -1,5 +1,4 @@
-import { useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +8,9 @@ import { AnimatedGradientMesh } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
+import { ScanningAnimation } from "@/components/ScanningAnimation";
+import { UploadFailurePanel } from "@/components/UploadFailurePanel";
+import { useGuestResumeUpload } from "@/hooks/useGuestResumeUpload";
 
 const FEATURES = [
   { icon: FileSearch, title: "Keyword Gap Analysis", desc: "Identifies missing job-specific keywords that ATS systems look for. Compare your resume against any job description." },
@@ -31,8 +33,19 @@ const HOW_IT_WORKS = [
 ];
 
 export default function ATSChecker() {
-  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const { processing, failure, upload, retry } = useGuestResumeUpload();
+  const pickFile = () => fileInputRef.current?.click();
+
+  if (processing) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PublicNavbar />
+        <ScanningAnimation />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -65,16 +78,30 @@ export default function ATSChecker() {
             transition={{ delay: 0.2 }}
             className="max-w-md mx-auto"
           >
-            <Card className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-colors cursor-pointer"
-              onClick={() => navigate("/")}
-            >
-              <CardContent className="py-10 text-center">
-                <Upload className="h-10 w-10 text-primary mx-auto mb-3" />
-                <p className="font-semibold mb-1">Upload Your Resume PDF</p>
-                <p className="text-sm text-muted-foreground">Get your ATS score instantly — no signup required</p>
-              </CardContent>
-            </Card>
-            <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" />
+            {failure ? (
+              <UploadFailurePanel failure={failure} onRetry={retry} onPickAnother={pickFile} />
+            ) : (
+              <button
+                type="button"
+                onClick={pickFile}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) void upload(f); }}
+                className={`w-full rounded-xl border-2 border-dashed transition-colors py-10 px-4 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${dragOver ? "border-primary bg-primary/5" : "border-primary/30 hover:border-primary/60"}`}
+              >
+                <Upload className="h-10 w-10 text-primary mx-auto mb-3" aria-hidden />
+                <span className="block font-semibold mb-1">Upload your resume PDF</span>
+                <span className="block text-sm text-muted-foreground">Tap to choose a file or drag it here · free, no signup</span>
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              aria-label="Upload resume PDF"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }}
+            />
           </motion.div>
         </div>
       </section>
@@ -179,7 +206,7 @@ export default function ATSChecker() {
         <div className="container max-w-2xl text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to Check Your ATS Score?</h2>
           <p className="text-muted-foreground mb-6">Upload your resume and get results in 10 seconds. Free forever.</p>
-          <Button size="lg" onClick={() => navigate("/")} className="gap-2">
+          <Button size="lg" onClick={pickFile} className="gap-2">
             Check My Resume Now <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

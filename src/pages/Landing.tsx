@@ -1,12 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 import { ArrowRight, Sparkles } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
-import { extractTextFromPdf, hashContent } from "@/lib/pdf-parser";
-import { useToast } from "@/hooks/use-toast";
+import { useGuestResumeUpload } from "@/hooks/useGuestResumeUpload";
+import { UploadFailurePanel } from "@/components/UploadFailurePanel";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
 import { SEOHead } from "@/components/SEOHead";
 import { HeroSection } from "@/components/landing/HeroSection";
@@ -23,81 +21,11 @@ import { FAQSection, faqJsonLd } from "@/components/landing/FAQSection";
 import { softwareApplicationJsonLd } from "@/seo/schema";
 import { motion } from "framer-motion";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
 export default function Landing() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { toast } = useToast();
   const [dragOver, setDragOver] = useState(false);
-  const [processing, setProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    document.title = "HiResume - Free ATS Resume Checker & AI Mock Interview Platform";
-  }, []);
-
-  const handleGuestUpload = async (file: File) => {
-    if (!file) return;
-    if (file.type !== "application/pdf") {
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      if (ext === "docx" || ext === "doc") {
-        toast({ title: "Unsupported format", description: "DOCX files are not supported yet. Please convert to PDF.", variant: "destructive" });
-      } else {
-        toast({ title: "Invalid file", description: "Please upload a PDF resume.", variant: "destructive" });
-      }
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      toast({ title: "File too large", description: `Maximum file size is 10MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.`, variant: "destructive" });
-      return;
-    }
-    if (file.size === 0) {
-      toast({ title: "Empty file", description: "This file appears to be empty. Please upload a valid PDF.", variant: "destructive" });
-      return;
-    }
-
-    setProcessing(true);
-    try {
-      const text = await extractTextFromPdf(file);
-      if (!text.trim()) throw new Error("Could not extract text from this PDF. It may be image-based or corrupted.");
-      const contentHash = await hashContent(text);
-
-      if (user) {
-        sessionStorage.setItem("pendingResume", JSON.stringify({
-          resumeText: text,
-          fileName: file.name,
-          contentHash,
-        }));
-        navigate("/dashboard?autoAnalyze=true");
-        return;
-      }
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-resume`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ resumeText: text, fileName: file.name, contentHash, guestMode: true }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Analysis failed. Please try again.");
-
-      if (data.guestToken) {
-        navigate(`/analysis/guest/${data.guestToken}`);
-      } else if (data.id) {
-        navigate(`/analysis/${data.id}`);
-      }
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message || "Could not process PDF. Please try again.", variant: "destructive" });
-    } finally {
-      setProcessing(false);
-    }
-  };
+  const retryInputRef = useRef<HTMLInputElement>(null);
+  const { processing, failure, upload: handleGuestUpload, retry, reset } = useGuestResumeUpload();
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -105,6 +33,25 @@ export default function Landing() {
     const file = e.dataTransfer.files[0];
     if (file) handleGuestUpload(file);
   };
+
+  if (failure && !processing) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PublicNavbar />
+        <main className="pt-32 pb-16 px-4">
+          <UploadFailurePanel failure={failure} onRetry={retry} onPickAnother={() => retryInputRef.current?.click()} />
+          <input
+            ref={retryInputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void handleGuestUpload(f); }}
+          />
+          <p className="text-center mt-6"><button type="button" onClick={reset} className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2">Back to home</button></p>
+        </main>
+      </div>
+    );
+  }
 
   if (processing) {
     return (

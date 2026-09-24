@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Zap, Package, Crown, GraduationCap, FileEdit, Mic, ArrowRight, Globe } from "lucide-react";
+import { CheckCircle2, Zap, Package, Crown, GraduationCap, FileEdit, ArrowRight, Globe } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,24 +51,6 @@ export function PricingSection() {
       badge: null,
     },
     {
-      id: "ai-interview",
-      icon: <Mic className="h-5 w-5 text-green-500" />,
-      iconBg: "bg-green-500/10",
-      name: "AI Interview",
-      price: pricing.AI_INTERVIEW.display,
-      studentPrice: null,
-      period: "per session",
-      description: "AI-powered mock interview",
-      features: [
-        "Role-specific questions",
-        "Real-time AI feedback",
-        "Performance scoring",
-        "Detailed improvement tips",
-      ],
-      highlight: false,
-      badge: null,
-    },
-    {
       id: "combo",
       icon: <Package className="h-5 w-5 text-blue-500" />,
       iconBg: "bg-blue-500/10",
@@ -93,7 +75,7 @@ export function PricingSection() {
       name: "Unlimited Plan",
       price: pricing.UNLIMITED_PLAN.display,
       studentPrice: null,
-      period: "/year",
+      period: "for 1 year",
       description: "Full access for serious job-seekers",
       features: [
         "3 resume builds/month",
@@ -123,7 +105,7 @@ export function PricingSection() {
         <div className="text-center mb-10">
           <Badge className="mb-3 bg-primary/10 text-primary border-primary/20 text-xs">Pricing</Badge>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Simple, Transparent Pricing</h2>
-          <p className="text-muted-foreground text-sm">Pay only for what you need. No subscriptions, no hidden fees.</p>
+          <p className="text-muted-foreground text-sm">Pay only for what you need. One-time payments — nothing auto-renews.</p>
           <button
             onClick={toggleCurrency}
             className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border rounded-full px-3 py-1"
@@ -133,7 +115,7 @@ export function PricingSection() {
           </button>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.id}

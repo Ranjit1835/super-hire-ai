@@ -19,6 +19,7 @@ import { ScoreCardDownload } from "@/components/analysis/ScoreCard";
 import { LeaderboardOptIn } from "@/components/analysis/LeaderboardOptIn";
 import { AnimatedGradientMesh } from "@/components/premium";
 import { PostAnalysisStudioToast } from "@/components/PostAnalysisStudioToast";
+import { useCurrency } from "@/hooks/useCurrency";
 
 function AnimatedScore({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
@@ -204,6 +205,8 @@ function SectionHeader({ icon: Icon, title, count, color }: { icon: any; title: 
 export default function Analysis() {
   const { id } = useParams();
   const { user } = useAuth();
+  // Same price source as PaymentDialog, so the button shows what the user will actually pay.
+  const { pricing } = useCurrency();
   const navigate = useNavigate();
   const [analysis, setAnalysis] = useState<any>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -521,7 +524,7 @@ export default function Analysis() {
                       <span className="text-sm font-medium">Upgrade to unlock full optimized resume</span>
                     </div>
                     <Button onClick={handleFixResume} disabled={checkingAccess} className="transition-transform hover:scale-[1.02]">
-                      <Zap className="h-4 w-4 mr-1" /> Unlock Resume Fix – ₹299
+                      <Zap className="h-4 w-4 mr-1" /> Unlock Resume Fix – {pricing.RESUME_FIX.display}
                     </Button>
                   </div>
                 </div>
@@ -641,7 +644,7 @@ export default function Analysis() {
                 disabled={checkingAccess}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow-lg shadow-violet-500/20 disabled:opacity-50"
               >
-                <Zap className="h-4 w-4" /> Fix My Resume – ₹299
+                <Zap className="h-4 w-4" /> Fix My Resume – {pricing.RESUME_FIX.display}
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.03 }}
