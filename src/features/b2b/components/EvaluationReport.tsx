@@ -65,8 +65,13 @@ export function AudioMetricsPanel({ m }: { m: AudioMetrics }) {
 }
 
 export function EvaluationReport({
-  result, metrics, passMark, moduleName, audience = "student",
-}: { result: EvaluationResult; metrics: AudioMetrics | null; passMark: number; moduleName?: string; audience?: "student" | "staff" }) {
+  result, metrics, passMark, moduleName, audience = "student", compact = false,
+}: {
+  result: EvaluationResult; metrics: AudioMetrics | null; passMark: number; moduleName?: string;
+  audience?: "student" | "staff";
+  /** Short gap report (public readiness test): headline, gap, focus, skill bars only. */
+  compact?: boolean;
+}) {
   const r = result;
   const staff = audience === "staff";
   return (
@@ -106,14 +111,14 @@ export function EvaluationReport({
         </div>
       </section>
 
-      <section>
+      {!compact && <section>
         <h3 className="font-semibold mb-2">Topics</h3>
         <div className="space-y-2">
           {Object.entries(r.per_topic).map(([t, item]) => <ScoreRow key={t} label={t} item={item} pass={passMark} />)}
         </div>
-      </section>
+      </section>}
 
-      {metrics && (
+      {metrics && !compact && (
         <section>
           <h3 className="font-semibold mb-2">{staff ? "How the student spoke" : "How you spoke"}</h3>
           <AudioMetricsPanel m={metrics} />

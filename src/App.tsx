@@ -37,6 +37,8 @@ const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
 const SuperAdminOrgs = lazy(() => import("./features/b2b/pages/SuperAdminOrgs"));
 const SuperAdminCosts = lazy(() => import("./features/b2b/pages/SuperAdminCosts"));
+const OrgLeads = lazy(() => import("./features/b2b/pages/OrgLeads"));
+const PublicTest = lazy(() => import("./features/b2b/pages/PublicTest"));
 const OrgLayout = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgLayout })));
 const OrgRedirect = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgRedirect })));
 const OrgOverview = lazy(() => import("./features/b2b/pages/OrgHome"));
@@ -105,9 +107,11 @@ function AppRoutes() {
         <Route path="modules" element={<OrgModules />} />
         <Route path="modules/:moduleId" element={<ModuleEditor />} />
         <Route path="invites" element={<OrgInvites />} />
+        <Route path="leads" element={<OrgLeads />} />
         <Route path="import" element={<OrgImport />} />
       </Route>
       <Route path="/invite/:token" element={<InviteAccept />} />
+      <Route path="/test/:slug" element={<PublicTest />} />
       <Route path="/learn" element={<ProtectedRoute><LearnHome /></ProtectedRoute>} />
       <Route path="/learn/interview/:moduleId" element={<ProtectedRoute><InterviewRoom /></ProtectedRoute>} />
       <Route path="/learn/report/:interviewId" element={<ProtectedRoute><StudentReport /></ProtectedRoute>} />

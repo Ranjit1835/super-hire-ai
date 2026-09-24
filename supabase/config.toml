@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.b2b-evaluate]
 verify_jwt = false
+
+[functions.b2b-public-test]
+verify_jwt = false

@@ -101,6 +101,7 @@ export interface InterviewModule {
   is_active: boolean;
   template_id: string | null;
   version: number;
+  public_test?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -146,3 +146,28 @@ export const evaluateApi = {
   get: (interviewId: string) =>
     callB2B<EvaluationResponse>("b2b-evaluate", { action: "get", interviewId }, { timeoutMs: 15_000 }),
 };
+
+// ── Public readiness test ────────────────────────────────────────────────────
+export interface PublicTestInfo {
+  org: { name: string; slug: string; type: string; logo_url: string | null; is_demo: boolean; cta_label: string | null; cta_url: string | null };
+  available: boolean;
+  modules: Array<{ id: string; name: string; type: string; description: string | null; minutes: number; questions: number }>;
+}
+
+/** Ensure there is a session for the visitor: a real account if signed in, otherwise anonymous. */
+export async function ensureVisitorSession(): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  if (data.session) return;
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) throw new ApiError(error.status ?? 0, "ANON_AUTH", "Couldn't start a test session. Please refresh and try again.");
+}
+
+export const publicTestApi = {
+  info: async (slug: string): Promise<PublicTestInfo | null> => {
+    const { data, error } = await supabase.rpc("public_test_info" as never, { _slug: slug } as never);
+    if (error) throw new ApiError(0, "NETWORK", "Couldn't load this test. Check your connection and try again.");
+    return (data as PublicTestInfo | null) ?? null;
+  },
+  start: (a: { slug: string; moduleId: string; lead: Record<string, string>; clientMeta: Record<string, unknown> }) =>
+    callB2B<{ interviewId: string }>("b2b-public-test", { action: "start", consent: true, ...a }, { timeoutMs: 45_000 }),
+};

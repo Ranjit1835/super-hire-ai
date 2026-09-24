@@ -22,17 +22,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Anonymous sessions exist only for the public readiness test (/test/:slug). Everywhere
+    // else the visitor is treated as signed out, so B2C pages and redirects behave as before.
+    const apply = (session: Session | null) => {
+      const real = session && !session.user.is_anonymous ? session : null;
+      setSession(real);
+      setUser(real?.user ?? null);
       setLoading(false);
-    });
+    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => apply(session));
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => apply(session));
 
     return () => subscription.unsubscribe();
   }, []);

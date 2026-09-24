@@ -132,7 +132,7 @@ export function useOrgInvites(orgId: string | undefined) {
   });
 }
 
-const MODULE_COLUMNS = "id, org_id, spec, name, type, is_active, template_id, version, created_at, updated_at";
+const MODULE_COLUMNS = "id, org_id, spec, name, type, is_active, template_id, version, public_test, created_at, updated_at";
 
 /** Staff view: the org's own modules (incl. archived) + the HiResume library. */
 export function useOrgModules(orgId: string | undefined) {

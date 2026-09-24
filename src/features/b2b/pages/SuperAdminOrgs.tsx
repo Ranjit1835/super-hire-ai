@@ -242,6 +242,7 @@ function EditPlanDialog({ org, plans, onClose }: { org: OrgWithCounts; plans: Pl
   const { toast } = useToast();
   const [planId, setPlanId] = useState(org.plan_id);
   const [endsOn, setEndsOn] = useState(toDateInput(org.plan_ends_at));
+  const [cap, setCap] = useState(String((org as { public_test_monthly_cap?: number }).public_test_monthly_cap ?? 100));
   const [saving, setSaving] = useState(false);
   const target = plans.find((p) => p.id === planId);
   const overCap = !!target?.max_students && org.student_count > target.max_students;
@@ -250,7 +251,7 @@ function EditPlanDialog({ org, plans, onClose }: { org: OrgWithCounts; plans: Pl
     setSaving(true);
     const { error } = await b2bDb
       .from("organizations")
-      .update({ plan_id: planId, plan_ends_at: endOfDayIso(endsOn) })
+      .update({ plan_id: planId, plan_ends_at: endOfDayIso(endsOn), public_test_monthly_cap: Math.max(0, Math.floor(Number(cap) || 0)) })
       .eq("id", org.id);
     setSaving(false);
     if (error) {
@@ -277,6 +278,11 @@ function EditPlanDialog({ org, plans, onClose }: { org: OrgWithCounts; plans: Pl
           <div>
             <Label htmlFor="edit-ends">Plan ends (leave empty for no end date)</Label>
             <Input id="edit-ends" type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="edit-cap">Free public readiness tests per month</Label>
+            <Input id="edit-cap" type="number" min={0} inputMode="numeric" value={cap} onChange={(e) => setCap(e.target.value)} />
+            <p className="text-xs text-muted-foreground mt-1">Each test costs model usage (see Costs). Set 0 to switch the public test off.</p>
           </div>
           {overCap && (
             <p className="text-xs text-amber-300">

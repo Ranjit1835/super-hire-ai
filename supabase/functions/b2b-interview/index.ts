@@ -18,10 +18,11 @@ import {
   type InterviewState, type TurnProposal, type AnswerSignal,
 } from "../_shared/interview-engine.ts";
 import {
-  ASK_QUESTION_TOOL, CLOSING_LINE, INTERVIEWER_PROMPT_VERSION, buildOpeningMessage, buildRegenerateMessage,
+  ASK_QUESTION_TOOL, CLOSING_LINE, INTERVIEWER_PROMPT_VERSION, buildRegenerateMessage,
   buildSystemPrompt, buildTurnMessage, cleanQuestion, fallbackQuestion, nextTurnTool, type TranscriptTurn,
 } from "../_shared/interview-prompts.ts";
 import { callTool, type LlmUsage } from "../_shared/b2b-llm.ts";
+import { askOpeningQuestion, firstNameOf } from "../_shared/interview-opening.ts";
 import { sanitizeAnswerMeta, sanitizeClientMeta } from "../_shared/interview-meta.ts";
 import { evaluateInBackground } from "../_shared/evaluate-interview.ts";
 
@@ -96,24 +97,9 @@ function payload(iv: InterviewRow, turns: TurnRow[], extra: Record<string, unkno
   };
 }
 
-async function firstName(admin: Admin, orgId: string, userId: string): Promise<string | null> {
-  const { data } = await admin.from("org_memberships").select("full_name").eq("org_id", orgId).eq("user_id", userId).maybeSingle();
-  const n = (data?.full_name ?? "").trim().split(/\s+/)[0];
-  return n && n.length <= 40 ? n : null;
-}
-
-async function askOpening(admin: Admin, iv: InterviewRow): Promise<{ question: string; usage: LlmUsage | null; fallback: boolean }> {
-  const spec = iv.module_spec;
-  const name = await firstName(admin, iv.org_id, iv.user_id);
-  const { args, usage } = await callTool({
-    system: buildSystemPrompt(spec),
-    messages: [{ role: "user", content: buildOpeningMessage(spec, name) }],
-    tool: ASK_QUESTION_TOOL,
-    timeoutMs: 20_000,
-  });
-  const q = cleanQuestion(String(args.question ?? ""));
-  if (!q) throw new Error("empty opening");
-  return { question: q, usage, fallback: false };
+async function askOpening(admin: Admin, iv: InterviewRow): Promise<{ question: string; usage: LlmUsage | null }> {
+  const { data } = await admin.from("org_memberships").select("full_name").eq("org_id", iv.org_id).eq("user_id", iv.user_id).maybeSingle();
+  return askOpeningQuestion(iv.module_spec, firstNameOf(data?.full_name));
 }
 
 function asProposal(args: Record<string, unknown>): TurnProposal | null {

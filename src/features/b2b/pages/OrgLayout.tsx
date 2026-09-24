@@ -54,6 +54,8 @@ export function OrgLayout() {
     { to: `${base}/dashboard`, label: "Readiness" },
     { to: `${base}/modules`, label: "Modules" },
     { to: `${base}/invites`, label: "Invites" },
+    ...(org.data.type === "coaching_institute" || (org.data as { public_test_enabled?: boolean }).public_test_enabled
+      ? [{ to: `${base}/leads`, label: "Leads" }] : []),
     ...(canManage ? [{ to: `${base}/import`, label: "Add students" }] : []),
   ];
 

@@ -3,7 +3,9 @@ import { useEvaluation } from "../hooks/useEvaluation";
 import { EvaluationReport } from "./EvaluationReport";
 
 /** Evaluates (or waits for) an interview's report, then renders it. */
-export function ReportPanel({ interviewId, passMark, moduleName }: { interviewId: string; passMark: number; moduleName?: string }) {
+export function ReportPanel({
+  interviewId, passMark, moduleName, compact,
+}: { interviewId: string; passMark: number; moduleName?: string; compact?: boolean }) {
   const s = useEvaluation(interviewId);
   if (s.phase === "working") {
     return (
@@ -16,5 +18,5 @@ export function ReportPanel({ interviewId, passMark, moduleName }: { interviewId
   }
   if (s.phase !== "ready") return <p className="text-sm text-muted-foreground rounded-xl border border-border/60 p-4">{s.message}</p>;
   if (!s.evaluation.result) return <p className="text-sm text-muted-foreground">Report unavailable.</p>;
-  return <EvaluationReport result={s.evaluation.result} metrics={s.evaluation.audio_metrics} passMark={passMark} moduleName={moduleName} />;
+  return <EvaluationReport result={s.evaluation.result} metrics={s.evaluation.audio_metrics} passMark={passMark} moduleName={moduleName} compact={compact} />;
 }
