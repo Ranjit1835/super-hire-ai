@@ -1,6 +1,6 @@
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
-import App from "./App.tsx";
+import App, { preloadPublicPage } from "./App.tsx";
 import "./index.css";
 
 // Force dark mode
@@ -15,5 +15,5 @@ const app = (
 
 // Public pages arrive pre-rendered (scripts/prerender.mjs): attach to that HTML instead of
 // replacing it. Everything else gets the empty app shell.
-if (root.firstElementChild) hydrateRoot(root, app);
+if (root.firstElementChild) preloadPublicPage(window.location.pathname).then(() => hydrateRoot(root, app));
 else createRoot(root).render(app);

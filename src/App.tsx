@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +12,20 @@ import { StudioNavBar } from "./components/StudioNavBar";
 import { StudioFAB } from "./components/StudioFAB";
 import { StudioOnboardingTooltip } from "./components/StudioOnboardingTooltip";
 
+/**
+ * lazy() for pre-rendered public pages. Once preload() has resolved the chunk, the page renders
+ * synchronously, so hydrating its pre-rendered HTML never suspends (a suspended boundary that gets
+ * an update — e.g. from AuthProvider — would throw React #421 and fall back to the spinner).
+ */
+function preloadable(factory: () => Promise<{ default: ComponentType }>) {
+  let loaded: ComponentType | null = null;
+  const preload = () => factory().then((m) => { loaded = m.default; return m; });
+  const Lazy = lazy(preload);
+  const Page = () => { const C = loaded ?? Lazy; return <C />; };
+  Page.preload = preload;
+  return Page;
+}
+
 const Auth = lazy(() => import("./pages/Auth"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const OtpVerification = lazy(() => import("./pages/OtpVerification"));
@@ -23,7 +37,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ResumeBuilder = lazy(() => import("./pages/ResumeBuilder"));
 const MockInterview = lazy(() => import("./pages/MockInterview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const CollegePlacement = lazy(() => import("./pages/CollegePlacement"));
+const CollegePlacement = preloadable(() => import("./pages/CollegePlacement"));
 const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const ReelsCampaign = lazy(() => import("./pages/ReelsCampaign"));
 const WeeklyStats = lazy(() => import("./pages/WeeklyStats"));
@@ -31,11 +45,11 @@ const VoiceInterview = lazy(() => import("./pages/VoiceInterview"));
 const StudioPage = lazy(() => import("./features/studio/pages/StudioPage"));
 const StudioPaywallPage = lazy(() => import("./features/studio/pages/StudioPaywallPage"));
 const StudioSharedPage = lazy(() => import("./features/studio/pages/StudioSharedPage"));
-const ATSChecker = lazy(() => import("./pages/ATSChecker"));
-const Pricing = lazy(() => import("./pages/Pricing"));
-const About = lazy(() => import("./pages/About"));
-const Blog = lazy(() => import("./pages/Blog"));
-const BlogPost = lazy(() => import("./pages/BlogPost"));
+const ATSChecker = preloadable(() => import("./pages/ATSChecker"));
+const Pricing = preloadable(() => import("./pages/Pricing"));
+const About = preloadable(() => import("./pages/About"));
+const Blog = preloadable(() => import("./pages/Blog"));
+const BlogPost = preloadable(() => import("./pages/BlogPost"));
 const SuperAdminOrgs = lazy(() => import("./features/b2b/pages/SuperAdminOrgs"));
 const SuperAdminCosts = lazy(() => import("./features/b2b/pages/SuperAdminCosts"));
 const OrgLeads = lazy(() => import("./features/b2b/pages/OrgLeads"));
@@ -121,6 +135,19 @@ function AppRoutes() {
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
+}
+
+/** Load the code for a pre-rendered page before hydrating it (see preloadable). */
+export function preloadPublicPage(pathname: string): Promise<unknown> {
+  const p = pathname.replace(/\/+$/, "") || "/";
+  const page =
+    p === "/ats-checker" ? ATSChecker :
+    p === "/pricing" ? Pricing :
+    p === "/about" ? About :
+    p === "/college-placement" ? CollegePlacement :
+    p === "/blog" ? Blog :
+    p.startsWith("/blog/") ? BlogPost : null;
+  return page ? page.preload().catch(() => undefined) : Promise.resolve();
 }
 
 /** Everything inside the router. Shared with src/entry-server.tsx, which renders it at build time. */
