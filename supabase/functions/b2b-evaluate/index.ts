@@ -57,14 +57,23 @@ serve(handle("B2B-EVALUATE", async (req, body) => {
     });
     if (error) throw error;
     const ids = (data as { interview_id: string }[]).map((r) => r.interview_id);
-    const counts: Record<string, number> = {};
-    // Small pool: evaluation calls are long; don't burst the provider.
-    for (let i = 0; i < ids.length; i += 3) {
-      const out = await Promise.all(ids.slice(i, i + 3).map((id) => evaluateInterview(admin, id)));
-      for (const o of out) counts[o.status] = (counts[o.status] ?? 0) + 1;
+    const run = async () => {
+      const counts: Record<string, number> = {};
+      // Small pool: evaluation calls are long; don't burst the provider.
+      for (let i = 0; i < ids.length; i += 3) {
+        const out = await Promise.all(ids.slice(i, i + 3).map((id) => evaluateInterview(admin, id)));
+        for (const o of out) counts[o.status] = (counts[o.status] ?? 0) + 1;
+      }
+      console.log(`[B2B-EVALUATE] sweep version=${EVALUATOR_PROMPT_VERSION} org=${orgId ?? "all"} ${JSON.stringify(counts)}`);
+      return counts;
+    };
+    // pg_cron/pg_net only waits a few seconds: score in the background and reply now.
+    const rt = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+    if (viaCron && rt?.waitUntil) {
+      rt.waitUntil(run().catch((e) => console.error("[B2B-EVALUATE] sweep:", (e as Error).message)));
+      return json({ version: EVALUATOR_PROMPT_VERSION, queued: ids.length });
     }
-    console.log(`[B2B-EVALUATE] sweep version=${EVALUATOR_PROMPT_VERSION} org=${orgId ?? "all"} ${JSON.stringify(counts)}`);
-    return json({ version: EVALUATOR_PROMPT_VERSION, processed: ids.length, counts });
+    return json({ version: EVALUATOR_PROMPT_VERSION, processed: ids.length, counts: await run() });
   }
 
   const user = await requireUser(req);

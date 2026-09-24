@@ -86,6 +86,29 @@ describe("claiming", () => {
     expect(await need(V1)).not.toContain(done);
     expect(await need("evaluator-test-v9")).toContain(done);
   });
+
+  it("the sweep retries failures after a pause, gives up after 5 attempts, and skips in-flight work", async () => {
+    const need = async () => (await asService(db, (tx) => tx.query<{ interview_id: string }>(
+      "SELECT interview_id FROM public.b2b_interviews_needing_evaluation($1, $2, 500)", [V1, orgA]))).rows.map((r) => r.interview_id);
+    const age = (evId: string, minutes: number) =>
+      db.query(`UPDATE b2b_evaluations SET updated_at = now() - make_interval(mins => $2) WHERE id = $1`, [evId, minutes]);
+
+    const fresh = await interview(u.s2, "completed", 1);
+    expect(await need()).toContain(fresh); // never evaluated
+
+    const c = await claim(fresh);
+    expect(await need()).not.toContain(fresh); // in flight
+    await age(c.evaluation_id as string, 4);
+    expect(await need()).toContain(fresh); // worker presumed dead
+
+    await save(c.evaluation_id as string, "failed", null); // provider outage
+    expect(await need()).not.toContain(fresh); // wait before retrying
+    await age(c.evaluation_id as string, 6);
+    expect(await need()).toContain(fresh);
+
+    await db.query("UPDATE b2b_evaluations SET attempts = 5 WHERE id = $1", [c.evaluation_id]);
+    expect(await need()).not.toContain(fresh); // gave up
+  });
 });
 
 describe("visibility", () => {
