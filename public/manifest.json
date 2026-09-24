@@ -1,6 +1,6 @@
 {
-  "name": "HireSume – ATS Resume Checker",
-  "short_name": "HireSume",
+  "name": "HiResume – ATS Resume Checker",
+  "short_name": "HiResume",
   "description": "Free AI-powered ATS resume checker and optimizer. Check your resume score in 10 seconds.",
   "start_url": "/",
   "display": "standalone",

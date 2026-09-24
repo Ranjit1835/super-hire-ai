@@ -21,7 +21,7 @@ const BENEFITS = [
 ];
 
 const TESTIMONIALS = [
-  { name: "Priya Sharma", role: "Placement Officer, IIT Indore", text: "HireResume helped 340 students improve their ATS scores by an average of 22 points before our placement drive. Our placement rate hit 91% — a record high." },
+  { name: "Priya Sharma", role: "Placement Officer, IIT Indore", text: "HiResume helped 340 students improve their ATS scores by an average of 22 points before our placement drive. Our placement rate hit 91% — a record high." },
   { name: "Rahul Mehta", role: "TPO, BITS Pilani Hyderabad", text: "The bulk analysis dashboard is a game changer. I could see every student's weak points and run targeted workshops in a day." },
 ];
 
@@ -60,7 +60,7 @@ export default function CollegePlacement() {
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="College Placement Program - Bulk Resume Analysis for Universities | HireResume"
+        title="College Placement Program - Bulk Resume Analysis for Universities | HiResume"
         description="Boost your college placement rates with AI-powered bulk resume analysis. ATS optimization, leaderboard gamification, and actionable feedback for every student."
         path="/college-placement"
         keywords="college placement program, bulk resume analysis, university placement cell, student resume optimization, campus placement tools"
@@ -85,7 +85,7 @@ export default function CollegePlacement() {
               <span className="gradient-text-new">Jobs They Deserve</span>
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto leading-relaxed">
-              Partner with HireResume to give your placement cell an AI-powered edge. Bulk resume analysis, actionable insights, and direct recruiter connect.
+              Partner with HiResume to give your placement cell an AI-powered edge. Bulk resume analysis, actionable insights, and direct recruiter connect.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <motion.button

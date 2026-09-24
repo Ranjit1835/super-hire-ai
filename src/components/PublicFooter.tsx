@@ -16,8 +16,8 @@ export function PublicFooter() {
         <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
           {/* Brand */}
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground tracking-tight">HireSume</span>
+            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground tracking-tight">HiResume</span>
           </div>
 
           {/* Links */}
@@ -36,7 +36,7 @@ export function PublicFooter() {
 
         <div className="mt-6 pt-4 border-t border-border/20 text-center">
           <p className="text-xs text-muted-foreground/60">
-            &copy; {new Date().getFullYear()} HireSume. All rights reserved.
+            &copy; {new Date().getFullYear()} HiResume. All rights reserved.
           </p>
         </div>
       </div>

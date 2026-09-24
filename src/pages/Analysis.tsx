@@ -95,7 +95,7 @@ function ShareSection({ score, analysisId }: { score: number; analysisId: string
   const [copied, setCopied] = useState(false);
   const url = `https://hiresume.in?utm_source=share&utm_medium=social&utm_campaign=score_share`;
   const challengeVerb = score >= 80 ? "Can you beat my score?" : score >= 60 ? "Think you can do better?" : "Let's see how yours compares 😅";
-  const text = `I just checked my resume on HireResume and scored ${score}/100 on ATS! ${challengeVerb}\nCheck yours free (takes 30 seconds): ${url}`;
+  const text = `I just checked my resume on HiResume and scored ${score}/100 on ATS! ${challengeVerb}\nCheck yours free (takes 30 seconds): ${url}`;
 
   const shareWhatsApp = () => {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
@@ -224,7 +224,7 @@ export default function Analysis() {
         if (data) {
           setAnalysis(data);
           if (data.analysis_result) setResult(data.analysis_result as unknown as AnalysisResult);
-          document.title = `${data.file_name} – Analysis – HireResume`;
+          document.title = `${data.file_name} – Analysis – HiResume`;
         }
         setLoading(false);
       });

@@ -34,7 +34,7 @@ export default function ResumeBuilder() {
 
   // Check early bird access on mount
   useEffect(() => {
-    document.title = "Resume Builder – HireResume";
+    document.title = "Resume Builder – HiResume";
     if (!user) return;
     const checkEarlyBird = async () => {
       const { data: profile } = await supabase
@@ -129,7 +129,7 @@ export default function ResumeBuilder() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${displayContent.basicInfo.fullName || "resume"}_HireResume.pdf`;
+      a.download = `${displayContent.basicInfo.fullName || "resume"}_HiResume.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -142,7 +142,7 @@ export default function ResumeBuilder() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Free AI Resume Builder - 50+ ATS-Friendly Templates | HireResume"
+        title="Free AI Resume Builder - 50+ ATS-Friendly Templates | HiResume"
         description="Build a professional ATS-optimized resume in minutes. 50+ templates, AI-powered content suggestions, and instant PDF download. Free to start."
         path="/build-resume"
         keywords="resume builder, ATS resume template, free resume maker, professional resume builder, AI resume builder, resume templates"
@@ -152,8 +152,8 @@ export default function ResumeBuilder() {
       <header className="border-b border-border glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground">HireSume</span>
+            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HiResume</span>
             <Badge variant="secondary" className="text-xs">Builder</Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>

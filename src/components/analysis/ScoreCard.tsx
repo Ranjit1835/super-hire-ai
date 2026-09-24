@@ -103,7 +103,7 @@ export function ScoreCardDownload({ score, fileName }: ScoreCardProps) {
     ctx.textAlign = "left";
     ctx.fillStyle = "#8b5cf6";
     ctx.font = "bold 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-    ctx.fillText("HireResume", 60, 60);
+    ctx.fillText("HiResume", 60, 60);
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     ctx.font = "18px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.fillText("AI Resume Checker", 60, 90);

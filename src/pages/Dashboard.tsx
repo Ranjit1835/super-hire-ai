@@ -88,7 +88,7 @@ export default function Dashboard() {
   }, [user]);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
-  useEffect(() => { document.title = "Dashboard – HireResume"; }, []);
+  useEffect(() => { document.title = "Dashboard – HiResume"; }, []);
 
   /* ── Auto-analyze from guest upload flow ───────── */
   useEffect(() => {
@@ -160,8 +160,8 @@ export default function Dashboard() {
         <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50">
           <div className="container flex items-center justify-between h-14">
             <div className="flex items-center gap-2">
-              <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
-              <span className="font-bold text-foreground tracking-tight">HireSume</span>
+              <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
+              <span className="font-bold text-foreground tracking-tight">HiResume</span>
             </div>
           </div>
         </header>
@@ -176,7 +176,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="Dashboard - HireResume"
+        title="Dashboard - HiResume"
         description="View your resume analyses, ATS scores, and optimization history."
         path="/dashboard"
         noindex={true}
@@ -190,11 +190,11 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <motion.img
               src="/logo.svg"
-              alt="HireSume"
+              alt="HiResume"
               whileHover={{ scale: 1.1, rotate: 5 }}
               className="h-7 w-7 rounded-lg"
             />
-            <span className="font-bold text-foreground tracking-tight">HireSume</span>
+            <span className="font-bold text-foreground tracking-tight">HiResume</span>
             {planType === "UNLIMITED" && (
               <Badge className="bg-violet-500/15 text-violet-300 border-violet-500/25 text-[10px] ml-2 hidden sm:inline-flex gap-1">
                 <Crown className="h-2.5 w-2.5" /> Unlimited

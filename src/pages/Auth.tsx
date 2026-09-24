@@ -185,8 +185,8 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden px-4">
       <SEOHead
-        title="Sign In to HireResume - ATS Resume Checker & AI Interview Platform"
-        description="Sign in or create your free HireResume account. Access AI resume analysis, resume builder, and mock interview tools."
+        title="Sign In to HiResume - ATS Resume Checker & AI Interview Platform"
+        description="Sign in or create your free HiResume account. Access AI resume analysis, resume builder, and mock interview tools."
         path="/auth"
         noindex={true}
       />
@@ -208,9 +208,9 @@ export default function Auth() {
               transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
               className="mx-auto mb-4"
             >
-              <img src="/logo.svg" alt="HireSume" className="h-14 w-14 rounded-2xl shadow-lg shadow-violet-500/30" />
+              <img src="/logo.svg" alt="HiResume" className="h-14 w-14 rounded-2xl shadow-lg shadow-violet-500/30" />
             </motion.div>
-            <h1 className="text-2xl font-bold tracking-tight gradient-text-new">HireSume</h1>
+            <h1 className="text-2xl font-bold tracking-tight gradient-text-new">HiResume</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {returnTo === "guest" ? "Sign in to unlock your full analysis" : returnTo === "analyze" ? "Sign in to see your analysis results" : "Resume Intelligence Platform"}
             </p>

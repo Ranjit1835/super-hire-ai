@@ -12,7 +12,7 @@ const STEPS = [
   { n: "01", title: "Upload your resume on hiresume.in", desc: "Takes 30 seconds. Paste the link or upload PDF." },
   { n: "02", title: "Screenshot your ATS score", desc: "The big number — your honest recruiter score." },
   { n: "03", title: "Record a 30-second Reel", desc: "\"I scored X/100 — here's what the AI told me to fix.\"" },
-  { n: "04", title: "Tag #HireResume + @hiresume.in", desc: "We feature the best ones on our socials. Top 3 win a free fix." },
+  { n: "04", title: "Tag #HiResume + @hiresume.in", desc: "We feature the best ones on our socials. Top 3 win a free fix." },
 ];
 
 const VIDEOS = [
@@ -33,8 +33,8 @@ export default function ReelsCampaign() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="HireResume Reels Campaign - Share Your ATS Score & Win"
-        description="Record a 30-second Reel with your ATS resume score, tag #HireResume, and win a free resume fix. Join the challenge!"
+        title="HiResume Reels Campaign - Share Your ATS Score & Win"
+        description="Record a 30-second Reel with your ATS resume score, tag #HiResume, and win a free resume fix. Join the challenge!"
         path="/reels-campaign"
         noindex={true}
       />
@@ -59,7 +59,7 @@ export default function ReelsCampaign() {
                 <Upload className="h-5 w-5" /> Check My Score Free
               </Button>
               <Button size="lg" variant="outline" onClick={() => window.open("https://www.instagram.com/explore/tags/hiresume", "_blank")} className="gap-2">
-                <Play className="h-5 w-5" /> Watch #HireResume Reels
+                <Play className="h-5 w-5" /> Watch #HiResume Reels
               </Button>
             </div>
             <div className="flex flex-wrap gap-8 justify-center mt-12 text-sm text-muted-foreground">
@@ -142,7 +142,7 @@ export default function ReelsCampaign() {
             <motion.div {...fadeUp(0.1)}>
               <div className="text-4xl mb-4">🏆</div>
               <h2 className="text-2xl font-bold mb-3">Weekly Prize: Free AI Resume Fix</h2>
-              <p className="text-muted-foreground mb-6">Every Friday, we pick the top 3 most creative/inspiring Reels using <strong>#HireResume</strong>. Winners get a free AI resume fix (worth ₹299).</p>
+              <p className="text-muted-foreground mb-6">Every Friday, we pick the top 3 most creative/inspiring Reels using <strong>#HiResume</strong>. Winners get a free AI resume fix (worth ₹299).</p>
               <div className="flex flex-wrap justify-center gap-3 mb-8">
                 {["Most Inspiring Score Improvement", "Most Creative Format", "Most Relatable Story"].map(c => (
                   <Badge key={c} variant="secondary" className="border-primary/30">{c}</Badge>

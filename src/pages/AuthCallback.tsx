@@ -49,7 +49,7 @@ export default function AuthCallback() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
-        <img src="/logo.svg" alt="HireSume" className="h-12 w-12 rounded-xl opacity-50" />
+        <img src="/logo.svg" alt="HiResume" className="h-12 w-12 rounded-xl opacity-50" />
         <h2 className="text-lg font-semibold">Sign-in Failed</h2>
         <p className="text-sm text-muted-foreground text-center max-w-xs">{error}</p>
         <button
@@ -64,7 +64,7 @@ export default function AuthCallback() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-      <img src="/logo.svg" alt="HireSume" className="h-12 w-12 rounded-xl animate-pulse" />
+      <img src="/logo.svg" alt="HiResume" className="h-12 w-12 rounded-xl animate-pulse" />
       <p className="text-sm text-muted-foreground">Completing sign-in…</p>
     </div>
   );

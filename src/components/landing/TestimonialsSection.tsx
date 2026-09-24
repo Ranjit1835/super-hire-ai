@@ -12,7 +12,7 @@ const testimonials = [
     color: "bg-purple-500",
     before: 38,
     after: 81,
-    text: "My resume had a 38 ATS score and I kept getting ghosted. After HireResume fixed it, my score jumped to 81. Got 3 interview calls in the same week I started applying.",
+    text: "My resume had a 38 ATS score and I kept getting ghosted. After HiResume fixed it, my score jumped to 81. Got 3 interview calls in the same week I started applying.",
     tag: "Software Engineering",
   },
   {
@@ -34,7 +34,7 @@ const testimonials = [
     color: "bg-teal-500",
     before: 29,
     after: 74,
-    text: "As a fresher I had no idea what ATS even was. HireResume told me exactly what was wrong and fixed it for ₹149 (student price). Got my first job within 6 weeks. Totally worth it.",
+    text: "As a fresher I had no idea what ATS even was. HiResume told me exactly what was wrong and fixed it for ₹149 (student price). Got my first job within 6 weeks. Totally worth it.",
     tag: "Fresher / Data",
   },
   {
@@ -56,7 +56,7 @@ const testimonials = [
     color: "bg-rose-500",
     before: 61,
     after: 92,
-    text: "Even with a good resume I was at 61. Didn't know keywords mattered this much. After HireResume, I hit 92 and got shortlisted at 4 companies I had been applying to for months.",
+    text: "Even with a good resume I was at 61. Didn't know keywords mattered this much. After HiResume, I hit 92 and got shortlisted at 4 companies I had been applying to for months.",
     tag: "Product Management",
   },
   {
@@ -90,7 +90,7 @@ export function TestimonialsSection() {
           <Badge className="mb-3 bg-primary/10 text-primary border-primary/20 text-xs">Real Users, Real Results</Badge>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Job Seekers Who Got More Callbacks</h2>
           <p className="text-muted-foreground text-sm max-w-xl mx-auto">
-            Over 1,200 resumes analyzed. Here's what real users say after using HireResume.
+            Over 1,200 resumes analyzed. Here's what real users say after using HiResume.
           </p>
         </div>
 

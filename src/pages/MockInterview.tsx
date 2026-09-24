@@ -52,7 +52,7 @@ export default function MockInterview() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const { isVoiceMode, toggleVoiceMode, isSpeaking, isListening, transcript, speak, startListening, isSupported } = useSpeech();
 
-  useEffect(() => { document.title = "AI Mock Interview – HireResume"; }, []);
+  useEffect(() => { document.title = "AI Mock Interview – HiResume"; }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -193,7 +193,7 @@ export default function MockInterview() {
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="AI Mock Interview Practice - Get Interview Ready | HireResume"
+        title="AI Mock Interview Practice - Get Interview Ready | HiResume"
         description="Practice job interviews with AI. Get role-specific questions, real-time feedback, and performance scores. Prepare for technical and behavioral interviews online."
         path="/mock-interview"
         keywords="AI mock interview, practice interview online, interview preparation, behavioral interview practice, technical interview simulator"
@@ -204,8 +204,8 @@ export default function MockInterview() {
       <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground">HireSume</span>
+            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HiResume</span>
             <Badge className="text-xs bg-violet-500/10 text-violet-300 border-violet-500/20">Interview</Badge>
           </div>
           <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">

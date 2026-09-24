@@ -59,7 +59,7 @@ export function ResumeTemplatePreview({ content, templateId, onTemplateChange, i
             <div className="absolute inset-0 backdrop-blur-[6px] bg-white/30" style={{ top: "30%" }} />
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white/90 to-transparent h-2/3" />
             <p className="absolute bottom-1/3 text-sm font-semibold text-muted-foreground/80 rotate-[-15deg] select-none">
-              HireResume – Locked Preview
+              HiResume – Locked Preview
             </p>
           </div>
         )}

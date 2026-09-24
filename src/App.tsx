@@ -35,6 +35,7 @@ const ATSChecker = lazy(() => import("./pages/ATSChecker"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
 const SuperAdminOrgs = lazy(() => import("./features/b2b/pages/SuperAdminOrgs"));
 const SuperAdminCosts = lazy(() => import("./features/b2b/pages/SuperAdminCosts"));
 const OrgLeads = lazy(() => import("./features/b2b/pages/OrgLeads"));
@@ -88,6 +89,7 @@ function AppRoutes() {
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/about" element={<About />} />
       <Route path="/blog" element={<Blog />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
       <Route path="/college-placement" element={<CollegePlacement />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
       <Route path="/reels-campaign" element={<ReelsCampaign />} />
@@ -121,25 +123,40 @@ function AppRoutes() {
   );
 }
 
+/** Everything inside the router. Shared with src/entry-server.tsx, which renders it at build time. */
+export function AppContent() {
+  return (
+    <AuthProvider>
+      <ErrorBoundary>
+        <StudioNavBar />
+        <Suspense fallback={<PageLoader />}>
+          <AppRoutes />
+        </Suspense>
+        <StudioFAB />
+        <StudioOnboardingTooltip />
+      </ErrorBoundary>
+    </AuthProvider>
+  );
+}
+
+export function AppProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        {children}
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <ErrorBoundary>
-            <StudioNavBar />
-            <Suspense fallback={<PageLoader />}>
-              <AppRoutes />
-            </Suspense>
-            <StudioFAB />
-            <StudioOnboardingTooltip />
-          </ErrorBoundary>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <AppProviders>
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  </AppProviders>
 );
 
 export default App;

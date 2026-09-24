@@ -72,7 +72,7 @@ export function ResumeBuilderPayment({ resumeBuilderId, isPaid, onPaymentSuccess
         key: data.keyId,
         amount: data.amount,
         currency: data.currency,
-        name: "HireResume",
+        name: "HiResume",
         description: "Resume Builder – Download Unlock",
         order_id: data.orderId,
         prefill: { email: userEmail || "" },

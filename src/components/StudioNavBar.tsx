@@ -39,8 +39,8 @@ export function StudioNavBar() {
             onClick={() => navigate(user ? "/dashboard" : "/")}
             className="flex items-center gap-2 group"
           >
-            <img src="/logo.svg" alt="HireSume" className="w-6 h-6 rounded-md shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/30 transition-shadow" />
-            <span className="font-bold text-sm text-foreground tracking-tight">HireSume</span>
+            <img src="/logo.svg" alt="HiResume" className="w-6 h-6 rounded-md shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/30 transition-shadow" />
+            <span className="font-bold text-sm text-foreground tracking-tight">HiResume</span>
           </button>
 
           {/* Desktop nav links */}

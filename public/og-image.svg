@@ -38,7 +38,7 @@
   <rect x="114" y="82" width="5" height="20" rx="2" fill="white"/>
 
   <!-- Brand name -->
-  <text x="148" y="106" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="white">HireSume</text>
+  <text x="148" y="106" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="white">HiResume</text>
 
   <!-- Main headline -->
   <text x="80" y="200" font-family="Arial, sans-serif" font-size="58" font-weight="900" fill="white">Is Your Resume</text>
@@ -53,16 +53,16 @@
 
   <!-- Stats cards -->
   <rect x="80" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#8b5cf630" stroke-width="1"/>
-  <text x="180" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">75%</text>
-  <text x="180" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">Resumes rejected by ATS</text>
+  <text x="180" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">Free</text>
+  <text x="180" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">ATS check, no signup</text>
 
   <rect x="300" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#3b82f630" stroke-width="1"/>
   <text x="400" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">10s</text>
   <text x="400" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">To get your ATS score</text>
 
   <rect x="520" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#06b6d430" stroke-width="1"/>
-  <text x="620" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">+44</text>
-  <text x="620" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">Avg score improvement</text>
+  <text x="620" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">Voice</text>
+  <text x="620" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">AI mock interviews</text>
 
   <!-- Right side score mockup -->
   <rect x="790" y="120" width="330" height="390" rx="20" fill="url(#card)" stroke="#8b5cf625" stroke-width="1.5"/>

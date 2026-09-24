@@ -14,8 +14,8 @@ const NotFound = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
       <SEOHead
-        title="Page Not Found - HireResume"
-        description="The page you're looking for doesn't exist. Head back to HireResume to check your ATS resume score for free."
+        title="Page Not Found - HiResume"
+        description="The page you're looking for doesn't exist. Head back to HiResume to check your ATS resume score for free."
         path={location.pathname}
         noindex={true}
       />

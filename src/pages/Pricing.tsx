@@ -89,10 +89,10 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="Pricing - ATS Resume Checker & AI Interview Plans | HireResume"
-        description="Simple, transparent pricing for HireResume. Free ATS resume score check forever. Resume Fix from $4, Combo Plan from $19, Unlimited from $39/year. No hidden fees."
+        title="Pricing - ATS Resume Checker & AI Interview Plans | HiResume"
+        description="Simple, transparent pricing for HiResume. Free ATS resume score check forever. Resume Fix from $4, Combo Plan from $19, Unlimited from $39/year. No hidden fees."
         path="/pricing"
-        keywords="HireResume pricing, resume checker pricing, ATS checker cost, AI resume optimizer price, resume builder pricing"
+        keywords="HiResume pricing, resume checker pricing, ATS checker cost, AI resume optimizer price, resume builder pricing"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "Pricing", path: "/pricing" }]}
       />
       <AnimatedGradientMesh />

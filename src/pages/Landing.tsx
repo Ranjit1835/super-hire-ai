@@ -19,7 +19,8 @@ import { BottomCtaSection } from "@/components/landing/BottomCtaSection";
 import { StatsSection } from "@/components/landing/StatsSection";
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { VoiceInterviewSection } from "@/components/landing/VoiceInterviewSection";
-import { FAQSection } from "@/components/landing/FAQSection";
+import { FAQSection, faqJsonLd } from "@/components/landing/FAQSection";
+import { softwareApplicationJsonLd } from "@/seo/schema";
 import { motion } from "framer-motion";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -33,7 +34,7 @@ export default function Landing() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    document.title = "HireResume - Free ATS Resume Checker & AI Mock Interview Platform";
+    document.title = "HiResume - Free ATS Resume Checker & AI Mock Interview Platform";
   }, []);
 
   const handleGuestUpload = async (file: File) => {
@@ -117,11 +118,12 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="HireResume - Free ATS Resume Checker & AI Mock Interview Platform"
-        description="Check your ATS resume score free in 10 seconds. AI-powered resume analysis, keyword optimization, resume builder, and mock interviews. Trusted by job seekers worldwide."
+        title="HiResume - Free ATS Resume Checker & AI Mock Interview | India"
+        description="Check your resume's ATS score free in 10 seconds - no signup. Keyword gap analysis, AI resume fix, ATS-friendly resume builder and AI voice mock interviews for freshers and job seekers in India."
         path="/"
-        keywords="ATS resume checker, free resume analysis, AI resume optimizer, resume score checker, AI mock interview, resume builder, ATS score, job application tools"
+        keywords="ATS resume checker, free ATS score checker, resume score checker India, AI mock interview, ATS friendly resume builder, resume checker for freshers"
         breadcrumbs={[{ name: "Home", path: "/" }]}
+        jsonLd={[faqJsonLd, softwareApplicationJsonLd()]}
       />
       <PublicNavbar />
 

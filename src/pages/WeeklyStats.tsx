@@ -47,8 +47,8 @@ export default function WeeklyStats() {
             <ArrowLeft className="h-4 w-4" /> Dashboard
           </button>
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground">HireSume</span>
+            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HiResume</span>
             <Badge className="bg-violet-500/10 text-violet-300 border-violet-500/20 text-xs ml-1">Weekly Stats</Badge>
           </div>
         </div>

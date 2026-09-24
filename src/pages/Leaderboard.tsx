@@ -67,8 +67,8 @@ export default function Leaderboard() {
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="Resume Score Leaderboard - Top ATS Scores | HireResume"
-        description="See the top-scoring resumes on HireResume. Compare your ATS resume score with other job seekers and climb the leaderboard."
+        title="Resume Score Leaderboard - Top ATS Scores | HiResume"
+        description="See the top-scoring resumes on HiResume. Compare your ATS resume score with other job seekers and climb the leaderboard."
         path="/leaderboard"
         keywords="resume score leaderboard, ATS score ranking, best resume scores, resume competition"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "Leaderboard", path: "/leaderboard" }]}

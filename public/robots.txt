@@ -1,9 +1,8 @@
+# Public marketing pages and the blog are pre-rendered and listed in the sitemap.
+# Everything below is account-only or private, and is also served with noindex.
 User-agent: *
 Allow: /
-Allow: /college-placement
-Allow: /leaderboard
 
-# Protected/authenticated routes — no value for crawlers
 Disallow: /dashboard
 Disallow: /analysis/
 Disallow: /fix/
@@ -15,6 +14,14 @@ Disallow: /studio
 Disallow: /auth
 Disallow: /verify-otp
 Disallow: /reset-password
-Disallow: /auth/callback
+Disallow: /reels-campaign
+
+# B2B (institutions): admin, student and invite pages, and per-institute public tests
+Disallow: /admin/
+Disallow: /org
+Disallow: /learn
+Disallow: /invite/
+Disallow: /test/
+Disallow: /dev/
 
 Sitemap: https://hiresume.in/sitemap.xml

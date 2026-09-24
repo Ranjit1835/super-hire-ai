@@ -70,7 +70,7 @@ export default function VoiceInterview() {
   const MAX_RETRIES = 2;
   messagesRef.current = messages;
 
-  useEffect(() => { document.title = "Voice Interview – HireResume"; }, []);
+  useEffect(() => { document.title = "Voice Interview – HiResume"; }, []);
 
   useEffect(() => {
     const load = () => setVoicesLoaded(true);
@@ -307,8 +307,8 @@ export default function VoiceInterview() {
       <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground">HireSume</span>
+            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HiResume</span>
             <Badge className="text-xs bg-violet-500/10 text-violet-300 border-violet-500/20">Voice Interview</Badge>
           </div>
           <button onClick={() => navigate("/mock-interview")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">

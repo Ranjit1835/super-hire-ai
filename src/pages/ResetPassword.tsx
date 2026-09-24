@@ -31,7 +31,7 @@ export default function ResetPassword() {
   const [isRecovery, setIsRecovery] = useState(false);
 
   useEffect(() => {
-    document.title = "Reset Password – HireResume";
+    document.title = "Reset Password – HiResume";
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
@@ -135,7 +135,7 @@ export default function ResetPassword() {
               transition={{ type: "spring", stiffness: 200 }}
               className="mx-auto mb-4"
             >
-              <img src="/logo.svg" alt="HireSume" className="h-14 w-14 rounded-2xl shadow-lg shadow-violet-500/30" />
+              <img src="/logo.svg" alt="HiResume" className="h-14 w-14 rounded-2xl shadow-lg shadow-violet-500/30" />
             </motion.div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Reset Password</h1>
             <p className="text-sm text-muted-foreground mt-1">Enter your new password below</p>

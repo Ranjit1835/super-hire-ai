@@ -37,7 +37,7 @@ export default function ATSChecker() {
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="Free ATS Resume Checker - Check Your ATS Score Instantly | HireResume"
+        title="Free ATS Resume Checker - Check Your ATS Score Instantly | HiResume"
         description="Check your ATS resume score for free in 10 seconds. Our AI analyzes keywords, formatting, and impact metrics against real ATS systems like Workday, Greenhouse, and Lever."
         path="/ats-checker"
         keywords="ATS resume checker, ATS score checker, free resume checker, ATS resume scan, check ATS score, resume ATS compatibility, applicant tracking system checker"

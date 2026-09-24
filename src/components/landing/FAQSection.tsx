@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown } from "lucide-react";
 
-const faqs = [
+export const faqs = [
   {
-    q: "Is HireResume's ATS resume checker really free?",
+    q: "Is HiResume's ATS resume checker really free?",
     a: "Yes. The ATS score analysis — including keyword match, formatting check, and section detection — is completely free with no signup required. You get your score in under 10 seconds. Paid plans unlock the AI rewrite, recruiter scan simulation, and voice interview practice.",
   },
   {
     q: "What is an ATS score and why does it matter?",
-    a: "ATS stands for Applicant Tracking System. It's software that 98% of Fortune 500 companies use to automatically filter resumes before a human ever sees them. If your resume scores below 60, it gets rejected automatically — no matter how qualified you are. HireResume analyzes your resume against the same criteria these systems use.",
+    a: "ATS stands for Applicant Tracking System. It's software that 98% of Fortune 500 companies use to automatically filter resumes before a human ever sees them. If your resume scores below 60, it gets rejected automatically — no matter how qualified you are. HiResume analyzes your resume against the same criteria these systems use.",
   },
   {
     q: "How does the AI resume rewrite work?",
@@ -21,22 +21,29 @@ const faqs = [
     a: "The AI interviewer asks role-specific questions for 10+ job profiles (Software Engineer, Data Analyst, Product Manager, DevOps, etc.). You can respond by typing or using your voice. The AI listens, asks follow-up questions, and scores your answers on communication, confidence, and depth. You get a full scorecard with improvement tips at the end.",
   },
   {
-    q: "Is HireResume suitable for freshers with no work experience?",
-    a: "Absolutely. We offer affordable student pricing and our AI knows how to highlight academic projects, internships, and skills effectively. Many freshers who used HireResume got their first job offer within 45 days of optimizing their resume.",
+    q: "Is HiResume suitable for freshers with no work experience?",
+    a: "Absolutely. We offer affordable student pricing and our AI knows how to highlight academic projects, internships, and skills effectively. Many freshers who used HiResume got their first job offer within 45 days of optimizing their resume.",
   },
   {
-    q: "How is HireResume different from other resume checkers?",
-    a: "Most resume checkers give you a generic score with vague tips. HireResume gives you: (1) a job-description-specific keyword gap analysis, (2) a recruiter eye-tracking simulation showing what a recruiter sees in 6 seconds, (3) an actual AI rewrite — not just suggestions, and (4) voice-based interview practice. It's a complete job-search toolkit, not just a checker.",
+    q: "How is HiResume different from other resume checkers?",
+    a: "Most resume checkers give you a generic score with vague tips. HiResume gives you: (1) a job-description-specific keyword gap analysis, (2) a recruiter eye-tracking simulation showing what a recruiter sees in 6 seconds, (3) an actual AI rewrite — not just suggestions, and (4) voice-based interview practice. It's a complete job-search toolkit, not just a checker.",
   },
   {
     q: "What payment methods do you accept?",
     a: "We accept all major debit/credit cards (Visa, Mastercard), UPI, net banking, and digital wallets via our secure payment gateway. Pricing is available in both USD and INR, automatically detected based on your location. All transactions are secured with 256-bit encryption.",
   },
   {
-    q: "Does HireResume work for international job seekers?",
-    a: "Yes! HireResume works for job seekers worldwide — US, UK, Europe, India, and beyond. Our AI understands ATS systems used globally including Workday, Greenhouse, Lever, iCIMS, and Taleo. Whether you're applying to companies in San Francisco or Bangalore, we optimize your resume for the right ATS.",
+    q: "Does HiResume work for international job seekers?",
+    a: "Yes! HiResume works for job seekers worldwide — US, UK, Europe, India, and beyond. Our AI understands ATS systems used globally including Workday, Greenhouse, Lever, iCIMS, and Taleo. Whether you're applying to companies in San Francisco or Bangalore, we optimize your resume for the right ATS.",
   },
 ];
+
+/** schema.org FAQPage for the questions shown in <FAQSection /> — attach only on pages that render it. */
+export const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+};
 
 export function FAQSection() {
   const [open, setOpen] = useState<number | null>(0);
@@ -48,7 +55,7 @@ export function FAQSection() {
           <Badge className="mb-3 bg-primary/10 text-primary border-primary/20 text-xs">FAQ</Badge>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Frequently Asked Questions</h2>
           <p className="text-muted-foreground text-sm">
-            Everything you need to know about HireResume's ATS checker and AI interview tools.
+            Everything you need to know about HiResume's ATS checker and AI interview tools.
           </p>
         </div>
 
@@ -77,22 +84,17 @@ export function FAQSection() {
                 </motion.div>
               </button>
 
-              <AnimatePresence initial={false}>
-                {open === i && (
-                  <motion.div
-                    key="content"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.22, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <p className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed border-t border-border/40 pt-3">
-                      {faq.a}
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Answers stay in the DOM (collapsed with CSS) so crawlers and FAQ rich results can read them. */}
+              <div
+                className={`grid transition-[grid-template-rows,opacity] duration-200 ease-in-out ${open === i ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+                aria-hidden={open !== i}
+              >
+                <div className="overflow-hidden">
+                  <p className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed border-t border-border/40 pt-3">
+                    {faq.a}
+                  </p>
+                </div>
+              </div>
             </motion.div>
           ))}
         </div>

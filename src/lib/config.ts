@@ -1,6 +1,6 @@
 // In development, use the current origin so OAuth redirects come back to localhost.
 // In production builds, use the live domain.
-export const APP_BASE_URL = import.meta.env.DEV
+export const APP_BASE_URL = import.meta.env.DEV && typeof window !== "undefined"
   ? window.location.origin
   : "https://hiresume.in";
 

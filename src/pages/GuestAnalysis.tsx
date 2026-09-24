@@ -87,7 +87,7 @@ export default function GuestAnalysis() {
         if (!res.ok) throw new Error(data.error || "Failed to fetch");
         setResult(data.result);
         setFileName(data.fileName);
-        document.title = `${data.fileName} – Preview – HireResume`;
+        document.title = `${data.fileName} – Preview – HiResume`;
       } catch (err: any) {
         toast({ title: "Analysis not found", description: err.message, variant: "destructive" });
         navigate("/", { replace: true });
@@ -130,8 +130,8 @@ export default function GuestAnalysis() {
       <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HireSume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground">HireSume</span>
+            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
+            <span className="font-bold text-foreground">HiResume</span>
           </div>
           <div className="flex items-center gap-2">
             <motion.button

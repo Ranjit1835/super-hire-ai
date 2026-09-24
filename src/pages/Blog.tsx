@@ -1,4 +1,6 @@
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { ARTICLES } from "@/content/blog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,83 +11,17 @@ import { SEOHead } from "@/components/SEOHead";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
 
-const ARTICLES = [
-  {
-    slug: "what-is-ats-resume",
-    category: "ATS Basics",
-    title: "What Is an ATS Resume? Everything You Need to Know in 2026",
-    excerpt: "Applicant Tracking Systems reject 75% of resumes before a human sees them. Learn exactly what ATS software looks for, how it parses your resume, and what you can do to pass the filter.",
-    readTime: "8 min read",
-    date: "Coming Soon",
-  },
-  {
-    slug: "ats-friendly-resume-format",
-    category: "Resume Tips",
-    title: "The Perfect ATS-Friendly Resume Format (With Examples)",
-    excerpt: "Tables, columns, and graphics kill your ATS score. Here's the exact resume format that passes every major ATS system — Workday, Greenhouse, Lever, and more.",
-    readTime: "6 min read",
-    date: "Coming Soon",
-  },
-  {
-    slug: "resume-keywords-optimization",
-    category: "Keywords",
-    title: "How to Optimize Resume Keywords for Any Job Description",
-    excerpt: "A step-by-step guide to identifying the right keywords from a job posting and naturally weaving them into your resume — without keyword stuffing.",
-    readTime: "7 min read",
-    date: "Coming Soon",
-  },
-  {
-    slug: "ai-mock-interview-guide",
-    category: "Interviews",
-    title: "How to Use AI Mock Interviews to Prepare for Your Next Job",
-    excerpt: "AI interview tools can simulate real job interviews with role-specific questions. Here's how to get the most out of mock interview practice.",
-    readTime: "5 min read",
-    date: "Coming Soon",
-  },
-  {
-    slug: "resume-mistakes-getting-rejected",
-    category: "Common Mistakes",
-    title: "10 Resume Mistakes That Get You Rejected by ATS (and How to Fix Them)",
-    excerpt: "From missing keywords to bad formatting — these are the most common reasons resumes get auto-rejected, and exactly how to fix each one.",
-    readTime: "9 min read",
-    date: "Coming Soon",
-  },
-  {
-    slug: "fresher-resume-guide",
-    category: "For Students",
-    title: "Resume Writing Guide for Freshers: How to Stand Out With No Experience",
-    excerpt: "No work experience? No problem. Learn how to write a compelling resume using academic projects, internships, skills, and certifications.",
-    readTime: "7 min read",
-    date: "Coming Soon",
-  },
-  {
-    slug: "resume-action-verbs",
-    category: "Resume Tips",
-    title: "150+ Strong Resume Action Verbs That Impress Recruiters",
-    excerpt: "Replace weak phrases like 'responsible for' with powerful action verbs that demonstrate impact. Categorized by industry and function.",
-    readTime: "5 min read",
-    date: "Coming Soon",
-  },
-  {
-    slug: "quantify-resume-achievements",
-    category: "Resume Tips",
-    title: "How to Quantify Achievements on Your Resume (With 50+ Examples)",
-    excerpt: "Numbers make recruiters stop and read. Learn the formula for turning vague bullet points into quantified impact statements that get callbacks.",
-    readTime: "8 min read",
-    date: "Coming Soon",
-  },
-];
-
-const CATEGORIES = ["All", "ATS Basics", "Resume Tips", "Keywords", "Interviews", "Common Mistakes", "For Students"];
+const CATEGORIES = ["All", ...Array.from(new Set(ARTICLES.map((a) => a.category)))];
 
 export default function Blog() {
-  const navigate = useNavigate();
+  const [category, setCategory] = useState("All");
+  const shown = category === "All" ? ARTICLES : ARTICLES.filter((a) => a.category === category);
 
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="Blog - Resume Tips, ATS Guides & Interview Advice | HireResume"
-        description="Expert resume writing tips, ATS optimization guides, keyword strategies, and interview preparation advice. Learn how to beat ATS filters and land more interviews."
+        title="Resume Tips, ATS Guides & Interview Advice | HiResume Blog"
+        description="Practical guides on ATS resumes, resume formats for freshers, resume keywords, action verbs and AI mock interview practice for placements and jobs in India."
         path="/blog"
         keywords="resume tips, ATS resume guide, resume writing tips, interview preparation, resume keywords, ATS optimization, job search advice, career tips"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }]}
@@ -112,13 +48,14 @@ export default function Blog() {
         <div className="container max-w-4xl">
           <div className="flex flex-wrap justify-center gap-2">
             {CATEGORIES.map((cat) => (
-              <Badge
-                key={cat}
-                variant={cat === "All" ? "default" : "outline"}
-                className="cursor-pointer hover:bg-primary/10 transition-colors text-xs px-3 py-1"
-              >
-                {cat}
-              </Badge>
+              <button key={cat} type="button" onClick={() => setCategory(cat)} aria-pressed={category === cat}>
+                <Badge
+                  variant={cat === category ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/10 transition-colors text-xs px-3 py-1"
+                >
+                  {cat}
+                </Badge>
+              </button>
             ))}
           </div>
         </div>
@@ -128,7 +65,7 @@ export default function Blog() {
       <section className="pb-16 px-4">
         <div className="container max-w-5xl">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {ARTICLES.map((article, i) => (
+            {shown.map((article, i) => (
               <motion.div
                 key={article.slug}
                 initial={{ opacity: 0, y: 15 }}
@@ -136,28 +73,30 @@ export default function Blog() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
               >
+                <Link to={`/blog/${article.slug}`} className="block h-full">
                 <Card className="h-full flex flex-col border-border hover:border-primary/30 hover:-translate-y-0.5 transition-all cursor-pointer group">
                   <CardContent className="pt-5 flex flex-col flex-1">
                     <div className="flex items-center gap-2 mb-3">
                       <Badge variant="outline" className="text-[10px] px-2 py-0">{article.category}</Badge>
                       <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5" /> {article.readTime}
+                        <Clock className="h-2.5 w-2.5" /> {article.readMinutes} min read
                       </span>
                     </div>
                     <h2 className="font-bold text-sm mb-2 group-hover:text-primary transition-colors leading-snug">
                       {article.title}
                     </h2>
                     <p className="text-xs text-muted-foreground leading-relaxed flex-1 mb-3">
-                      {article.excerpt}
+                      {article.description}
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground/60">{article.date}</span>
+                      <time dateTime={article.updated} className="text-[10px] text-muted-foreground/60">{new Date(`${article.updated}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</time>
                       <span className="text-xs text-primary font-medium flex items-center gap-1 group-hover:gap-2 transition-all">
                         Read <ArrowRight className="h-3 w-3" />
                       </span>
                     </div>
                   </CardContent>
                 </Card>
+                </Link>
               </motion.div>
             ))}
           </div>
@@ -168,12 +107,12 @@ export default function Blog() {
       <section className="py-16 px-4 bg-primary/5 border-t border-border">
         <div className="container max-w-2xl text-center">
           <BookOpen className="h-8 w-8 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl sm:text-3xl font-bold mb-3">More Articles Coming Soon</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3">Put it into practice</h2>
           <p className="text-muted-foreground mb-6">
-            We're writing in-depth guides on ATS optimization, resume writing, and interview prep. In the meantime, check your resume score for free.
+            See how an ATS reads your resume and exactly what to fix — free, in about 10 seconds.
           </p>
-          <Button size="lg" onClick={() => navigate("/")} className="gap-2">
-            Check My ATS Score <ArrowRight className="h-4 w-4" />
+          <Button size="lg" asChild className="gap-2">
+            <Link to="/ats-checker">Check My ATS Score <ArrowRight className="h-4 w-4" /></Link>
           </Button>
         </div>
       </section>

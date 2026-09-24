@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -14,7 +14,8 @@
     "test:db": "vitest run supabase/tests",
     "load-test:b2b": "node scripts/b2b-load-test.ts",
     "calibrate:b2b": "node scripts/b2b-calibrate.ts",
-    "demo:b2b": "node scripts/b2b-demo.ts"
+    "demo:b2b": "node scripts/b2b-demo.ts",
+    "build:spa": "vite build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

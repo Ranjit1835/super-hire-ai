@@ -380,7 +380,7 @@ function StudioPaywallModal({
         key: orderData.keyId,
         amount: orderData.amount,
         currency: userCurrency,
-        name: "HireResume.in",
+        name: "HiResume.in",
         description: `Resume Studio ${plan.name}`,
         order_id: orderData.orderId,
         handler: async (response: any) => {

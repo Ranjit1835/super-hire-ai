@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ isSsrBuild }) => ({
   server: {
     host: "::",
     port: 8080,
@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: "es2022",
     sourcemap: false,
-    rollupOptions: {
+    // Vendor chunks are for the browser build only; the SSR build (prerender) externalises node_modules.
+    rollupOptions: isSsrBuild ? {} : {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],

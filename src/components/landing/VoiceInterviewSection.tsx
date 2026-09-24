@@ -47,7 +47,7 @@ export function VoiceInterviewSection() {
               <span className="gradient-text-new">Not Just in Your Head</span>
             </h2>
             <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-              Most people prepare by reading. But interviews happen by speaking. HireResume's AI interviewer listens to your voice, asks follow-up questions, and scores your communication — just like a real recruiter.
+              Most people prepare by reading. But interviews happen by speaking. HiResume's AI interviewer listens to your voice, asks follow-up questions, and scores your communication — just like a real recruiter.
             </p>
 
             <ul className="space-y-2.5 mb-8">

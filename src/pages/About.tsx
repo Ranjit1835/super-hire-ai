@@ -19,7 +19,7 @@ const STATS = [
 const VALUES = [
   { icon: Target, title: "Accuracy First", desc: "Our AI is trained on real ATS parsing rules — not generic checklists. Every suggestion is backed by how actual hiring software works." },
   { icon: Shield, title: "Privacy by Default", desc: "Your resume is processed and never stored permanently. We don't sell data, train on your content, or share it with third parties." },
-  { icon: Globe, title: "Built for Everyone", desc: "From freshers in Bangalore to senior engineers in San Francisco — HireResume works with ATS systems used worldwide." },
+  { icon: Globe, title: "Built for Everyone", desc: "From freshers in Bangalore to senior engineers in San Francisco — HiResume works with ATS systems used worldwide." },
   { icon: Brain, title: "AI That Helps, Not Replaces", desc: "We enhance your real experience with better phrasing and keywords. We never fabricate achievements or misrepresent your background." },
 ];
 
@@ -29,10 +29,10 @@ export default function About() {
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="About HireResume - AI-Powered Resume & Interview Platform"
-        description="HireResume helps job seekers worldwide pass ATS filters and ace interviews. Learn about our mission, our AI technology, and why thousands trust us with their careers."
+        title="About HiResume - AI-Powered Resume & Interview Platform"
+        description="HiResume helps job seekers worldwide pass ATS filters and ace interviews. Learn about our mission, our AI technology, and why thousands trust us with their careers."
         path="/about"
-        keywords="about HireResume, HireResume team, AI resume company, resume optimization platform, who built HireResume"
+        keywords="about HiResume, HiResume team, AI resume company, resume optimization platform, who built HiResume"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "About", path: "/about" }]}
       />
       <AnimatedGradientMesh />
@@ -47,7 +47,7 @@ export default function About() {
             Helping Job Seekers <span className="gradient-text-new">Beat the ATS</span> and Land Interviews
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            HireResume is an AI-powered platform that analyzes, optimizes, and builds resumes that pass Applicant Tracking Systems — plus mock interview practice to help you prepare for what comes next.
+            HiResume is an AI-powered platform that analyzes, optimizes, and builds resumes that pass Applicant Tracking Systems — plus mock interview practice to help you prepare for what comes next.
           </p>
         </div>
       </section>
@@ -80,7 +80,7 @@ export default function About() {
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold mb-4">Our Mission</h2>
             <p className="text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              75% of resumes are rejected by ATS before a human ever sees them. That means qualified candidates get filtered out by software — not by skill. We built HireResume to fix that. Our AI understands what ATS systems look for and helps you present your real experience in a way that gets past the filters and onto a recruiter's desk.
+              75% of resumes are rejected by ATS before a human ever sees them. That means qualified candidates get filtered out by software — not by skill. We built HiResume to fix that. Our AI understands what ATS systems look for and helps you present your real experience in a way that gets past the filters and onto a recruiter's desk.
             </p>
           </div>
         </div>
@@ -115,7 +115,7 @@ export default function About() {
       {/* What We Offer */}
       <section className="py-16 sm:py-20 px-4">
         <div className="container max-w-3xl">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">What HireResume Offers</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">What HiResume Offers</h2>
           <div className="space-y-4">
             {[
               { icon: BarChart3, title: "Free ATS Resume Checker", desc: "Upload your resume and get an instant ATS score with keyword analysis, formatting check, and improvement suggestions — completely free.", link: "/ats-checker" },

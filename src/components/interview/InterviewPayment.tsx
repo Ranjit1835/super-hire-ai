@@ -65,7 +65,7 @@ export function InterviewPayment({ accessInfo, userEmail, onPaymentSuccess }: Pr
         key: data.keyId,
         amount: data.amount,
         currency: data.currency,
-        name: "HireResume",
+        name: "HiResume",
         description: "AI Mock Interview Session",
         order_id: data.orderId,
         prefill: { email: userEmail },

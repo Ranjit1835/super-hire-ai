@@ -122,7 +122,7 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
         key: data.keyId,
         amount: data.amount,
         currency: data.currency,
-        name: "HireResume",
+        name: "HiResume",
         description: PLAN_LABELS[selectedPlan],
         order_id: data.orderId,
         prefill: { email: userEmail || "" },

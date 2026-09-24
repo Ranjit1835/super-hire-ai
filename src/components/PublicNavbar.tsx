@@ -27,8 +27,8 @@ export function PublicNavbar() {
         <div className="container flex items-center justify-between h-16 px-4">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HireSume" className="h-8 w-8 rounded-lg" />
-            <span className="font-bold text-lg text-foreground tracking-tight">HireSume</span>
+            <img src="/logo.svg" alt="HiResume" className="h-8 w-8 rounded-lg" />
+            <span className="font-bold text-lg text-foreground tracking-tight">HiResume</span>
           </a>
 
           {/* Desktop links */}
