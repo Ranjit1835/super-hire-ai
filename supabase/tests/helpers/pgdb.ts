@@ -49,9 +49,19 @@ export function b2bMigrationFiles(): string[] {
   return readdirSync(MIGRATIONS_DIR).filter((f) => /_b2b_.*\.sql$/.test(f)).sort();
 }
 
-export async function createTestDb(): Promise<PGlite> {
+/** Supabase stub only (roles, auth, user_roles) — for tests that apply their own migrations. */
+export async function createBaseDb(): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
+  return db;
+}
+
+export function readMigration(file: string): string {
+  return readFileSync(join(MIGRATIONS_DIR, file), "utf8");
+}
+
+export async function createTestDb(): Promise<PGlite> {
+  const db = await createBaseDb();
   for (const file of b2bMigrationFiles()) {
     try {
       await db.exec(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
