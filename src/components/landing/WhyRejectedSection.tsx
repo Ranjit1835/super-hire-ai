@@ -15,7 +15,7 @@ export function WhyRejectedSection() {
       <div className="container max-w-3xl">
         <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Why ATS Systems Reject Resumes</h2>
-          <p className="text-muted-foreground">75% of resumes are rejected before a human ever sees them</p>
+          <p className="text-muted-foreground">The most common reasons a resume gets filtered out before a recruiter reads it</p>
         </div>
 
         <div className="space-y-3">

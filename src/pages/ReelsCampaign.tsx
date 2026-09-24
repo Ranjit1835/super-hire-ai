@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { Play, TrendingUp, Upload } from "lucide-react";
+import { Play, Upload } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
@@ -15,11 +15,6 @@ const STEPS = [
   { n: "04", title: "Tag #HiResume + @hiresume.in", desc: "We feature the best ones on our socials. Top 3 win a free fix." },
 ];
 
-const VIDEOS = [
-  { handle: "@priya_codes", score: 73, before: 51, desc: "\"I had no idea my resume was ATS-invisible. Fixed it in a day.\"", views: "148K" },
-  { handle: "@rahul_mtech", score: 88, before: 62, desc: "\"Got 3 interview calls the week after fixing my resume with AI.\"", views: "92K" },
-  { handle: "@neha.placed", score: 95, before: 78, desc: "\"From 78 to 95 — landed Infosys SDE 2 offer in 3 weeks.\"", views: "204K" },
-];
 
 export default function ReelsCampaign() {
   const navigate = useNavigate();
@@ -87,47 +82,6 @@ export default function ReelsCampaign() {
                         <p className="font-semibold">{step.title}</p>
                         <p className="text-sm text-muted-foreground">{step.desc}</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Featured Reels */}
-        <section className="py-12 px-4 bg-card/30">
-          <div className="container max-w-4xl">
-            <motion.div {...fadeUp(0.1)} className="text-center mb-8">
-              <h2 className="text-2xl font-bold mb-2">🔥 Featured Stories</h2>
-              <p className="text-muted-foreground text-sm">Real people, real scores, real results.</p>
-            </motion.div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {VIDEOS.map((v, i) => (
-                <motion.div key={v.handle} {...fadeUp(0.05 * i)}>
-                  <Card className="glass hover:neon-glow transition-all duration-300 h-full">
-                    <CardContent className="pt-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                          {v.handle[1].toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{v.handle}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1"><Play className="h-3 w-3" />{v.views} views</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="text-center">
-                          <div className="text-xs text-muted-foreground">Before</div>
-                          <div className="text-xl font-bold text-red-400">{v.before}</div>
-                        </div>
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                        <div className="text-center">
-                          <div className="text-xs text-muted-foreground">After</div>
-                          <div className="text-xl font-bold text-green-400">{v.score}</div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground italic">{v.desc}</p>
                     </CardContent>
                   </Card>
                 </motion.div>

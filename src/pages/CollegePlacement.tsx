@@ -5,30 +5,24 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { GraduationCap, Users, Zap, TrendingUp, CheckCircle2, Building2, Trophy, Star } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { AnimatedGradientMesh, SparkleParticles, CountingNumber } from "@/components/premium";
+import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
 
 const BENEFITS = [
-  { icon: Users, title: "Bulk Resume Analysis", desc: "Analyse hundreds of student resumes at once. Get a class-wide ATS report." },
-  { icon: TrendingUp, title: "Placement Rate Boost", desc: "Students with optimised resumes get 2.4x more interview callbacks." },
-  { icon: Zap, title: "AI-Powered Feedback", desc: "Instant, actionable feedback on format, keywords, and ATS compatibility." },
-  { icon: Trophy, title: "Leaderboard & Gamification", desc: "Public opt-in leaderboard to inspire friendly competition among students." },
-  { icon: Star, title: "Branded Reports", desc: "White-label reports with your college logo for placement brochures." },
-  { icon: Building2, title: "Recruiter Connect", desc: "Partner recruiters can directly shortlist high-scoring candidates." },
-];
-
-const TESTIMONIALS = [
-  { name: "Priya Sharma", role: "Placement Officer, IIT Indore", text: "HiResume helped 340 students improve their ATS scores by an average of 22 points before our placement drive. Our placement rate hit 91% — a record high." },
-  { name: "Rahul Mehta", role: "TPO, BITS Pilani Hyderabad", text: "The bulk analysis dashboard is a game changer. I could see every student's weak points and run targeted workshops in a day." },
+  { icon: Users, title: "Bulk Student Onboarding", desc: "Upload a CSV of your batch. Students get invite links, give consent, and appear in your dashboard as they join." },
+  { icon: Zap, title: "Adaptive AI Voice Interviews", desc: "Students practise out loud. The interviewer asks follow-ups, gets harder or easier with each answer, and stays within the topics you choose." },
+  { icon: TrendingUp, title: "Readiness Dashboard", desc: "See every student's readiness by module at a glance, filter by batch or gap, and spot who needs help before the drive." },
+  { icon: Star, title: "Evidence-Based Reports", desc: "Each report quotes the student's own answers as evidence for every score, so faculty can trust and discuss it." },
+  { icon: Trophy, title: "Your Modules and Company-Style Practice", desc: "Use ready-made modules (SQL, Java, Python, DSA, HR) or build your own. Company-style fresher rounds are practice, not official tests." },
+  { icon: Building2, title: "Excel and PDF Exports", desc: "Download batch summaries and student reports with your institution's logo for placement meetings." },
 ];
 
 const PLANS = [
-  { name: "Starter", price: "Free", students: "Up to 50 students", features: ["Basic ATS analysis", "Class-wide report", "Email support"], highlighted: false },
-  { name: "Growth", price: "₹4,999/mo", students: "Up to 500 students", features: ["All Starter features", "AI resume fix credits", "Leaderboard", "Placement drive portal", "Phone support"], highlighted: true },
-  { name: "Enterprise", price: "Custom", students: "Unlimited", features: ["All Growth features", "White-label branding", "Dedicated account manager", "Recruiter connect", "API access"], highlighted: false },
+  { name: "Pilot", price: "Start here", students: "Up to 150 students", features: ["6 AI interviews per student", "Readiness dashboard", "Company-style practice packs", "Excel and PDF exports"], highlighted: true },
+  { name: "Basic", price: "Per student", students: "Any batch size", features: ["4 AI interviews per student", "Student reports", "Your own modules"], highlighted: false },
+  { name: "Pro", price: "Per student", students: "Any batch size", features: ["10 AI interviews per student", "Readiness dashboard", "Company-style practice packs", "Excel and PDF exports"], highlighted: false },
 ];
 
 const stagger = {
@@ -41,29 +35,31 @@ const fadeItem = {
   show: { opacity: 1, y: 0 },
 };
 
+const ENQUIRY_EMAIL = "support@hiresume.in";
+
 export default function CollegePlacement() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [form, setForm] = useState({ name: "", role: "", college: "", email: "", phone: "", students: "", message: "" });
-  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    await new Promise(r => setTimeout(r, 800));
+    const body = [
+      `Name: ${form.name}`, `Role: ${form.role}`, `Institution: ${form.college}`,
+      `Email: ${form.email}`, `Phone: ${form.phone || "-"}`, `Students: ${form.students || "-"}`,
+      "", form.message,
+    ].join("\n");
+    window.location.href = `mailto:${ENQUIRY_EMAIL}?subject=${encodeURIComponent(`Institution enquiry: ${form.college}`)}&body=${encodeURIComponent(body)}`;
     setSubmitted(true);
-    setSubmitting(false);
-    toast({ title: "Request received!", description: "We'll reach out within 24 hours." });
   };
 
   return (
     <div className="min-h-screen bg-background relative">
       <SEOHead
-        title="College Placement Program - Bulk Resume Analysis for Universities | HiResume"
-        description="Boost your college placement rates with AI-powered bulk resume analysis. ATS optimization, leaderboard gamification, and actionable feedback for every student."
+        title="AI Mock Interviews for Colleges & Placement Cells | HiResume"
+        description="AI voice mock interviews for colleges and training institutes: onboard a batch by CSV, run adaptive interviews on your own modules, and track every student's placement readiness in one dashboard."
         path="/college-placement"
-        keywords="college placement program, bulk resume analysis, university placement cell, student resume optimization, campus placement tools"
+        keywords="placement training software, AI mock interview for colleges, campus placement readiness, placement cell software, mock interview platform for students"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "College Placement", path: "/college-placement" }]}
       />
       <AnimatedGradientMesh />
@@ -85,7 +81,7 @@ export default function CollegePlacement() {
               <span className="gradient-text-new">Jobs They Deserve</span>
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto leading-relaxed">
-              Partner with HiResume to give your placement cell an AI-powered edge. Bulk resume analysis, actionable insights, and direct recruiter connect.
+              Give every student in your batch AI voice interview practice on the subjects you choose — and see who is placement-ready, and who needs help, before the drive.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <motion.button
@@ -105,20 +101,6 @@ export default function CollegePlacement() {
                 Try Free Analysis
               </motion.button>
             </div>
-            <div className="flex flex-wrap gap-8 justify-center mt-12">
-              {[
-                { value: 50, suffix: "+", label: "Colleges Onboarded" },
-                { value: 12000, suffix: "+", label: "Students Analysed" },
-                { value: 22, suffix: "", label: "Avg ATS Score Gain", prefix: "+" },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-2xl font-bold font-mono gradient-text-new">
-                    <CountingNumber target={stat.value} prefix={stat.prefix} suffix={stat.suffix} />
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
-                </div>
-              ))}
-            </div>
           </motion.div>
         </section>
 
@@ -132,7 +114,7 @@ export default function CollegePlacement() {
               className="text-center mb-12"
             >
               <h2 className="text-3xl font-bold mb-3 text-foreground">Everything Your Placement Cell Needs</h2>
-              <p className="text-muted-foreground">Built specifically for TPOs and placement officers at Indian colleges.</p>
+              <p className="text-muted-foreground">Built for placement officers, training institutes and faculty in India.</p>
             </motion.div>
             <motion.div
               variants={stagger}
@@ -159,32 +141,6 @@ export default function CollegePlacement() {
           </div>
         </section>
 
-        {/* Testimonials */}
-        <section className="py-12 px-4">
-          <div className="container max-w-4xl">
-            <div className="grid sm:grid-cols-2 gap-6">
-              {TESTIMONIALS.map((t, i) => (
-                <motion.div
-                  key={t.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <div className="glass rounded-xl border border-violet-500/10 h-full p-6">
-                    <div className="flex gap-1 mb-3">{[...Array(5)].map((_, j) => <Star key={j} className="h-4 w-4 text-yellow-400 fill-yellow-400" />)}</div>
-                    <p className="text-sm text-muted-foreground mb-4 italic leading-relaxed">"{t.text}"</p>
-                    <div>
-                      <p className="font-semibold text-sm text-foreground">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.role}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Pricing */}
         <section className="py-16 px-4">
           <div className="container max-w-5xl">
@@ -194,8 +150,8 @@ export default function CollegePlacement() {
               viewport={{ once: true }}
               className="text-center mb-12"
             >
-              <h2 className="text-3xl font-bold mb-3 text-foreground">Simple, Transparent Pricing</h2>
-              <p className="text-muted-foreground">Start free. Scale as your placement drive grows.</p>
+              <h2 className="text-3xl font-bold mb-3 text-foreground">Plans for Institutions</h2>
+              <p className="text-muted-foreground">Priced per student for the batch you enrol. Start with a pilot — tell us your batch size and we'll send a quote.</p>
             </motion.div>
             <div className="grid sm:grid-cols-3 gap-6">
               {PLANS.map((plan, i) => (
@@ -215,7 +171,7 @@ export default function CollegePlacement() {
                     }`}
                   >
                     {plan.highlighted && (
-                      <Badge className="absolute -top-0 left-1/2 -translate-x-1/2 translate-y-3 bg-gradient-to-r from-violet-600 to-cyan-600 text-white border-0 text-xs">Most Popular</Badge>
+                      <Badge className="absolute -top-0 left-1/2 -translate-x-1/2 translate-y-3 bg-gradient-to-r from-violet-600 to-cyan-600 text-white border-0 text-xs">Recommended start</Badge>
                     )}
                     <div className="p-6 pt-8">
                       <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
@@ -241,7 +197,7 @@ export default function CollegePlacement() {
                             : "border border-violet-500/20 text-foreground hover:bg-violet-500/5"
                         }`}
                       >
-                        Get Started
+                        Talk to us
                       </motion.button>
                     </div>
                   </motion.div>
@@ -261,7 +217,7 @@ export default function CollegePlacement() {
               className="text-center mb-8"
             >
               <h2 className="text-3xl font-bold mb-3 text-foreground">Partner With Us</h2>
-              <p className="text-muted-foreground">Fill this form and our team will contact you within 24 hours with a personalised demo.</p>
+              <p className="text-muted-foreground">Tell us about your institution. Submitting opens your email app with these details addressed to support@hiresume.in.</p>
             </motion.div>
             {submitted ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
@@ -272,8 +228,9 @@ export default function CollegePlacement() {
                 >
                   <CheckCircle2 className="h-16 w-16 text-emerald-400 mx-auto mb-4" />
                 </motion.div>
-                <h3 className="text-xl font-bold mb-2 text-foreground">Request Submitted!</h3>
-                <p className="text-muted-foreground">We'll reach out to {form.email} within 24 hours.</p>
+                <h3 className="text-xl font-bold mb-2 text-foreground">Almost done — send the email</h3>
+                <p className="text-muted-foreground">Your email app should have opened with your details. Press send there so we receive it.</p>
+                <p className="text-sm text-muted-foreground mt-3">Didn't open? Email <a className="text-primary hover:underline" href={`mailto:${ENQUIRY_EMAIL}`}>{ENQUIRY_EMAIL}</a> directly.</p>
               </motion.div>
             ) : (
               <div className="glass rounded-2xl border border-violet-500/15 overflow-hidden">
@@ -282,7 +239,7 @@ export default function CollegePlacement() {
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium mb-1 block text-foreground">Your Name *</label>
-                        <Input required placeholder="Dr. Priya Sharma" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
+                        <Input required placeholder="Your name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-1 block text-foreground">Role *</label>
@@ -291,7 +248,7 @@ export default function CollegePlacement() {
                     </div>
                     <div>
                       <label className="text-sm font-medium mb-1 block text-foreground">College Name *</label>
-                      <Input required placeholder="IIT Delhi / BITS Pilani / VIT..." value={form.college} onChange={e => setForm(f => ({ ...f, college: e.target.value }))} className="bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
+                      <Input required placeholder="Your college or institute" value={form.college} onChange={e => setForm(f => ({ ...f, college: e.target.value }))} className="bg-white/5 border-violet-500/15 focus:border-violet-500/40" />
                     </div>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
@@ -315,10 +272,9 @@ export default function CollegePlacement() {
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                       type="submit"
-                      disabled={submitting}
                       className="w-full py-3 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50"
                     >
-                      {submitting ? "Submitting..." : "Submit Partnership Request"}
+                      Send enquiry by email
                     </motion.button>
                   </form>
                 </div>

@@ -4,22 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { Zap, Target, Users, Shield, Globe, BarChart3, Brain, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { AnimatedGradientMesh, CountingNumber } from "@/components/premium";
+import { AnimatedGradientMesh } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
 
-const STATS = [
-  { value: 10000, suffix: "+", label: "Resumes Analyzed" },
-  { value: 75, suffix: "%", label: "Avg Score Improvement" },
-  { value: 12, suffix: "+", label: "ATS Systems Covered" },
-  { value: 4.8, suffix: "/5", label: "User Rating" },
-];
 
 const VALUES = [
-  { icon: Target, title: "Accuracy First", desc: "Our AI is trained on real ATS parsing rules — not generic checklists. Every suggestion is backed by how actual hiring software works." },
-  { icon: Shield, title: "Privacy by Default", desc: "Your resume is processed and never stored permanently. We don't sell data, train on your content, or share it with third parties." },
-  { icon: Globe, title: "Built for Everyone", desc: "From freshers in Bangalore to senior engineers in San Francisco — HiResume works with ATS systems used worldwide." },
+  { icon: Target, title: "Accuracy First", desc: "Our suggestions focus on what applicant tracking software needs to read your resume and what recruiters look for when they skim it." },
+  { icon: Shield, title: "Privacy by Default", desc: "Your resume and analyses are saved to your account so you can come back to them, and you can delete them at any time. We don't sell your data or use it to train our own AI models." },
+  { icon: Globe, title: "Built for Everyone", desc: "From freshers preparing for campus placements to experienced professionals — the advice applies to applications in India and abroad." },
   { icon: Brain, title: "AI That Helps, Not Replaces", desc: "We enhance your real experience with better phrasing and keywords. We never fabricate achievements or misrepresent your background." },
 ];
 
@@ -30,7 +24,7 @@ export default function About() {
     <div className="min-h-screen bg-background relative">
       <SEOHead
         title="About HiResume - AI-Powered Resume & Interview Platform"
-        description="HiResume helps job seekers worldwide pass ATS filters and ace interviews. Learn about our mission, our AI technology, and why thousands trust us with their careers."
+        description="HiResume helps students and job seekers get their resumes past ATS filters and practise interviews with an AI voice interviewer. Learn what we do and how we handle your data."
         path="/about"
         keywords="about HiResume, HiResume team, AI resume company, resume optimization platform, who built HiResume"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "About", path: "/about" }]}
@@ -52,35 +46,13 @@ export default function About() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-12 px-4 border-y border-border/30">
-        <div className="container max-w-3xl">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
-            {STATS.map((stat, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <div className="text-2xl sm:text-3xl font-black gradient-text-new">
-                  <CountingNumber target={stat.value} suffix={stat.suffix} />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Mission */}
       <section className="py-16 sm:py-20 px-4">
         <div className="container max-w-3xl">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold mb-4">Our Mission</h2>
             <p className="text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              75% of resumes are rejected by ATS before a human ever sees them. That means qualified candidates get filtered out by software — not by skill. We built HiResume to fix that. Our AI understands what ATS systems look for and helps you present your real experience in a way that gets past the filters and onto a recruiter's desk.
+              Many companies screen applications with software before a person reads them. A resume the software can't read, or one that misses the skills a recruiter searches for, can be passed over even when the candidate is qualified. We built HiResume to fix that. Our AI understands what ATS systems look for and helps you present your real experience in a way that gets past the filters and onto a recruiter's desk.
             </p>
           </div>
         </div>

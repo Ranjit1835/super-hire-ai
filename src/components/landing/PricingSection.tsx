@@ -66,7 +66,7 @@ export function PricingSection() {
         `Save ${pricing.RESUME_FIX.display} vs buying separately`,
       ],
       highlight: false,
-      badge: "POPULAR",
+      badge: "RECOMMENDED",
     },
     {
       id: "unlimited",

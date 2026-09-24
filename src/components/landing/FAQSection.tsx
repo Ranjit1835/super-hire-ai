@@ -10,7 +10,7 @@ export const faqs = [
   },
   {
     q: "What is an ATS score and why does it matter?",
-    a: "ATS stands for Applicant Tracking System. It's software that 98% of Fortune 500 companies use to automatically filter resumes before a human ever sees them. If your resume scores below 60, it gets rejected automatically — no matter how qualified you are. HiResume analyzes your resume against the same criteria these systems use.",
+    a: "ATS stands for Applicant Tracking System — software many companies use to collect applications and let recruiters search and filter them. If the system can't read your resume properly, or it lacks the skills the recruiter searches for, you may not be shortlisted even when you're qualified. HiResume's ATS score shows how readable your resume is to this kind of software and how well it covers the keywords a job needs, so you know what to fix.",
   },
   {
     q: "How does the AI resume rewrite work?",
@@ -22,11 +22,11 @@ export const faqs = [
   },
   {
     q: "Is HiResume suitable for freshers with no work experience?",
-    a: "Absolutely. We offer affordable student pricing and our AI knows how to highlight academic projects, internships, and skills effectively. Many freshers who used HiResume got their first job offer within 45 days of optimizing their resume.",
+    a: "Yes. HiResume looks at the sections that matter most for freshers — education, skills, projects and internships — and shows how to present them clearly, with specific suggestions for weak or vague points. Our guide on writing a fresher resume walks through it step by step.",
   },
   {
     q: "How is HiResume different from other resume checkers?",
-    a: "Most resume checkers give you a generic score with vague tips. HiResume gives you: (1) a job-description-specific keyword gap analysis, (2) a recruiter eye-tracking simulation showing what a recruiter sees in 6 seconds, (3) an actual AI rewrite — not just suggestions, and (4) voice-based interview practice. It's a complete job-search toolkit, not just a checker.",
+    a: "Along with the ATS score, HiResume gives you: (1) a keyword gap analysis against a specific job description, (2) a recruiter scan view of what stands out when someone skims your resume, (3) an AI rewrite of your resume rather than just a list of tips, and (4) voice-based mock interview practice. It covers the path from resume to interview in one place.",
   },
   {
     q: "What payment methods do you accept?",
@@ -34,7 +34,7 @@ export const faqs = [
   },
   {
     q: "Does HiResume work for international job seekers?",
-    a: "Yes! HiResume works for job seekers worldwide — US, UK, Europe, India, and beyond. Our AI understands ATS systems used globally including Workday, Greenhouse, Lever, iCIMS, and Taleo. Whether you're applying to companies in San Francisco or Bangalore, we optimize your resume for the right ATS.",
+    a: "Yes. The advice is based on how applicant tracking systems read resumes in general, so it applies whether you're applying in India or abroad. Prices are shown in rupees in India and in US dollars elsewhere.",
   },
 ];
 

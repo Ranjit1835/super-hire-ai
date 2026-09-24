@@ -13,7 +13,7 @@ export function SampleResultSection({ onCtaClick }: SampleResultSectionProps) {
     <section className="py-16 sm:py-20 px-4">
       <div className="container max-w-4xl">
         <h2 className="text-2xl sm:text-3xl font-bold text-center mb-4">See What You'll Get</h2>
-        <p className="text-muted-foreground text-center mb-10">Here's a sample analysis result</p>
+        <p className="text-muted-foreground text-center mb-10">An illustrative example — your own score depends on your resume</p>
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Before */}
@@ -65,7 +65,7 @@ export function SampleResultSection({ onCtaClick }: SampleResultSectionProps) {
 
         <div className="flex items-center justify-center gap-2 mt-6">
           <TrendingUp className="h-5 w-5 text-primary" />
-          <span className="font-semibold text-primary">+44 point improvement</span>
+          <span className="font-semibold text-primary">+44 points in this example</span>
         </div>
 
         <div className="text-center mt-8">

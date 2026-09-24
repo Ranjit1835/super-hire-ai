@@ -16,9 +16,9 @@ const FEATURES = [
   { icon: FileSearch, title: "Keyword Gap Analysis", desc: "Identifies missing job-specific keywords that ATS systems look for. Compare your resume against any job description." },
   { icon: Target, title: "ATS Formatting Check", desc: "Detects tables, columns, headers, and graphics that break ATS parsing. Get a clear pass/fail on every section." },
   { icon: BarChart3, title: "Impact Score", desc: "Measures how well your bullet points quantify achievements. Weak verbs and vague descriptions get flagged instantly." },
-  { icon: Shield, title: "Recruiter Scan Simulation", desc: "See what a recruiter notices in the first 6 seconds. Our AI simulates real recruiter eye-tracking patterns." },
+  { icon: Shield, title: "Recruiter Scan Simulation", desc: "A quick view of what stands out — and what gets missed — when a recruiter skims your resume." },
   { icon: Clock, title: "10-Second Results", desc: "Upload your PDF and get a complete ATS score breakdown in under 10 seconds. No waiting, no queues." },
-  { icon: Star, title: "100% Free Analysis", desc: "The full ATS score check is free — no signup, no credit card, no limits on how many resumes you check." },
+  { icon: Star, title: "100% Free Analysis", desc: "The full ATS score check is free — no signup and no credit card. You only pay if you want AI to rewrite your resume." },
 ];
 
 const ATS_SYSTEMS = [
@@ -51,7 +51,7 @@ export default function ATSChecker() {
     <div className="min-h-screen bg-background relative">
       <SEOHead
         title="Free ATS Resume Checker - Check Your ATS Score Instantly | HiResume"
-        description="Check your ATS resume score for free in 10 seconds. Our AI analyzes keywords, formatting, and impact metrics against real ATS systems like Workday, Greenhouse, and Lever."
+        description="Check your resume's ATS score free, with no signup. See what applicant tracking software reads, which keywords you're missing and how to fix formatting and weak bullet points."
         path="/ats-checker"
         keywords="ATS resume checker, ATS score checker, free resume checker, ATS resume scan, check ATS score, resume ATS compatibility, applicant tracking system checker"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "ATS Resume Checker", path: "/ats-checker" }]}
@@ -68,7 +68,7 @@ export default function ATSChecker() {
             Check Your <span className="gradient-text-new">ATS Resume Score</span> in 10 Seconds
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            75% of resumes are rejected by ATS before a human sees them. Upload your resume and find out if yours will pass — completely free.
+            Many companies screen applications with an Applicant Tracking System (ATS). Upload your resume to see what it reads, which keywords you're missing and what to fix — free, no signup.
           </p>
 
           {/* Upload CTA */}
@@ -109,7 +109,7 @@ export default function ATSChecker() {
       {/* ATS Systems We Check Against */}
       <section className="py-12 px-4 border-y border-border/30">
         <div className="container max-w-4xl text-center">
-          <p className="text-sm text-muted-foreground mb-4">We check compatibility with real ATS systems used by top employers</p>
+          <p className="text-sm text-muted-foreground mb-4">Applicant tracking systems your resume may pass through include</p>
           <div className="flex flex-wrap justify-center gap-3">
             {ATS_SYSTEMS.map((name) => (
               <Badge key={name} variant="outline" className="text-xs px-3 py-1">{name}</Badge>
@@ -184,11 +184,11 @@ export default function ATSChecker() {
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">ATS Resume Checker FAQ</h2>
           <div className="space-y-4">
             {[
-              { q: "What is an ATS and why does it matter?", a: "ATS (Applicant Tracking System) is software used by 98% of Fortune 500 companies to automatically filter resumes. If your resume doesn't match the job's keywords and formatting requirements, it gets rejected before a human ever sees it. Our checker tells you exactly what to fix." },
-              { q: "Is the ATS resume checker really free?", a: "Yes, 100% free. You get your full ATS score, keyword analysis, formatting check, and impact assessment — no signup, no credit card, no limits. You only pay if you want AI to automatically fix and rewrite your resume." },
+              { q: "What is an ATS and why does it matter?", a: "An ATS (Applicant Tracking System) is software companies use to collect applications and let recruiters search and filter them. If it can't read your resume properly, or your resume lacks the skills recruiters search for, you may not be shortlisted. Our checker shows you what to fix." },
+              { q: "Is the ATS resume checker really free?", a: "Yes. You get your full ATS score, keyword analysis, formatting check and impact assessment with no signup and no credit card. You only pay if you want AI to fix and rewrite your resume." },
               { q: "What resume format should I use for ATS?", a: "Use a single-column PDF with standard section headings (Experience, Education, Skills). Avoid tables, text boxes, headers/footers, and graphics. Our checker flags all formatting issues automatically." },
-              { q: "How accurate is the ATS score?", a: "Our AI is trained on the parsing rules of major ATS systems including Workday, Greenhouse, Lever, iCIMS, and Taleo. The score reflects real-world ATS compatibility — not a generic checklist." },
-              { q: "Can I check multiple resumes?", a: "Yes! There's no limit on free checks. Tailor your resume for each job application and check the ATS score each time." },
+              { q: "How accurate is the ATS score?", a: "The score is an AI assessment of how readable your resume is to applicant tracking software and how well it covers the keywords a role needs. Treat it as a guide to what to fix — no tool can predict exactly how a particular company's system or recruiter will rank you." },
+              { q: "Can I check multiple resumes?", a: "Yes. Tailor your resume for each job application and check the ATS score each time — checks are free." },
             ].map((faq, i) => (
               <Card key={i} className="border-border">
                 <CardContent className="pt-5">

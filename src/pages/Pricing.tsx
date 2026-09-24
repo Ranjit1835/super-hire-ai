@@ -64,7 +64,7 @@ export default function Pricing() {
       description: "Resume Fix + AI Interview",
       features: ["Everything in Resume Fix", "1 AI Interview session", "Performance scoring", "Detailed feedback report", `Save vs buying separately`],
       highlight: false,
-      badge: "POPULAR",
+      badge: "RECOMMENDED",
     },
     {
       id: "unlimited",

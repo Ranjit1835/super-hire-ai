@@ -14,8 +14,6 @@ import { PricingSection } from "@/components/landing/PricingSection";
 import { CreatorSection } from "@/components/landing/CreatorSection";
 import { WhyRejectedSection } from "@/components/landing/WhyRejectedSection";
 import { BottomCtaSection } from "@/components/landing/BottomCtaSection";
-import { StatsSection } from "@/components/landing/StatsSection";
-import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { VoiceInterviewSection } from "@/components/landing/VoiceInterviewSection";
 import { FAQSection, faqJsonLd } from "@/components/landing/FAQSection";
 import { softwareApplicationJsonLd } from "@/seo/schema";
@@ -82,7 +80,6 @@ export default function Landing() {
         fileInputRef={fileInputRef}
       />
 
-      <StatsSection />
 
       <HowItWorksSection />
 
@@ -92,7 +89,6 @@ export default function Landing() {
 
       <VoiceInterviewSection />
 
-      <TestimonialsSection />
 
       <PricingSection />
 
