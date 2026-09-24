@@ -2,7 +2,8 @@
 //
 //   dist/index.html            → "/" pre-rendered
 //   dist/<path>.html           → each other public route (served at /<path> via cleanUrls)
-//   dist/app.html              → empty app shell with noindex, served for every other route (vercel.json)
+//   dist/app.html              → empty app shell with noindex, served for every other route (vercel.json
+//                                rewrites to "/app": with cleanUrls a ".html" destination 404s)
 //   dist/sitemap.xml           → generated from the same route list
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
