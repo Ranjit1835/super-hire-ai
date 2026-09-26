@@ -121,7 +121,7 @@ export function ChatPanel({
             </div>
             <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed bg-[#1a1a2e] border border-white/5 text-slate-200">
               <p>
-                Hi{resumeJson.personal_info?.name ? ` ${resumeJson.personal_info.name.split(" ")[0]}` : ""}! 👋
+                Hi{resumeJson.personal_info?.name ? ` ${resumeJson.personal_info.name.split(" ")[0]}` : ""}!
               </p>
               <p className="mt-2">
                 I can see your resume with{" "}

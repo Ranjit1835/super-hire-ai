@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { stripEmoji } from "../../lib/noEmoji";
 import { Bot, User, AlertCircle } from "lucide-react";
 import type { StudioMessage, ResumeChange } from "../../types/studio.types";
 
@@ -14,7 +15,7 @@ export function MessageBubble({ message, isLatest }: MessageBubbleProps) {
   // Strip JSON blocks from assistant messages for display
   const displayContent = isUser
     ? message.content
-    : message.content.replace(/```json[\s\S]*?```/g, "").trim();
+    : stripEmoji(message.content.replace(/```json[\s\S]*?```/g, "")).trim(); // older replies may contain emojis
 
   const changes = message.changes_applied as ResumeChange[] | null;
 

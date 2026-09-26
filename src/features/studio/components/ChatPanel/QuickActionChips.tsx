@@ -25,7 +25,7 @@ export function QuickActionChips({ onSelect, disabled }: QuickActionChipsProps) 
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-200"
         >
-          <span>{action.icon}</span>
+          <action.icon className="h-3.5 w-3.5" aria-hidden />
           <span>{action.label}</span>
         </motion.button>
       ))}

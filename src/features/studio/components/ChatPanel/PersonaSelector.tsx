@@ -18,7 +18,7 @@ export function PersonaSelector({ selected, onChange }: PersonaSelectorProps) {
               : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5"
           }`}
         >
-          <span>{p.icon}</span>
+          <p.icon className="h-3.5 w-3.5" aria-hidden />
           <span>{p.name}</span>
         </button>
       ))}

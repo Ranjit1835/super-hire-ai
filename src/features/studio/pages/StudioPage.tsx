@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Lightbulb, MessageSquare, Loader2 } from "lucide-react";
+import { ArrowLeft, Lightbulb, MessageSquare, Loader2, FileText } from "lucide-react";
 import { ChatPanel } from "../components/ChatPanel/ChatPanel";
 import { PreviewPanel } from "../components/PreviewPanel/PreviewPanel";
 import { VersionSidebar } from "../components/VersionHistory/VersionSidebar";
@@ -52,7 +52,7 @@ function StudioPage() {
     if (messages.length > prevMessagesLenRef.current) {
       const last = messages[messages.length - 1];
       if (last?.role === "assistant" && mobileTab === "chat" && window.innerWidth < 768) {
-        toast({ title: "✨ Resume updated", description: "Tap Preview to see changes" });
+        toast({ title: "Resume updated", description: "Tap Preview to see changes" });
       }
     }
     prevMessagesLenRef.current = messages.length;
@@ -219,7 +219,7 @@ function StudioPage() {
                 mobileTab === tab ? "text-foreground" : "text-muted-foreground"
               }`}
             >
-              {tab === "chat" ? "💬 Chat" : "📄 Preview"}
+              {tab === "chat" ? <><MessageSquare className="h-4 w-4" aria-hidden /> Chat</> : <><FileText className="h-4 w-4" aria-hidden /> Preview</>}
               {mobileTab === tab && (
                 <motion.div
                   layoutId="mobileTabIndicator"

@@ -1,3 +1,4 @@
+import { Building2, Rocket, Landmark, Brain, RefreshCw, Target, BarChart3, Cpu, Zap, Wrench, ScanSearch, PenLine, ListPlus, type LucideIcon } from "lucide-react";
 // =============================================
 // Resume Studio — Type Definitions
 // =============================================
@@ -178,7 +179,7 @@ export interface Persona {
   id: PersonaId;
   name: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   instructions: string;
 }
 
@@ -187,35 +188,35 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     id: 'big-tech',
     name: 'Big Tech',
     description: 'Metrics-heavy, scale-focused, FAANG keywords',
-    icon: '🏢',
-    instructions: `Optimize for Big Tech roles (FAANG/MANGA). Use metrics-heavy language emphasizing scale (millions of users, petabytes, 99.99% uptime). Highlight system design, distributed systems, and cross-functional leadership. Use keywords: impact, scale, ownership, bar-raising, customer obsession. Prefer quantified results over responsibilities.`,
+    icon: Building2,
+    instructions: `Optimize for Big Tech roles (FAANG/MANGA). Emphasize scale and measurable impact using the candidate's own numbers; where a number is missing, use a [placeholder] for them to fill in. Highlight system design, distributed systems, and cross-functional leadership. Use keywords: impact, scale, ownership, bar-raising, customer obsession. Prefer quantified results over responsibilities.`,
   },
   'startup': {
     id: 'startup',
     name: 'Startup',
     description: 'Ownership language, scrappy, results-oriented',
-    icon: '🚀',
+    icon: Rocket,
     instructions: `Optimize for startup roles. Use ownership language: "built from scratch", "wore multiple hats", "zero to one". Emphasize speed, resourcefulness, and direct business impact. Highlight revenue generation, user growth, and shipping velocity. Avoid corporate jargon. Show builder mentality and comfort with ambiguity.`,
   },
   'conservative': {
     id: 'conservative',
     name: 'Enterprise',
     description: 'Polished, formal, hierarchy-aware',
-    icon: '🏛️',
+    icon: Landmark,
     instructions: `Optimize for enterprise/consulting roles. Use formal, polished language. Emphasize process improvement, stakeholder management, and governance. Highlight certifications, compliance, and structured methodologies (Agile, Six Sigma, ITIL). Show career progression and organizational impact. Avoid informal tone.`,
   },
   'ai-ml': {
     id: 'ai-ml',
     name: 'AI/ML',
     description: 'Research-flavored, depth signals, paper citations',
-    icon: '🧠',
+    icon: Brain,
     instructions: `Optimize for AI/ML engineering and research roles. Emphasize model architectures, training infrastructure, and benchmark improvements. Include publication-style language where appropriate. Highlight frameworks (PyTorch, TensorFlow, JAX), model serving, and MLOps. Quantify model performance gains (accuracy, latency, throughput). Show research-to-production pipeline experience.`,
   },
   'career-switcher': {
     id: 'career-switcher',
     name: 'Career Switcher',
     description: 'Transferable skills, narrative bridge',
-    icon: '🔄',
+    icon: RefreshCw,
     instructions: `Optimize for career transition. Bridge previous experience to target role using transferable skills. Reframe past accomplishments in terms relevant to the new field. Emphasize adaptability, learning velocity, and unique perspective. Highlight relevant side projects, certifications, and coursework. Create a narrative of intentional career evolution, not random change.`,
   },
 };
@@ -286,18 +287,18 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
 export interface QuickAction {
   label: string;
   prompt: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
 export const QUICK_ACTIONS: QuickAction[] = [
-  { label: 'Tailor for a specific job', prompt: 'Help me tailor my resume for a specific job posting. Ask me for the job description.', icon: '🎯' },
-  { label: 'Add metrics to bullets', prompt: 'Review all my experience bullets and add specific metrics, numbers, and quantifiable achievements where possible.', icon: '📊' },
-  { label: 'Rewrite for AI Engineer', prompt: 'Rewrite my resume targeting AI/ML Engineer roles, emphasizing relevant technical skills and projects.', icon: '🤖' },
-  { label: 'Make it more aggressive', prompt: 'Make my resume more aggressive and impactful. Use stronger action verbs, bolder claims, and more confident language.', icon: '⚡' },
-  { label: 'Fix weak bullets', prompt: 'Identify my weakest 3-5 bullets and rewrite them with stronger action verbs, metrics, and impact statements.', icon: '🔧' },
-  { label: 'Optimize for ATS', prompt: 'Optimize my resume for ATS systems. Ensure proper formatting, keywords, and section headers that automated parsers can read.', icon: '🤖' },
-  { label: 'Strengthen summary', prompt: 'Rewrite my professional summary to be more compelling, specific, and tailored to my experience level.', icon: '✍️' },
-  { label: 'Add missing sections', prompt: 'Analyze my resume and suggest any missing sections or content that would strengthen my application.', icon: '➕' },
+  { label: 'Tailor for a specific job', prompt: 'Help me tailor my resume for a specific job posting. Ask me for the job description.', icon: Target },
+  { label: 'Add metrics to bullets', prompt: 'Review my experience bullets and make their impact measurable. Use only numbers that are already in my resume; where a metric is missing, add a [placeholder] like [X%] for me to fill in.', icon: BarChart3 },
+  { label: 'Rewrite for AI Engineer', prompt: 'Rewrite my resume targeting AI/ML Engineer roles, emphasizing relevant technical skills and projects.', icon: Cpu },
+  { label: 'Make it more aggressive', prompt: 'Make my resume more aggressive and impactful. Use stronger action verbs, bolder claims, and more confident language.', icon: Zap },
+  { label: 'Fix weak bullets', prompt: 'Identify my weakest 3-5 bullets and rewrite them with stronger action verbs, metrics, and impact statements.', icon: Wrench },
+  { label: 'Optimize for ATS', prompt: 'Optimize my resume for ATS systems. Ensure proper formatting, keywords, and section headers that automated parsers can read.', icon: ScanSearch },
+  { label: 'Strengthen summary', prompt: 'Rewrite my professional summary to be more compelling, specific, and tailored to my experience level.', icon: PenLine },
+  { label: 'Add missing sections', prompt: 'Analyze my resume and suggest any missing sections or content that would strengthen my application.', icon: ListPlus },
 ];
 
 // ---------- Payment Types ----------

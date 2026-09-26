@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { stripEmoji } from "../../lib/noEmoji";
 import { Lightbulb, ArrowRight, AlertTriangle, Info } from "lucide-react";
 import type { StudioSuggestion } from "../../types/studio.types";
 
@@ -42,7 +43,7 @@ export function SuggestionsList({ suggestions, onApply }: SuggestionsListProps) 
             <div className="flex items-start gap-2">
               <Icon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${config.color}`} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-300 leading-relaxed">{s.suggestion}</p>
+                <p className="text-xs text-slate-300 leading-relaxed">{stripEmoji(s.suggestion)}</p>
                 {s.target_path && (
                   <p className="text-[10px] text-slate-500 mt-1 font-mono">{s.target_path}</p>
                 )}

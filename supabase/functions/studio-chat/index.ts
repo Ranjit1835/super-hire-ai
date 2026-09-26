@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { aiText, aiStream, MODEL_FAST, MODEL_SMART } from "../_shared/ai.ts";
 import { NO_INVENTED_METRICS_RULE } from "../_shared/resume-honesty.ts";
+import { NO_EMOJI_RULE, stripEmoji } from "../_shared/no-emoji.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -159,6 +160,7 @@ function buildSystemPrompt(personaInstructions: string, resumeJson: any): string
 
 Current persona guidelines: ${personaInstructions}
 ${NO_INVENTED_METRICS_RULE}
+${NO_EMOJI_RULE}
 
 User's resume (JSON):
 ${JSON.stringify(resumeJson, null, 2)}
@@ -204,12 +206,13 @@ async function handleClaudeJson(
   userMsgId: string | undefined,
   cors: Record<string, string>
 ) {
-  const { text: content, inputTokens, outputTokens } = await aiText({
+  const { text: rawContent, inputTokens, outputTokens } = await aiText({
     system: systemPrompt,
     messages,
     model,
     reasoningEffort,
   });
+  const content = stripEmoji(rawContent);
   const tokensUsed = inputTokens + outputTokens;
 
   // Parse changes if present
@@ -304,7 +307,9 @@ async function handleClaudeStream(
               try {
                 const event = JSON.parse(data);
 
-                const delta = event.choices?.[0]?.delta?.content;
+                const rawDelta = event.choices?.[0]?.delta?.content;
+                // Strip emojis before the user sees them or they're saved.
+                const delta = rawDelta ? stripEmoji(rawDelta) : "";
                 if (delta) {
                   fullContent += delta;
                   // Forward text chunk to client
