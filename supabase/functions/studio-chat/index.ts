@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiText, aiStream, MODEL_FAST, MODEL_SMART } from "../_shared/ai.ts";
+import { NO_INVENTED_METRICS_RULE } from "../_shared/resume-honesty.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +12,7 @@ const corsHeaders = {
 const FREE_MESSAGE_LIMIT = 3;
 
 const PERSONA_INSTRUCTIONS: Record<string, string> = {
-  "big-tech": `Optimize for Big Tech roles (FAANG/MANGA). Use metrics-heavy language emphasizing scale (millions of users, petabytes, 99.99% uptime). Highlight system design, distributed systems, and cross-functional leadership. Use keywords: impact, scale, ownership, bar-raising, customer obsession.`,
+  "big-tech": `Optimize for Big Tech roles (FAANG/MANGA). Emphasize scale and measurable impact using the candidate's own numbers; where a number is missing, use a [placeholder] for them to fill in. Highlight system design, distributed systems, and cross-functional leadership. Use keywords: impact, scale, ownership, bar-raising, customer obsession.`,
   "startup": `Optimize for startup roles. Use ownership language: "built from scratch", "wore multiple hats", "zero to one". Emphasize speed, resourcefulness, and direct business impact. Highlight revenue generation, user growth, and shipping velocity.`,
   "conservative": `Optimize for enterprise/consulting roles. Use formal, polished language. Emphasize process improvement, stakeholder management, and governance. Highlight certifications, compliance, and structured methodologies.`,
   "ai-ml": `Optimize for AI/ML engineering and research roles. Emphasize model architectures, training infrastructure, and benchmark improvements. Include publication-style language. Highlight frameworks (PyTorch, TensorFlow, JAX), model serving, and MLOps.`,
@@ -115,8 +117,8 @@ serve(async (req) => {
 
     // Determine model based on pass_type (UNLIMITED plan users get premium model)
     const model = isUnlimitedUser || session.pass_type === "weekly" || session.pass_type === "yearly"
-      ? "claude-sonnet-4-6"
-      : "claude-haiku-4-5-20251001";
+      ? MODEL_SMART
+      : MODEL_FAST;
 
     // Build system prompt
     const personaInstructions = PERSONA_INSTRUCTIONS[currentPersona] || PERSONA_INSTRUCTIONS["big-tech"];
@@ -155,6 +157,7 @@ function buildSystemPrompt(personaInstructions: string, resumeJson: any): string
 - LinkedIn optimization and personal branding
 
 Current persona guidelines: ${personaInstructions}
+${NO_INVENTED_METRICS_RULE}
 
 User's resume (JSON):
 ${JSON.stringify(resumeJson, null, 2)}
@@ -199,33 +202,12 @@ async function handleClaudeJson(
   userMsgId: string | undefined,
   cors: Record<string, string>
 ) {
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!ANTHROPIC_API_KEY) throw new Error("Anthropic API key not configured");
-
-  const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages,
-    }),
+  const { text: content, inputTokens, outputTokens } = await aiText({
+    system: systemPrompt,
+    messages,
+    model,
   });
-
-  if (!aiResponse.ok) {
-    const errText = await aiResponse.text();
-    console.error("[STUDIO CHAT] Anthropic error:", aiResponse.status, errText);
-    throw new Error(`AI service error: ${errText.slice(0, 150)}`);
-  }
-
-  const aiData = await aiResponse.json();
-  const content = aiData.content?.[0]?.text || "";
-  const tokensUsed = (aiData.usage?.input_tokens || 0) + (aiData.usage?.output_tokens || 0);
+  const tokensUsed = inputTokens + outputTokens;
 
   // Parse changes if present
   const { changes, explanation } = parseChangesFromResponse(content);
@@ -282,45 +264,11 @@ async function handleClaudeStream(
   userMsgId: string | undefined,
   cors: Record<string, string>
 ) {
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!ANTHROPIC_API_KEY) throw new Error("Anthropic API key not configured");
-
-  // Use prompt caching: system prompt + resume context is cached
-  const anthropicMessages = messages.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
-
-  const requestBody = {
+  const streamResponse = await aiStream({
+    system: systemPrompt,
+    messages: messages.map((m) => ({ role: m.role, content: m.content })),
     model,
-    max_tokens: 2048,
-    stream: true,
-    system: [
-      {
-        type: "text",
-        text: systemPrompt,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: anthropicMessages,
-  };
-
-  const streamResponse = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "prompt-caching-2024-07-31",
-    },
-    body: JSON.stringify(requestBody),
   });
-
-  if (!streamResponse.ok) {
-    const errText = await streamResponse.text();
-    console.error("[STUDIO CHAT] Anthropic stream error:", streamResponse.status, errText);
-    throw new Error(`Anthropic API ${streamResponse.status}: ${errText.slice(0, 200)}`);
-  }
 
   // Create a TransformStream to process and forward SSE
   const encoder = new TextEncoder();
@@ -351,25 +299,19 @@ async function handleClaudeStream(
               try {
                 const event = JSON.parse(data);
 
-                if (event.type === "content_block_delta" && event.delta?.text) {
-                  fullContent += event.delta.text;
+                const delta = event.choices?.[0]?.delta?.content;
+                if (delta) {
+                  fullContent += delta;
                   // Forward text chunk to client
                   controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ type: "text", content: event.delta.text })}\n\n`)
+                    encoder.encode(`data: ${JSON.stringify({ type: "text", content: delta })}\n\n`)
                   );
                 }
 
-                if (event.type === "message_delta" && event.usage) {
-                  outputTokens = event.usage.output_tokens || 0;
-                }
-
-                if (event.type === "message_start" && event.message?.usage) {
-                  inputTokens = event.message.usage.input_tokens || 0;
-                  // Check for cache hits
-                  const cacheRead = event.message.usage.cache_read_input_tokens || 0;
-                  if (cacheRead > 0) {
-                    console.log(`[STUDIO CHAT] Prompt cache HIT: ${cacheRead} tokens cached`);
-                  }
+                // Final usage chunk (stream_options.include_usage)
+                if (event.usage) {
+                  inputTokens = event.usage.prompt_tokens || inputTokens;
+                  outputTokens = event.usage.completion_tokens || outputTokens;
                 }
               } catch {
                 // Skip malformed events

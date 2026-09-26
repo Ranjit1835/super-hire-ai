@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiToolCall, isRateLimit } from "../_shared/ai.ts";
+import { NO_INVENTED_METRICS_RULE } from "../_shared/resume-honesty.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,9 +26,6 @@ serve(async (req) => {
     const { content } = await req.json();
     if (!content) throw new Error("Missing resume content");
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("AI service not configured");
-
     const systemPrompt = `You are a professional resume writer and ATS optimization expert. You will receive resume content as JSON and must return improved content in the EXACT same JSON structure.
 
 Rules:
@@ -35,9 +34,10 @@ Rules:
 - Rewrite experience responsibilities with STAR method, action verbs, and metrics
 - Keep all original information but enhance the language
 - Do NOT add fake information or make up metrics
-- Suggest quantification where possible (e.g., "managed team" → "Led a team of 5+ engineers")
+- Suggest quantification where possible with a placeholder, not a guess (e.g., "managed team" → "Led a team of [N] engineers")
 - Make content ATS-friendly with relevant industry keywords
-- Return ONLY valid JSON, no markdown or extra text`;
+- Return ONLY valid JSON, no markdown or extra text
+${NO_INVENTED_METRICS_RULE}`;
 
     const inputSchema = {
       type: "object",
@@ -91,45 +91,26 @@ Rules:
       required: ["basicInfo", "summary", "skills", "education", "projects", "experience", "certifications"],
     };
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
+    let enhanced: any;
+    try {
+      enhanced = await aiToolCall({
         system: systemPrompt,
         messages: [
           { role: "user", content: `Enhance this resume content and return the improved version as JSON with the exact same structure:\n\n${JSON.stringify(content)}` },
         ],
-        tools: [{
-          name: "return_enhanced_resume",
-          description: "Return the AI-enhanced resume content",
-          input_schema: inputSchema,
-        }],
-        tool_choice: { type: "tool", name: "return_enhanced_resume" },
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
+        toolName: "return_enhanced_resume",
+        toolDescription: "Return the AI-enhanced resume content",
+        parameters: inputSchema,
+      });
+    } catch (e) {
+      if (isRateLimit(e)) {
         return new Response(JSON.stringify({ error: "AI service is busy. Please try again in a moment." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+      console.error("enhance-resume AI call failed:", e);
       throw new Error("AI enhancement failed");
     }
-
-    const aiResult = await response.json();
-    const toolUse = aiResult.content?.find((c: any) => c.type === "tool_use");
-    if (!toolUse?.input) throw new Error("AI did not return enhanced content");
-
-    const enhanced = typeof toolUse.input === "string" ? JSON.parse(toolUse.input) : toolUse.input;
 
     return new Response(JSON.stringify({ enhanced }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

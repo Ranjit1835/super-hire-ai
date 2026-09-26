@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiText } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,14 +36,6 @@ serve(async (req) => {
     if (!resumeText || typeof resumeText !== "string" || resumeText.length < 50) {
       throw new Error("Resume text is too short or missing");
     }
-
-    // Try Anthropic first, fall back to Gemini
-    const ANTHROPIC_API_KEY = (Deno.env.get("ANTHROPIC_API_KEY") || "").trim();
-    const GEMINI_API_KEY = (Deno.env.get("GEMINI_API_KEY") || "").trim();
-    if (!ANTHROPIC_API_KEY && !GEMINI_API_KEY) throw new Error("No AI API key configured");
-
-    const useGemini = !ANTHROPIC_API_KEY;
-    console.log(`[STUDIO PARSE] Using ${useGemini ? "Gemini" : "Anthropic"} for parsing`);
 
     const resumePrompt = `Parse the following resume text into a structured JSON object. Extract ALL information accurately. Do not fabricate any details — if a field is not found, use an empty string or empty array.
 
@@ -119,60 +112,12 @@ RULES:
 RESUME TEXT:
 ${resumeText}`;
 
-    let rawContent = "";
-    let tokensUsedParse = 0;
-
-    if (useGemini) {
-      // Gemini API via OpenAI-compatible endpoint
-      const parseResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GEMINI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gemini-2.0-flash",
-          messages: [{ role: "user", content: resumePrompt }],
-          max_tokens: 4096,
-          temperature: 0.1,
-        }),
-      });
-
-      if (!parseResponse.ok) {
-        const errText = await parseResponse.text();
-        console.error("[STUDIO PARSE] Gemini API error:", parseResponse.status, errText);
-        throw new Error(`Gemini API ${parseResponse.status}: ${errText.slice(0, 200)}`);
-      }
-
-      const parseData = await parseResponse.json();
-      rawContent = parseData.choices?.[0]?.message?.content || "";
-      tokensUsedParse = (parseData.usage?.prompt_tokens ?? 0) + (parseData.usage?.completion_tokens ?? 0);
-    } else {
-      // Anthropic API
-      const parseResponse = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 4096,
-          messages: [{ role: "user", content: resumePrompt }],
-        }),
-      });
-
-      if (!parseResponse.ok) {
-        const errText = await parseResponse.text();
-        console.error("[STUDIO PARSE] Anthropic API error:", parseResponse.status, errText);
-        throw new Error(`Anthropic API ${parseResponse.status}: ${errText.slice(0, 200)}`);
-      }
-
-      const parseData = await parseResponse.json();
-      rawContent = parseData.content?.[0]?.text || "";
-      tokensUsedParse = (parseData.usage?.input_tokens ?? 0) + (parseData.usage?.output_tokens ?? 0);
-    }
+    const parsed = await aiText({
+      messages: [{ role: "user", content: resumePrompt }],
+      temperature: 0.1,
+    });
+    const rawContent = parsed.text;
+    const tokensUsedParse = parsed.inputTokens + parsed.outputTokens;
 
     // Extract JSON from the response (handle markdown code blocks)
     let jsonStr = rawContent;

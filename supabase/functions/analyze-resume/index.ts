@@ -1,12 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiToolCall, AiError } from "../_shared/ai.ts";
+import { NO_INVENTED_METRICS_RULE } from "../_shared/resume-honesty.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-const AI_MODEL = "claude-haiku-4-5-20251001";
 
 // ─── Deterministic Metrics Engine ───────────────────────────────────────────
 const STRONG_VERBS = new Set([
@@ -106,7 +106,7 @@ function computeDeterministicAtsScore(aiScores: Record<string, number>, textMetr
   return Math.max(0, Math.min(100, finalScore));
 }
 
-const SYSTEM_PROMPT = `You are HireResume – AI Resume Intelligence Engine. A Senior Technical Recruiter with 10+ years of hiring experience combined with an ATS Evaluation Engine. You must perform multi-layer internal reasoning before producing scores.
+const SYSTEM_PROMPT = `You are HiResume – AI Resume Intelligence Engine. A Senior Technical Recruiter with 10+ years of hiring experience combined with an ATS Evaluation Engine. You must perform multi-layer internal reasoning before producing scores.
 
 ANALYSIS LAYERS (perform internally before scoring):
 
@@ -218,8 +218,8 @@ const AI_TOOL_SCHEMA = {
         },
         performanceLevelTag: { type: "string", description: "One of: High Risk – Immediate Fix Required, Needs Strategic Improvement, Competitive but Optimizable, Strong & Market Ready" },
         contextStatement: { type: "string", description: "One sentence describing candidate's position relative to competitors in their field" },
-        rewrittenSummary: { type: "string" },
-        rewrittenStrongBullets: { type: "array", items: { type: "string" }, description: "Top 3-5 improved bullet points demonstrating impact-first structure" },
+        rewrittenSummary: { type: "string", description: "Improved summary using only facts and numbers from the resume; [placeholders] for missing metrics" },
+        rewrittenStrongBullets: { type: "array", items: { type: "string" }, description: "Top 3-5 improved bullet points demonstrating impact-first structure. Only real numbers from the resume; use [placeholders] like [X%] where a metric is missing" },
         missingHighImpactKeywords: { type: "array", items: { type: "string" } },
         keywordEnrichmentSuggestions: { type: "array", items: { type: "string" }, description: "Specific phrases to weave into the resume for better keyword matching" },
         recruiterPsychologyInsight: { type: "string" },
@@ -249,6 +249,13 @@ async function runAiAnalysis(
   previousResumeText: string | null,
 ) {
   let systemPrompt = SYSTEM_PROMPT;
+  // Without this the model assumes its training-time date and flags correct "Present" tenures as
+  // "timeline inconsistencies" that make the candidate look dishonest.
+  const today = new Date().toISOString().slice(0, 10);
+  systemPrompt += `\n${NO_INVENTED_METRICS_RULE}`;
+  systemPrompt += `
+
+TODAY'S DATE: ${today}. Treat "Present"/"Current" as ${today} when working out durations and years of experience. Only call dates inconsistent if the resume's own dates contradict each other (e.g. an end date before a start date, or a stated duration that disagrees with the listed dates as of today).`;
   if (resumeType === "STUDENT") {
     systemPrompt += `\n\nSTUDENT/FRESHER MODE ACTIVE:
 This resume belongs to a student or fresh graduate. Apply these rules:
@@ -265,53 +272,23 @@ This resume belongs to a student or fresh graduate. Apply these rules:
     userMessage += `\n\nIMPORTANT CONTEXT: This is a RE-ANALYSIS of a previously fixed/improved resume. The previous version scored: ATS=${previousScores.atsScore}, RecruiterScan=${previousScores.recruiterScanScore}, Keywords=${previousScores.keywordStrengthScore}, Quantification=${previousScores.quantificationScore}, Structure=${previousScores.structureScore}. If the resume has measurably improved, scores MUST NOT decrease.`;
   }
 
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!ANTHROPIC_API_KEY) throw new Error("Anthropic API key not configured");
-
-  // Convert OpenAI tool schema to Anthropic format
-  const anthropicTool = {
-    name: AI_TOOL_SCHEMA.function.name,
-    description: AI_TOOL_SCHEMA.function.description,
-    input_schema: AI_TOOL_SCHEMA.function.parameters,
-  };
-
-  const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      max_tokens: 4096,
+  let analysisResult: any;
+  try {
+    analysisResult = await aiToolCall({
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
-      tools: [anthropicTool],
-      tool_choice: { type: "tool", name: "submit_analysis" },
+      toolName: AI_TOOL_SCHEMA.function.name,
+      toolDescription: AI_TOOL_SCHEMA.function.description,
+      parameters: AI_TOOL_SCHEMA.function.parameters,
       temperature: 0.2,
-    }),
-  });
-
-  if (!aiResponse.ok) {
-    const status = aiResponse.status;
-    if (status === 429) throw new Error("Rate limit exceeded. Please try again later.");
-    const text = await aiResponse.text();
-    console.error("AI error:", status, text);
+      // Default thinking made analysis take ~22-25s. Low effort keeps the structured
+      // output while cutting latency; override with ANALYZE_REASONING_EFFORT.
+      reasoningEffort: (Deno.env.get("ANALYZE_REASONING_EFFORT") as "none" | "low" | "medium" | "high" | undefined) || "low",
+    });
+  } catch (e) {
+    if (e instanceof AiError && e.status === 429) throw new Error("Rate limit exceeded. Please try again later.");
+    console.error("analyze-resume AI call failed:", e);
     throw new Error("AI analysis failed");
-  }
-
-  const aiData = await aiResponse.json();
-  if (aiData.usage) console.log("Token usage:", JSON.stringify(aiData.usage));
-
-  const toolUse = aiData.content?.find((c: any) => c.type === "tool_use");
-  if (!toolUse?.input) throw new Error("AI did not return structured output");
-
-  let analysisResult;
-  try {
-    analysisResult = typeof toolUse.input === "string" ? JSON.parse(toolUse.input) : toolUse.input;
-  } catch {
-    throw new Error("Invalid AI response format");
   }
 
   if (typeof analysisResult.atsScore !== "number") throw new Error("Invalid analysis result");
@@ -328,6 +305,13 @@ This resume belongs to a student or fresh graduate. Apply these rules:
   // Deterministic ATS Score
   const textMetrics = computeTextMetrics(resumeText);
   analysisResult.atsScore = computeDeterministicAtsScore(analysisResult, textMetrics);
+  // The model's label was chosen for its own score; re-derive it from the final score so the
+  // two can't disagree (same bands as the prompt and src/lib/score-levels.ts).
+  const finalScore = analysisResult.atsScore as number;
+  analysisResult.performanceLevelTag =
+    finalScore >= 80 ? "Strong & Market Ready" :
+    finalScore >= 65 ? "Competitive but Optimizable" :
+    finalScore >= 50 ? "Needs Strategic Improvement" : "High Risk – Immediate Fix Required";
 
   // Score Regression Prevention
   if (previousScores && previousResumeText) {

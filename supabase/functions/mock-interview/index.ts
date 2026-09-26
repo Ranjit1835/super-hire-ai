@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { aiText, isRateLimit } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,8 +29,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("AI service not configured");
     console.log(`[MOCK-INTERVIEW] action=${action} user=${user.id}`);
 
     // ACTION: check-access
@@ -130,31 +129,20 @@ Rules:
 - When wrapping up, say "That concludes our interview" and provide brief feedback
 - Keep responses concise (2-3 sentences max before asking the next question)`;
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1024,
+      let aiMessage: string;
+      try {
+        const r = await aiText({
           system: systemPrompt,
           messages: [
             { role: "user", content: `Start the interview. I'm applying for the ${role} role at ${experienceLevel} level.` },
           ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error(`[MOCK-INTERVIEW] AI error ${response.status}:`, errText.slice(0, 300));
-        if (response.status === 429) throw new Error("AI service is busy. Please try again.");
-        throw new Error(`AI service error (${response.status}): ${errText.slice(0, 100)}`);
+        });
+        aiMessage = r.text || "Let's begin the interview.";
+      } catch (e) {
+        console.error("[MOCK-INTERVIEW] start AI error:", e);
+        if (isRateLimit(e)) throw new Error("AI service is busy. Please try again.");
+        throw new Error("AI service error");
       }
-      const aiResult = await response.json();
-      const aiMessage = aiResult.content?.[0]?.text || "Let's begin the interview.";
 
       const conversation = [
         { role: "assistant", content: aiMessage, timestamp: new Date().toISOString() },
@@ -203,27 +191,15 @@ Rules:
 
       const aiMessages = messages.map((m: any) => ({ role: m.role, content: m.content }));
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1024,
-          system: systemPrompt,
-          messages: aiMessages,
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) throw new Error("AI service is busy. Please try again.");
+      let aiMessage: string;
+      try {
+        const r = await aiText({ system: systemPrompt, messages: aiMessages });
+        aiMessage = r.text || "";
+      } catch (e) {
+        console.error("[MOCK-INTERVIEW] respond AI error:", e);
+        if (isRateLimit(e)) throw new Error("AI service is busy. Please try again.");
         throw new Error("AI service error");
       }
-      const aiResult = await response.json();
-      const aiMessage = aiResult.content?.[0]?.text || "";
 
       const updatedConversation = [...messages, { role: "assistant", content: aiMessage, timestamp: new Date().toISOString() }];
 
@@ -255,16 +231,9 @@ Rules:
       const conversation = session.conversation_json as any[];
       const conversationText = conversation.map((m: any) => `${m.role}: ${m.content}`).join("\n");
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 2048,
+      let raw: string;
+      try {
+        const r = await aiText({
           system: "You are an expert interview evaluator. Always respond with valid JSON only, no markdown, no explanation.",
           messages: [
             {
@@ -285,16 +254,12 @@ Interview transcript:
 ${conversationText}`,
             },
           ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error(`[MOCK-INTERVIEW] Scoring AI error ${response.status}:`, errText.slice(0, 300));
-        throw new Error(`AI scoring failed (${response.status})`);
+        });
+        raw = r.text;
+      } catch (e) {
+        console.error("[MOCK-INTERVIEW] scoring AI error:", e);
+        throw new Error("AI scoring failed");
       }
-      const aiResult = await response.json();
-      const raw = aiResult.content?.[0]?.text;
       if (!raw) throw new Error("AI did not return scores");
 
       const scores = JSON.parse(raw.replace(/```json\n?|\n?```/g, "").trim());
