@@ -1,5 +1,4 @@
--- PENDING — needs the owner's go-ahead before moving into supabase/migrations/.
--- First run permanently deletes existing guest analyses older than 7 days (183 rows on 2026-09-26).
+-- Approved by the owner on 2026-09-26 (first run deleted guest analyses older than 7 days).
 --
 -- Data retention, matching the privacy policy:
 --  * Guest (no-account) resume checks: deleted 7 days after creation. They "expire" for the

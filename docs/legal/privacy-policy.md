@@ -50,7 +50,7 @@ We may disclose data if required by law or to protect our users and services.
 | Data | Kept for |
 |---|---|
 | Account, saved resumes and analyses | Until you delete them or your account |
-| Resume checks made without an account | [7 days] — then deleted automatically |
+| Resume checks made without an account | 7 days — then deleted automatically |
 | Interview transcripts and reports | Until you delete your account; for institution accounts, for as long as the institution's agreement requires, then deleted |
 | Readiness-test leads | [12 months] after the test, unless the institute needs them longer for its own records |
 | Payment records | As long as tax and accounting law requires (typically 8 years in India) |
