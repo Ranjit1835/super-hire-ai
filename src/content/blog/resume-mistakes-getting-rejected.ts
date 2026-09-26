@@ -54,7 +54,7 @@ export const resumeMistakes: Article = {
     { type: "p", text: "Sending the same resume to a testing role, a developer role and a data role means it is a weak match for all three." },
     { type: "p", text: "**Fix:** keep a master resume, and for each type of role adjust the summary, skill order and top bullets. It takes 10 minutes and makes a real difference." },
 
-    { type: "h2", text: "Find your mistakes in 10 seconds" },
+    { type: "h2", text: "Find your mistakes in about 15 seconds" },
     { type: "p", text: "HiResume checks your resume for all ten of these — readability, keywords, weak bullets, missing sections — and shows exactly what to change, free." },
     { type: "cta", kind: "ats" },
   ],

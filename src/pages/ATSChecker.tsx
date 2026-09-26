@@ -17,7 +17,7 @@ const FEATURES = [
   { icon: Target, title: "ATS Formatting Check", desc: "Detects tables, columns, headers, and graphics that break ATS parsing. Get a clear pass/fail on every section." },
   { icon: BarChart3, title: "Impact Score", desc: "Measures how well your bullet points quantify achievements. Weak verbs and vague descriptions get flagged instantly." },
   { icon: Shield, title: "Recruiter Scan Simulation", desc: "A quick view of what stands out — and what gets missed — when a recruiter skims your resume." },
-  { icon: Clock, title: "10-Second Results", desc: "Upload your PDF and get a complete ATS score breakdown in under 10 seconds. No waiting, no queues." },
+  { icon: Clock, title: "Results in Seconds", desc: "Upload your PDF and get a complete ATS score breakdown in about 15 seconds." },
   { icon: Star, title: "100% Free Analysis", desc: "The full ATS score check is free — no signup and no credit card. You only pay if you want AI to rewrite your resume." },
 ];
 
@@ -28,7 +28,7 @@ const ATS_SYSTEMS = [
 
 const HOW_IT_WORKS = [
   { step: "1", title: "Upload Your Resume", desc: "Drop your PDF resume — we support all standard resume formats." },
-  { step: "2", title: "AI Analyzes in 10 Seconds", desc: "Our AI checks keywords, formatting, impact metrics, and ATS compatibility." },
+  { step: "2", title: "AI Analyzes in Seconds", desc: "Our AI checks keywords, formatting, impact metrics, and ATS compatibility." },
   { step: "3", title: "Get Your ATS Score", desc: "See your score out of 100 with detailed breakdown and specific improvement suggestions." },
 ];
 
@@ -65,7 +65,7 @@ export default function ATSChecker() {
         <div className="container max-w-4xl text-center relative z-10">
           <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Free ATS Resume Checker</Badge>
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mb-5 leading-[1.1]">
-            Check Your <span className="gradient-text-new">ATS Resume Score</span> in 10 Seconds
+            Check Your <span className="gradient-text-new">ATS Resume Score</span> in Seconds
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
             Many companies screen applications with an Applicant Tracking System (ATS). Upload your resume to see what it reads, which keywords you're missing and what to fix — free, no signup.
@@ -205,7 +205,7 @@ export default function ATSChecker() {
       <section className="py-16 px-4 bg-primary/5 border-t border-border">
         <div className="container max-w-2xl text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to Check Your ATS Score?</h2>
-          <p className="text-muted-foreground mb-6">Upload your resume and get results in 10 seconds. Free forever.</p>
+          <p className="text-muted-foreground mb-6">Upload your resume and get results in about 15 seconds. Free forever.</p>
           <Button size="lg" onClick={pickFile} className="gap-2">
             Check My Resume Now <ArrowRight className="h-4 w-4" />
           </Button>

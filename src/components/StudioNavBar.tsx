@@ -21,7 +21,7 @@ export function StudioNavBar() {
 
   // Don't show on studio editor pages, auth pages, or landing
   // Hide on pages that have their own nav/header
-  const hideOn = ["/studio/", "/auth", "/verify-otp", "/reset-password", "/auth/callback", "/ats-checker", "/pricing", "/about", "/blog", "/college-placement", "/leaderboard", "/reels-campaign"];
+  const hideOn = ["/studio/", "/auth", "/verify-otp", "/reset-password", "/auth/callback", "/ats-checker", "/pricing", "/about", "/blog", "/college-placement", "/leaderboard", "/reels-campaign", "/analysis/guest/"];
   if (location.pathname === "/") return null;
   if (isB2BPath(location.pathname)) return null;
   if (hideOn.some((p) => location.pathname.startsWith(p))) return null;

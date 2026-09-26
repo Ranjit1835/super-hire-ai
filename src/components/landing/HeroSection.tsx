@@ -76,7 +76,7 @@ export function HeroSection({ dragOver, setDragOver, onDrop, onFileSelect, fileI
               <span className="text-foreground">in Minutes</span>
             </h1>
             <p className="text-xl sm:text-2xl font-semibold text-foreground mb-3">
-              Check Your Resume Score in 10 Seconds.
+              Check Your Resume Score in Seconds.
             </p>
             <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed">
               Upload your resume and get an instant ATS score, detailed analysis, and AI-powered suggestions to improve your chances of getting interviews.

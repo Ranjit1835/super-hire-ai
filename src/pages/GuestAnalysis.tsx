@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Lock, LogIn, UserPlus, XCircle, AlertTriangle, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { performanceLevel, TONE_BADGE } from "@/lib/score-levels";
 import { AnimatedGradientMesh } from "@/components/premium";
 
 interface GuestResult {
@@ -113,14 +114,7 @@ export default function GuestAnalysis() {
 
   if (!result) return null;
 
-  const tagColor = {
-    "High Risk – Immediate Fix Required": "bg-red-500/15 text-red-400 border-red-500/25",
-    "Needs Strategic Improvement": "bg-amber-500/15 text-amber-400 border-amber-500/25",
-    "Competitive but Optimizable": "bg-cyan-500/15 text-cyan-400 border-cyan-500/25",
-    "Strong & Market Ready": "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
-  }[result.performanceLevelTag] || "bg-white/5 text-muted-foreground";
-
-  const scoreColor = result.atsScore >= 80 ? "text-emerald-400" : result.atsScore >= 60 ? "text-amber-400" : "text-red-400";
+  const level = performanceLevel(result.atsScore);
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -169,12 +163,8 @@ export default function GuestAnalysis() {
               <ScoreMeter score={result.atsScore} label="" size={160} />
               <p className="text-xs text-muted-foreground mt-1">ATS SCORE</p>
             </div>
-            <div className="flex-1 space-y-4">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className={`text-5xl font-black tabular-nums font-mono ${scoreColor}`}>{result.atsScore}</span>
-                <span className="text-2xl text-muted-foreground font-light">/ 100</span>
-              </div>
-              <Badge className={`text-sm px-4 py-1.5 ${tagColor}`}>{result.performanceLevelTag}</Badge>
+            <div className="flex-1 space-y-4 text-center md:text-left">
+              <Badge className={`text-sm px-4 py-1.5 ${TONE_BADGE[level.tone]}`}>{level.label}</Badge>
               {result.contextStatement && (
                 <p className="text-sm text-muted-foreground italic leading-relaxed">{result.contextStatement}</p>
               )}

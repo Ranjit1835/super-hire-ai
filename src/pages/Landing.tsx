@@ -64,7 +64,7 @@ export default function Landing() {
     <div className="min-h-screen bg-background relative">
       <SEOHead
         title="HiResume - Free ATS Resume Checker & AI Mock Interview | India"
-        description="Check your resume's ATS score free in 10 seconds - no signup. Keyword gap analysis, AI resume fix, ATS-friendly resume builder and AI voice mock interviews for freshers and job seekers in India."
+        description="Check your resume's ATS score free in about 15 seconds - no signup. Keyword gap analysis, AI resume fix, ATS-friendly resume builder and AI voice mock interviews for freshers and job seekers in India."
         path="/"
         keywords="ATS resume checker, free ATS score checker, resume score checker India, AI mock interview, ATS friendly resume builder, resume checker for freshers"
         breadcrumbs={[{ name: "Home", path: "/" }]}

@@ -19,6 +19,7 @@ import { ScoreCardDownload } from "@/components/analysis/ScoreCard";
 import { LeaderboardOptIn } from "@/components/analysis/LeaderboardOptIn";
 import { AnimatedGradientMesh } from "@/components/premium";
 import { PostAnalysisStudioToast } from "@/components/PostAnalysisStudioToast";
+import { performanceLevel, TONE_BADGE } from "@/lib/score-levels";
 import { useCurrency } from "@/hooks/useCurrency";
 
 function AnimatedScore({ value }: { value: number }) {
@@ -144,16 +145,7 @@ function ShareSection({ score, analysisId }: { score: number; analysisId: string
 }
 
 function PerformanceHeader({ result }: { result: AnalysisResult }) {
-  const tagColor = {
-    "High Risk – Immediate Fix Required": "bg-destructive/20 text-destructive border-destructive/30",
-    "Needs Strategic Improvement": "bg-warning/20 text-warning border-warning/30",
-    "Competitive but Optimizable": "bg-info/20 text-info border-info/30",
-    "Strong & Market Ready": "bg-success/20 text-success border-success/30",
-  }[result.performanceLevelTag] || "bg-muted/20 text-muted-foreground";
-
-  const scoreColor = result.atsScore >= 80
-    ? "text-success" : result.atsScore >= 60
-    ? "text-warning" : "text-destructive";
+  const level = performanceLevel(result.atsScore);
 
   return (
     <motion.div
@@ -170,15 +162,7 @@ function PerformanceHeader({ result }: { result: AnalysisResult }) {
           <p className="text-xs text-muted-foreground mt-1">ATS SCORE</p>
         </div>
         <div className="flex-1 space-y-4 text-center md:text-left">
-          <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start">
-            <span className={`text-4xl sm:text-5xl font-black tabular-nums ${scoreColor}`}>
-              <AnimatedScore value={result.atsScore} />
-            </span>
-            <span className="text-2xl text-muted-foreground font-light">/ 100</span>
-          </div>
-          <Badge className={`text-sm px-4 py-1.5 ${tagColor}`}>
-            {result.performanceLevelTag || (result.atsScore >= 80 ? "Strong & Market Ready" : result.atsScore >= 65 ? "Competitive but Optimizable" : result.atsScore >= 50 ? "Needs Strategic Improvement" : "High Risk – Immediate Fix Required")}
-          </Badge>
+          <Badge className={`text-sm px-4 py-1.5 ${TONE_BADGE[level.tone]}`}>{level.label}</Badge>
           {result.contextStatement && (
             <p className="text-sm text-muted-foreground italic leading-relaxed">
               {result.contextStatement}

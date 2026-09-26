@@ -23,7 +23,7 @@ export function BottomCtaSection({ onCtaClick }: BottomCtaSectionProps) {
             Your Dream Job Is One Resume Fix Away.
           </h2>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto text-sm leading-relaxed">
-            Every day you apply with an unoptimized resume, you're invisible to ATS. Get your free score in 10 seconds and know exactly what to fix — before your next application.
+            Every day you apply with an unoptimized resume, you're invisible to ATS. Get your free score in about 15 seconds and know exactly what to fix — before your next application.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button size="lg" onClick={onCtaClick} className="text-base px-8 sm:px-10 h-12 w-full sm:w-auto">
@@ -31,7 +31,7 @@ export function BottomCtaSection({ onCtaClick }: BottomCtaSectionProps) {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-4">
-            Free analysis · No credit card · Results in 10 seconds
+            Free analysis · No credit card · Results in about 15 seconds
           </p>
         </motion.div>
       </div>

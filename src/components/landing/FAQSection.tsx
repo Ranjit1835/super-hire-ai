@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 export const faqs = [
   {
     q: "Is HiResume's ATS resume checker really free?",
-    a: "Yes. The ATS score analysis — including keyword match, formatting check, and section detection — is completely free with no signup required. You get your score in under 10 seconds. Paid plans unlock the AI rewrite, recruiter scan simulation, and voice interview practice.",
+    a: "Yes. The ATS score analysis — including keyword match, formatting check, and section detection — is completely free with no signup required. You get your score in about 15 seconds. Paid plans unlock the AI rewrite, recruiter scan simulation, and voice interview practice.",
   },
   {
     q: "What is an ATS score and why does it matter?",

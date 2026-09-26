@@ -64,7 +64,7 @@ export const whatIsAtsResume: Article = {
     { type: "h2", text: "Does this matter for freshers and campus placements?" },
     { type: "p", text: "Yes. Campus drives and off-campus hiring for large IT services companies receive very large numbers of applications, and shortlisting relies heavily on eligibility filters (degree, branch, percentage, graduation year) and on searching resumes for skills. A fresher resume that clearly lists degree, CGPA or percentage, year of passing, skills and projects in a simple layout is far easier to shortlist. Our [resume guide for freshers](/blog/fresher-resume-guide) covers this in detail." },
 
-    { type: "h2", text: "Check your resume in 10 seconds" },
+    { type: "h2", text: "Check your resume in about 15 seconds" },
     { type: "p", text: "The fastest way to see how software reads your resume is to test it. HiResume parses your resume like an ATS, shows what it extracted, and scores keywords, formatting and impact — free and without signing up." },
     { type: "cta", kind: "ats" },
   ],

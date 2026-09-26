@@ -49,7 +49,7 @@
   </text>
 
   <!-- Sub headline -->
-  <text x="80" y="330" font-family="Arial, sans-serif" font-size="26" fill="#a0a0b8">Check your ATS score in 10 seconds. Free.</text>
+  <text x="80" y="330" font-family="Arial, sans-serif" font-size="26" fill="#a0a0b8">Check your ATS score in seconds. Free.</text>
 
   <!-- Stats cards -->
   <rect x="80" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#8b5cf630" stroke-width="1"/>
@@ -57,7 +57,7 @@
   <text x="180" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">ATS check, no signup</text>
 
   <rect x="300" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#3b82f630" stroke-width="1"/>
-  <text x="400" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">10s</text>
+  <text x="400" y="415" font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">~15s</text>
   <text x="400" y="440" font-family="Arial, sans-serif" font-size="13" fill="#8b8ba8" text-anchor="middle">To get your ATS score</text>
 
   <rect x="520" y="370" width="200" height="90" rx="16" fill="url(#card)" stroke="#06b6d430" stroke-width="1"/>

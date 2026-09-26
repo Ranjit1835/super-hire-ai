@@ -28,7 +28,7 @@ export function renderInline(text: string): ReactNode[] {
 }
 
 const CTAS = {
-  ats: { title: "Check your resume’s ATS score — free", body: "Upload your resume and see what an ATS reads, which keywords are missing and what to fix. No signup, about 10 seconds.", to: "/ats-checker", label: "Check my resume" },
+  ats: { title: "Check your resume’s ATS score — free", body: "Upload your resume and see what an ATS reads, which keywords are missing and what to fix. No signup, about 15 seconds.", to: "/ats-checker", label: "Check my resume" },
   interview: { title: "Practise with an AI voice interviewer", body: "Answer out loud, get follow-up questions based on your answers, and a report on what to improve.", to: "/mock-interview", label: "Start a mock interview" },
   builder: { title: "Build an ATS-friendly resume", body: "Fill in your details and get a clean, one-column resume in the format recruiters and ATS expect.", to: "/build-resume", label: "Open the resume builder" },
 } as const;

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { performanceLevel } from "@/lib/score-levels";
 import { ImageIcon } from "lucide-react";
 
 interface ScoreCardProps {
@@ -91,10 +92,9 @@ export function ScoreCardDownload({ score, fileName }: ScoreCardProps) {
     ctx.fillText("ATS SCORE", cx, cy - 130);
 
     // Rating label
-    const rating = score >= 80 ? "Strong & Market Ready ✓" :
-      score >= 60 ? "Competitive but Optimizable" :
-      score >= 40 ? "Needs Strategic Improvement" : "High Risk – Immediate Fix Required";
-    const ratingColor = score >= 80 ? "#22c55e" : score >= 60 ? "#f59e0b" : "#ef4444";
+    const level = performanceLevel(score);
+    const rating = level.label;
+    const ratingColor = { strong: "#22c55e", competitive: "#06b6d4", improve: "#f59e0b", risk: "#ef4444" }[level.tone];
     ctx.fillStyle = ratingColor;
     ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.fillText(rating, cx, cy + 110);

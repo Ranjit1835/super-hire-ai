@@ -112,7 +112,7 @@ export const quantifyResumeAchievements: Article = {
     ] },
 
     { type: "h2", text: "Find the bullets that need numbers" },
-    { type: "p", text: "HiResume flags bullets without measurable impact and suggests how to strengthen each one — free, in about 10 seconds." },
+    { type: "p", text: "HiResume flags bullets without measurable impact and suggests how to strengthen each one — free, in about 15 seconds." },
     { type: "cta", kind: "ats" },
   ],
   faq: [

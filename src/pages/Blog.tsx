@@ -109,7 +109,7 @@ export default function Blog() {
           <BookOpen className="h-8 w-8 text-primary mx-auto mb-4" />
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Put it into practice</h2>
           <p className="text-muted-foreground mb-6">
-            See how an ATS reads your resume and exactly what to fix — free, in about 10 seconds.
+            See how an ATS reads your resume and exactly what to fix — free, in about 15 seconds.
           </p>
           <Button size="lg" asChild className="gap-2">
             <Link to="/ats-checker">Check My ATS Score <ArrowRight className="h-4 w-4" /></Link>
