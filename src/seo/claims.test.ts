@@ -16,6 +16,7 @@ const BANNED: [RegExp, string][] = [
   [/eye-tracking/i, "claims eye-tracking research we don't do"],
   [/Real people, real scores/i, "fabricated social proof"],
   [/never stored permanently/i, "false privacy claim (resumes are stored in the account)"],
+  [/50\+ (ATS|templates|ATS-ready)/i, "there are 10 templates"],
 ];
 
 function files(p: string): string[] {

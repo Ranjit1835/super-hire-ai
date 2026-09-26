@@ -79,12 +79,14 @@ export default function Dashboard() {
     if (!user) return;
     const [analysesRes, profileRes] = await Promise.all([
       supabase.from("resume_analyses").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("profiles").select("early_bird_active, early_bird_expiry_date").eq("user_id", user.id).single(),
+      supabase.from("profiles").select("early_bird_active, early_bird_expiry_date, plan_type, plan_expiry_date").eq("user_id", user.id).single(),
     ]);
     if (analysesRes.data) setAnalyses(analysesRes.data);
     if (profileRes.data) {
       const p = profileRes.data as any;
-      setPlanType(p.plan_type ?? "FREE");
+      // plan_type wasn't selected before, so paying users always saw "Free".
+      const planActive = !p.plan_expiry_date || new Date(p.plan_expiry_date) > new Date();
+      setPlanType(planActive ? (p.plan_type ?? "FREE") : "FREE");
       setEarlyBirdActive(isEarlyBirdActive(p));
     }
   }, [user]);

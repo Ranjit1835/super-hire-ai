@@ -71,29 +71,6 @@ export function ResumeRoast({ result, fileName }: ResumeRoastProps) {
         </CardContent>
       </Card>
 
-      {/* Share Buttons */}
-      <Card className="glass">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Share2 className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold">Share Your Score</span>
-          </div>
-          <p className="text-xs text-muted-foreground mb-4 p-3 rounded-lg bg-secondary/30 border border-border">
-            "{shareText}"
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={handleShareTwitter}>
-              𝕏 Twitter
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleShareLinkedIn}>
-              LinkedIn
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleCopyLink}>
-              Copy Text
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </motion.section>
   );
 }

@@ -83,12 +83,12 @@ export const TEMPLATE_METADATA: Record<TemplateId, TemplateMetadata> = {
   "modern-professional": { name: "Modern Professional", category: "Tech", description: "Sleek blue layout for tech roles" },
   "clean-fresher": { name: "Clean Fresher", category: "Fresher", description: "Education-first layout for new grads" },
   "tech-bold": { name: "Tech Bold", category: "Tech", description: "Monospace font, code-style headers" },
-  "compact-onepage": { name: "Compact One-Page", category: "Minimal ATS", description: "Two-column compact, fits one page" },
+  "compact-onepage": { name: "Compact One-Page", category: "Tech", description: "Two-column compact, fits one page · columns can confuse some ATS" },
   "executive-clean": { name: "Executive Clean", category: "Executive", description: "Bold header, polished leadership look" },
   "creative-minimal": { name: "Creative Minimal", category: "Creative", description: "Violet accents, rounded skill tags" },
-  "two-column-pro": { name: "Two-Column Pro", category: "Tech", description: "Sidebar + main column, teal theme" },
+  "two-column-pro": { name: "Two-Column Pro", category: "Tech", description: "Sidebar + main column, teal theme · columns can confuse some ATS" },
   "data-tech-focused": { name: "Data/Tech Focused", category: "Tech", description: "Skills-first, monospace, cyan accents" },
-  "ultra-compact": { name: "Ultra Compact", category: "Minimal ATS", description: "Maximum density, 3-column grid" },
+  "ultra-compact": { name: "Ultra Compact", category: "Tech", description: "Maximum density, 3-column grid · columns can confuse some ATS" },
 };
 
 /** Legacy name lookup — maps TemplateId to display name */

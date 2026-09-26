@@ -142,8 +142,8 @@ export default function ResumeBuilder() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Free AI Resume Builder - 50+ ATS-Friendly Templates | HiResume"
-        description="Build a professional ATS-optimized resume in minutes. 50+ templates, AI-powered content suggestions, and instant PDF download. Free to start."
+        title="AI Resume Builder with ATS-Friendly Templates | HiResume"
+        description="Build a professional resume step by step with 10 templates, including ATS-safe single-column layouts, AI help with your content and a PDF download."
         path="/build-resume"
         keywords="resume builder, ATS resume template, free resume maker, professional resume builder, AI resume builder, resume templates"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "Resume Builder", path: "/build-resume" }]}

@@ -42,7 +42,7 @@ export function PricingSection() {
       period: "one-time",
       description: "Build a new resume from scratch",
       features: [
-        "50+ ATS-ready templates",
+        "10 templates, incl. ATS-safe single-column",
         "Step-by-step AI guidance",
         "PDF download",
         "Recruiter-ready structure",

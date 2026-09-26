@@ -198,6 +198,16 @@ export default function Analysis() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(false);
   const [showStickyBar, setShowStickyBar] = useState(false);
+  const [hasUnlimitedPlan, setHasUnlimitedPlan] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("plan_type, plan_expiry_date").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => {
+        const p = data as { plan_type?: string; plan_expiry_date?: string | null } | null;
+        setHasUnlimitedPlan(p?.plan_type === "UNLIMITED" && !!p.plan_expiry_date && new Date(p.plan_expiry_date) > new Date());
+      });
+  }, [user]);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -272,7 +282,8 @@ export default function Analysis() {
     );
   }
 
-  const isFixUnlocked = analysis.is_paid_fix_unlocked;
+  // Same rule as check-fix-access: this analysis was paid for, or the user has an active Unlimited plan.
+  const isFixUnlocked = analysis.is_paid_fix_unlocked || hasUnlimitedPlan;
 
   const badgeColor = {
     "Elite": "bg-primary/20 text-primary border-primary/30",

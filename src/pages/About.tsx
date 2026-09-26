@@ -91,7 +91,7 @@ export default function About() {
           <div className="space-y-4">
             {[
               { icon: BarChart3, title: "Free ATS Resume Checker", desc: "Upload your resume and get an instant ATS score with keyword analysis, formatting check, and improvement suggestions — completely free.", link: "/ats-checker" },
-              { icon: Zap, title: "AI Resume Fix & Builder", desc: "Our AI rewrites your resume with optimized keywords, quantified bullet points, and ATS-friendly formatting. Or build a new one from scratch with 50+ templates.", link: "/" },
+              { icon: Zap, title: "AI Resume Fix & Builder", desc: "Our AI rewrites your resume with optimized keywords, quantified bullet points, and ATS-friendly formatting. Or build a new one from scratch with 10 templates.", link: "/" },
               { icon: Users, title: "AI Mock Interview", desc: "Practice job interviews with an AI interviewer that asks role-specific questions, gives real-time feedback, and scores your performance.", link: "/" },
               { icon: Globe, title: "College Placement Program", desc: "Bulk resume analysis for universities and placement cells. Boost your students' placement rates with AI-powered feedback at scale.", link: "/college-placement" },
             ].map((item, i) => (

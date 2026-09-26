@@ -296,7 +296,7 @@ function StudioPaywallPage() {
           >
             {[
               { icon: Zap, title: "Real-time Preview", desc: "See changes appear instantly as AI edits your resume", color: "violet" },
-              { icon: Brain, title: "AI-Powered", desc: "Claude AI understands context, not just keywords", color: "cyan" },
+              { icon: Brain, title: "AI-Powered", desc: "AI that understands context, not just keywords", color: "cyan" },
               { icon: Shield, title: "Truthful Always", desc: "AI enhances phrasing but never fabricates experience", color: "emerald" },
             ].map(({ icon: Icon, title, desc, color }) => (
               <div key={title} className="glass rounded-xl p-5 card-hover-glow border-violet-500/10">

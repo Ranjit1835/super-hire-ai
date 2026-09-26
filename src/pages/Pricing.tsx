@@ -17,7 +17,7 @@ const COMPARISON = [
   { feature: "Keyword Gap Analysis", free: true, fix: true, combo: true, unlimited: true },
   { feature: "AI Resume Rewrite & Fix", free: false, fix: true, combo: true, unlimited: true },
   { feature: "5 PDF Template Options", free: false, fix: true, combo: true, unlimited: true },
-  { feature: "Resume Builder (50+ Templates)", free: false, fix: false, combo: false, unlimited: true },
+  { feature: "Resume Builder (10 Templates)", free: false, fix: false, combo: false, unlimited: true },
   { feature: "AI Mock Interview", free: false, fix: false, combo: true, unlimited: true },
   { feature: "Voice Interview Practice", free: false, fix: false, combo: false, unlimited: true },
   { feature: "Resume Studio (AI Coach)", free: false, fix: false, combo: false, unlimited: true },
