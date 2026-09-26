@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X, Plus } from "lucide-react";
+import { Placeholders, hasPlaceholder } from "@/lib/resume-placeholders";
 
 export interface FixedContent {
   name: string;
@@ -26,9 +27,9 @@ function EditableText({ value, onChange, className = "", multiline = false }: {
   value: string; onChange: (v: string) => void; className?: string; multiline?: boolean;
 }) {
   if (multiline) {
-    return <Textarea value={value} onChange={(e) => onChange(e.target.value)} className={`bg-transparent border-dashed border-primary/30 focus:border-primary/60 resize-none ${className}`} />;
+    return <Textarea value={value} onChange={(e) => onChange(e.target.value)} className={`bg-transparent border-dashed ${hasPlaceholder(value) ? "border-amber-400/70" : "border-primary/30"} focus:border-primary/60 resize-none ${className}`} />;
   }
-  return <Input value={value} onChange={(e) => onChange(e.target.value)} className={`bg-transparent border-dashed border-primary/30 focus:border-primary/60 h-auto py-0.5 ${className}`} />;
+  return <Input value={value} onChange={(e) => onChange(e.target.value)} className={`bg-transparent border-dashed ${hasPlaceholder(value) ? "border-amber-400/70" : "border-primary/30"} focus:border-primary/60 h-auto py-0.5 ${className}`} />;
 }
 
 function EditableBullet({ value, onChange, onRemove, prefix }: {
@@ -37,7 +38,7 @@ function EditableBullet({ value, onChange, onRemove, prefix }: {
   return (
     <li className="flex items-start gap-1 group">
       <span className="shrink-0 mt-2">{prefix}</span>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} className="bg-transparent border-dashed border-primary/30 focus:border-primary/60 h-auto py-0.5 text-sm flex-1" />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} className={`bg-transparent border-dashed ${hasPlaceholder(value) ? "border-amber-400/70" : "border-primary/30"} focus:border-primary/60 h-auto py-0.5 text-sm flex-1`} />
       <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 shrink-0" onClick={onRemove}>
         <X className="h-3 w-3 text-destructive" />
       </Button>
@@ -180,7 +181,7 @@ function ClassicPreview({ content, editable, onContentChange }: Props) {
         <EditableContact content={content} editor={editor} />
       </div>
       <SectionHeader>Professional Summary</SectionHeader>
-      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-4" /> : <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{content.summary}</p>}
+      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-4" /> : <p className="text-sm text-muted-foreground mb-4 leading-relaxed"><Placeholders text={content.summary} /></p>}
       {content.experience?.length > 0 && (
         <>
           <div className="border-t border-muted-foreground/30 my-3" />
@@ -195,7 +196,7 @@ function ClassicPreview({ content, editable, onContentChange }: Props) {
                 <ul className="space-y-0.5 mt-1">
                   {exp.bullets.map((b, j) => editor.isEditable
                     ? <EditableBullet key={j} value={b} onChange={(v) => editor.updateBullet(i, j, v)} onRemove={() => editor.removeBullet(i, j)} prefix="-" />
-                    : <li key={j} className="text-sm text-muted-foreground">- {b}</li>
+                    : <li key={j} className="text-sm text-muted-foreground">- <Placeholders text={b} /></li>
                   )}
                 </ul>
               </div>
@@ -232,7 +233,7 @@ function ModernPreview({ content, editable, onContentChange }: Props) {
       <div className="ml-4 mb-3"><EditableContact content={content} editor={editor} separator="-" /></div>
       <div className="h-0.5 bg-blue-500 mb-4" />
       <SectionHeader className="text-blue-400">About</SectionHeader>
-      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-4" /> : <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{content.summary}</p>}
+      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-4" /> : <p className="text-sm text-muted-foreground mb-4 leading-relaxed"><Placeholders text={content.summary} /></p>}
       {content.skills?.length > 0 && (
         <>
           <SectionHeader className="text-blue-400">Technical Skills</SectionHeader>
@@ -250,7 +251,7 @@ function ModernPreview({ content, editable, onContentChange }: Props) {
                 <ul className="space-y-0.5">
                   {exp.bullets.map((b, j) => editor.isEditable
                     ? <EditableBullet key={j} value={b} onChange={(v) => editor.updateBullet(i, j, v)} onRemove={() => editor.removeBullet(i, j)} prefix="-" />
-                    : <li key={j} className="text-sm text-muted-foreground">- {b}</li>
+                    : <li key={j} className="text-sm text-muted-foreground">- <Placeholders text={b} /></li>
                   )}
                 </ul>
               </div>
@@ -280,7 +281,7 @@ function ExecutivePreview({ content, editable, onContentChange }: Props) {
         <div className="h-[1px] bg-amber-500/60 mt-0.5" />
       </div>
       <SectionHeader className="text-foreground">Executive Summary</SectionHeader>
-      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-5" /> : <p className="text-sm text-muted-foreground mb-5 leading-relaxed">{content.summary}</p>}
+      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-5" /> : <p className="text-sm text-muted-foreground mb-5 leading-relaxed"><Placeholders text={content.summary} /></p>}
       {content.experience?.length > 0 && (
         <>
           <div className="w-24 h-[0.5px] bg-amber-500/50 mb-3" />
@@ -293,7 +294,7 @@ function ExecutivePreview({ content, editable, onContentChange }: Props) {
                 <ul className="mt-1 space-y-0.5">
                   {exp.bullets.map((b, j) => editor.isEditable
                     ? <EditableBullet key={j} value={b} onChange={(v) => editor.updateBullet(i, j, v)} onRemove={() => editor.removeBullet(i, j)} prefix="--" />
-                    : <li key={j} className="text-sm text-muted-foreground">-- {b}</li>
+                    : <li key={j} className="text-sm text-muted-foreground">-- <Placeholders text={b} /></li>
                   )}
                 </ul>
               </div>
@@ -326,7 +327,7 @@ function MinimalPreview({ content, editable, onContentChange }: Props) {
       {editor.isEditable ? <EditableText value={content.name} onChange={(v) => editor.update({ name: v })} className="text-xl font-bold" /> : <h3 className="text-xl font-bold">{content.name}</h3>}
       <div className="mt-0.5"><EditableContact content={content} editor={editor} separator="-" /></div>
       <div className="h-[0.5px] bg-muted-foreground/20 my-4" />
-      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-4" /> : <p className="text-sm text-foreground leading-relaxed mb-4">{content.summary}</p>}
+      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-4" /> : <p className="text-sm text-foreground leading-relaxed mb-4"><Placeholders text={content.summary} /></p>}
       {content.experience?.length > 0 && (
         <>
           <div className="h-[0.5px] bg-muted-foreground/20 my-3" />
@@ -341,7 +342,7 @@ function MinimalPreview({ content, editable, onContentChange }: Props) {
                 <ul className="space-y-0.5 mt-1">
                   {exp.bullets.map((b, j) => editor.isEditable
                     ? <EditableBullet key={j} value={b} onChange={(v) => editor.updateBullet(i, j, v)} onRemove={() => editor.removeBullet(i, j)} prefix="-" />
-                    : <li key={j} className="text-[13px] text-foreground">- {b}</li>
+                    : <li key={j} className="text-[13px] text-foreground">- <Placeholders text={b} /></li>
                   )}
                 </ul>
               </div>
@@ -378,7 +379,7 @@ function ImpactPreview({ content, editable, onContentChange }: Props) {
         <EditableContact content={content} editor={editor} />
       </div>
       <SectionHeader className="text-emerald-400">Value Proposition</SectionHeader>
-      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-4" /> : <p className="text-sm text-muted-foreground leading-relaxed mb-4">{content.summary}</p>}
+      {editor.isEditable ? <EditableText value={content.summary} onChange={(v) => editor.update({ summary: v })} multiline className="text-sm mb-4" /> : <p className="text-sm text-muted-foreground leading-relaxed mb-4"><Placeholders text={content.summary} /></p>}
       {topAchievements.length > 0 && (
         <div className="bg-emerald-500/5 rounded-lg p-4 mb-4">
           <SectionHeader className="text-emerald-400">Key Achievements</SectionHeader>
@@ -401,7 +402,7 @@ function ImpactPreview({ content, editable, onContentChange }: Props) {
                 <ul className="space-y-0.5 mt-1">
                   {exp.bullets.map((b, j) => editor.isEditable
                     ? <EditableBullet key={j} value={b} onChange={(v) => editor.updateBullet(i, j, v)} onRemove={() => editor.removeBullet(i, j)} prefix="-" />
-                    : <li key={j} className="text-sm text-muted-foreground">- {b}</li>
+                    : <li key={j} className="text-sm text-muted-foreground">- <Placeholders text={b} /></li>
                   )}
                 </ul>
               </div>

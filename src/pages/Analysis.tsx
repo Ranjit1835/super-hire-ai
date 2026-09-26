@@ -20,6 +20,7 @@ import { LeaderboardOptIn } from "@/components/analysis/LeaderboardOptIn";
 import { AnimatedGradientMesh } from "@/components/premium";
 import { PostAnalysisStudioToast } from "@/components/PostAnalysisStudioToast";
 import { performanceLevel, TONE_BADGE } from "@/lib/score-levels";
+import { Placeholders } from "@/lib/resume-placeholders";
 import { useCurrency } from "@/hooks/useCurrency";
 
 function AnimatedScore({ value }: { value: number }) {
@@ -444,7 +445,7 @@ export default function Analysis() {
             {result.rewrittenSummary && (
               <Card className="glass md:col-span-2">
                 <CardHeader><CardTitle className="text-sm text-muted-foreground uppercase tracking-wider">Rewritten Summary</CardTitle></CardHeader>
-                <CardContent><p className="text-sm leading-relaxed">{result.rewrittenSummary}</p></CardContent>
+                <CardContent><p className="text-sm leading-relaxed"><Placeholders text={result.rewrittenSummary} /></p></CardContent>
               </Card>
             )}
             {result.rewrittenStrongBullets?.length > 0 && (
@@ -455,7 +456,7 @@ export default function Analysis() {
                     {result.rewrittenStrongBullets.map((b, i) => (
                       <li key={i} className="text-sm flex items-start gap-2">
                         <span className="text-primary font-bold mt-0.5">→</span>
-                        <span>{b}</span>
+                        <span><Placeholders text={b} /></span>
                       </li>
                     ))}
                   </ul>
@@ -502,14 +503,14 @@ export default function Analysis() {
             <Card className="glass relative overflow-hidden">
               <CardContent className="py-6">
                 <p className="text-sm leading-relaxed mb-2">
-                  {result.rewrittenSummary.split(". ").slice(0, 2).join(". ")}.
+                  <Placeholders text={result.rewrittenSummary.split(". ").slice(0, 2).join(". ") + "."} />
                 </p>
                 <div className="filter blur-[6px] select-none pointer-events-none">
                   <p className="text-sm leading-relaxed text-muted-foreground">
-                    {result.rewrittenSummary.split(". ").slice(2).join(". ")}
+                    <Placeholders text={result.rewrittenSummary.split(". ").slice(2).join(". ")} />
                   </p>
                   {result.rewrittenStrongBullets?.slice(0, 3).map((b, i) => (
-                    <p key={i} className="text-sm leading-relaxed mt-2">• {b}</p>
+                    <p key={i} className="text-sm leading-relaxed mt-2">• <Placeholders text={b} /></p>
                   ))}
                 </div>
                 <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-background/90 via-background/40 to-transparent">

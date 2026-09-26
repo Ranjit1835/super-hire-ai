@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +9,8 @@ import { ArrowLeft, Download, FileText, Briefcase, Award, Minus, Target, Pencil,
 import { motion } from "framer-motion";
 import ResumePreview, { FixedContent } from "@/components/fix-resume/ResumePreview";
 import { AnimatedGradientMesh } from "@/components/premium";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { countPlaceholders } from "@/lib/resume-placeholders";
 
 const templates: { id: TemplateType; label: string; icon: typeof FileText; desc: string; color: string }[] = [
   { id: "classic", label: "Classic ATS", icon: FileText, desc: "Black & white, maximum ATS compatibility", color: "violet" },
@@ -28,6 +30,7 @@ export default function FixResume() {
   const [generating, setGenerating] = useState(false);
   const [template, setTemplate] = useState<TemplateType>("classic");
   const [editable, setEditable] = useState(false);
+  const [confirmDownload, setConfirmDownload] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -102,7 +105,15 @@ export default function FixResume() {
     }
   };
 
-  const handleDownload = async () => {
+  // The AI leaves [placeholders] where the resume had no real number; don't let them slip into a PDF unnoticed.
+  const placeholderCount = useMemo(() => countPlaceholders(fixedContent), [fixedContent]);
+
+  const handleDownload = () => {
+    if (placeholderCount > 0) setConfirmDownload(true);
+    else void downloadNow();
+  };
+
+  const downloadNow = async () => {
     if (!fixedContent) return;
     try {
       const bytes = await generateResumePdf(fixedContent, template);
@@ -221,6 +232,23 @@ export default function FixResume() {
           </div>
         </motion.div>
 
+        {placeholderCount > 0 && (
+          <div role="status" className="mb-6 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 text-sm">
+              <p className="font-semibold text-amber-200">
+                {placeholderCount} {placeholderCount === 1 ? "spot needs" : "spots need"} your real numbers
+              </p>
+              <p className="text-muted-foreground mt-1">
+                Where your resume didn't include a figure, we left a highlighted placeholder like <mark className="rounded px-0.5 bg-amber-400/25 text-amber-200">[X%]</mark> instead of inventing one.
+                Replace each with a number you can explain in an interview — or remove it.
+              </p>
+            </div>
+            {!editable && (
+              <Button size="sm" onClick={() => setEditable(true)} className="shrink-0"><Pencil className="h-4 w-4 mr-1" /> Fill them in</Button>
+            )}
+          </div>
+        )}
+
         {/* Preview */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <h2 className="text-xl font-bold mb-4 text-foreground">
@@ -246,6 +274,21 @@ export default function FixResume() {
           </motion.button>
         </div>
       </main>
+
+      <AlertDialog open={confirmDownload} onOpenChange={setConfirmDownload}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{placeholderCount} placeholder{placeholderCount === 1 ? " is" : "s are"} still in your resume</AlertDialogTitle>
+            <AlertDialogDescription>
+              Text like [X%] will appear in the PDF exactly as written. Replace it with your real figures first, or remove it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEditable(true)}>Fill them in</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void downloadNow()}>Download anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
