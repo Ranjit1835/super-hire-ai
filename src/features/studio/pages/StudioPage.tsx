@@ -351,9 +351,9 @@ function StudioPaywallModal({
 
   const { pricing: pricingTable, currency: userCurrency } = useCurrency();
   const plans = [
-    { id: "single" as const, name: "Studio Pass", price: pricingTable.STUDIO_SINGLE.display, duration: "24 hours", model: "Claude Haiku 4.5", paymentType: "STUDIO_SINGLE", badge: "" },
-    { id: "weekly" as const, name: "Pro Pass", price: pricingTable.STUDIO_WEEKLY.display, duration: "7 days", model: "Claude Sonnet 4.6", paymentType: "STUDIO_WEEKLY", badge: "RECOMMENDED" },
-    { id: "yearly" as const, name: "Unlimited", price: pricingTable.STUDIO_YEARLY.display, duration: "1 year", model: "Claude Sonnet 4.6", paymentType: "STUDIO_YEARLY", badge: "BEST VALUE" },
+    { id: "single" as const, name: "Studio Pass", price: pricingTable.STUDIO_SINGLE.display, duration: "24 hours", model: "Standard AI (fast)", paymentType: "STUDIO_SINGLE", badge: "" },
+    { id: "weekly" as const, name: "Pro Pass", price: pricingTable.STUDIO_WEEKLY.display, duration: "7 days", model: "Advanced AI (thinks longer per edit)", paymentType: "STUDIO_WEEKLY", badge: "RECOMMENDED" },
+    { id: "yearly" as const, name: "Unlimited", price: pricingTable.STUDIO_YEARLY.display, duration: "1 year", model: "Advanced AI (thinks longer per edit)", paymentType: "STUDIO_YEARLY", badge: "BEST VALUE" },
   ];
 
   const handlePurchase = async (plan: typeof plans[0]) => {

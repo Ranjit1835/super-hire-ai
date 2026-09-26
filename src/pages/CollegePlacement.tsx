@@ -21,9 +21,9 @@ const BENEFITS = [
 ];
 
 const PLANS = [
-  { name: "Pilot", price: "Start here", students: "Up to 150 students", features: ["6 AI interviews per student", "Readiness dashboard", "Company-style practice packs", "Excel and PDF exports"], highlighted: true },
-  { name: "Basic", price: "Per student", students: "Any batch size", features: ["4 AI interviews per student", "Student reports", "Your own modules"], highlighted: false },
-  { name: "Pro", price: "Per student", students: "Any batch size", features: ["10 AI interviews per student", "Readiness dashboard", "Company-style practice packs", "Excel and PDF exports"], highlighted: false },
+  { name: "Pilot", price: "Free", students: "30 days · up to 150 students", features: ["6 AI interviews per student", "Readiness dashboard", "Company-style practice packs", "Excel and PDF exports"], highlighted: true },
+  { name: "Basic", price: "₹149", students: "per student per year · any batch size", features: ["4 AI interviews per student", "Student reports", "Your own modules"], highlighted: false },
+  { name: "Pro", price: "₹299", students: "per student per year · any batch size", features: ["10 AI interviews per student", "Readiness dashboard", "Company-style practice packs", "Excel and PDF exports"], highlighted: false },
 ];
 
 const stagger = {
@@ -183,7 +183,7 @@ export default function CollegePlacement() {
               className="text-center mb-12"
             >
               <h2 className="text-3xl font-bold mb-3 text-foreground">Plans for Institutions</h2>
-              <p className="text-muted-foreground">Priced per student for the batch you enrol. Start with a pilot — tell us your batch size and we'll send a quote.</p>
+              <p className="text-muted-foreground">Priced per student, per year. Start with a free 30-day pilot for one batch — no payment details needed.</p>
             </motion.div>
             <div className="grid sm:grid-cols-3 gap-6">
               {PLANS.map((plan, i) => (

@@ -142,12 +142,15 @@ export async function aiText(opts: {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  /** Thinking budget for thinking models; omitted = provider default. */
+  reasoningEffort?: "none" | "low" | "medium" | "high";
 }): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   const res = await post({
     model: opts.model || MODEL_FAST,
     // Generous default: thinking tokens share the budget, small caps truncate answers.
     max_tokens: opts.maxTokens ?? 8192,
     ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+    ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
     messages: buildMessages(opts.system, opts.messages),
   });
 
@@ -170,11 +173,14 @@ export async function aiStream(opts: {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  /** Thinking budget for thinking models; omitted = provider default. */
+  reasoningEffort?: "none" | "low" | "medium" | "high";
 }): Promise<Response> {
   return await post({
     model: opts.model || MODEL_FAST,
     max_tokens: opts.maxTokens ?? 8192,
     ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+    ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
     messages: buildMessages(opts.system, opts.messages),
     stream: true,
     stream_options: { include_usage: true },

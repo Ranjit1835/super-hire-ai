@@ -116,9 +116,10 @@ serve(async (req) => {
     }
 
     // Determine model based on pass_type (UNLIMITED plan users get premium model)
-    const model = isUnlimitedUser || session.pass_type === "weekly" || session.pass_type === "yearly"
-      ? MODEL_SMART
-      : MODEL_FAST;
+    const premium = isUnlimitedUser || session.pass_type === "weekly" || session.pass_type === "yearly";
+    const model = premium ? MODEL_SMART : MODEL_FAST;
+    // Pro/yearly/Unlimited get "Advanced AI": more thinking per edit. The day pass stays fast.
+    const reasoningEffort = premium ? "medium" as const : "low" as const;
 
     // Build system prompt
     const personaInstructions = PERSONA_INSTRUCTIONS[currentPersona] || PERSONA_INSTRUCTIONS["big-tech"];
@@ -135,9 +136,9 @@ serve(async (req) => {
 
     // Use Claude for all tiers — non-streaming JSON response for free (non-unlimited), SSE for paid/unlimited
     if (session.pass_type === "free" && !isUnlimitedUser) {
-      return await handleClaudeJson(admin, session, resume, messages, systemPrompt, model, userMsg?.id, corsHeaders);
+      return await handleClaudeJson(admin, session, resume, messages, systemPrompt, model, reasoningEffort, userMsg?.id, corsHeaders);
     } else {
-      return await handleClaudeStream(admin, session, resume, messages, systemPrompt, model, userMsg?.id, corsHeaders);
+      return await handleClaudeStream(admin, session, resume, messages, systemPrompt, model, reasoningEffort, userMsg?.id, corsHeaders);
     }
   } catch (err: any) {
     console.error("[STUDIO CHAT] Error:", err.message, err.stack?.slice(0, 300));
@@ -199,6 +200,7 @@ async function handleClaudeJson(
   messages: any[],
   systemPrompt: string,
   model: string,
+  reasoningEffort: "low" | "medium",
   userMsgId: string | undefined,
   cors: Record<string, string>
 ) {
@@ -206,6 +208,7 @@ async function handleClaudeJson(
     system: systemPrompt,
     messages,
     model,
+    reasoningEffort,
   });
   const tokensUsed = inputTokens + outputTokens;
 
@@ -261,6 +264,7 @@ async function handleClaudeStream(
   messages: any[],
   systemPrompt: string,
   model: string,
+  reasoningEffort: "low" | "medium",
   userMsgId: string | undefined,
   cors: Record<string, string>
 ) {
@@ -268,6 +272,7 @@ async function handleClaudeStream(
     system: systemPrompt,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
     model,
+    reasoningEffort,
   });
 
   // Create a TransformStream to process and forward SSE
