@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { speakText, stopSpeaking, type SpeakOutcome } from "@/lib/speech";
 
 // Same browser pipeline as the B2C voice interview (Web Speech API: speechSynthesis +
 // SpeechRecognition), tuned for campus interviews:
@@ -87,42 +88,21 @@ export function useVoiceAnswer(opts: { recognitionCtor?: RecognitionCtor | null 
 
   useEffect(() => () => {
     cancelRef.current?.();
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    stopSpeaking();
   }, []);
 
-  /** Speak the question; resolves when done (or after a safety timeout). */
-  const speak = useCallback((text: string): Promise<void> => {
-    return new Promise((resolve) => {
-      const synth = typeof window !== "undefined" ? window.speechSynthesis : undefined;
-      const started = performance.now();
-      const done = () => {
-        clearInterval(keepAlive);
-        clearTimeout(safety);
-        lastTtsMs.current = Math.round(performance.now() - started);
-        ttsEndedAt.current = performance.now();
-        setPhase("idle");
-        resolve();
-      };
-      if (!synth) { lastTtsMs.current = null; ttsEndedAt.current = performance.now(); resolve(); return; }
-      synth.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "en-IN";
-      u.rate = 0.95;
-      const v = pickVoice(synth.getVoices());
-      if (v) u.voice = v;
-      u.onend = done;
-      u.onerror = done;
-      setPhase("speaking");
-      synth.speak(u);
-      // Chrome stops long utterances after ~15 s unless nudged.
-      const keepAlive = setInterval(() => {
-        if (!synth.speaking) return;
-        synth.pause();
-        synth.resume();
-      }, 10_000);
-      const words = text.split(/\s+/).length;
-      const safety = setTimeout(() => { synth.cancel(); done(); }, Math.max(4000, (words / 2.3) * 1000 + 2500));
-    });
+  /**
+   * Speak the question (src/lib/speech.ts handles chunking, voices and autoplay).
+   * Resolves with "blocked" when the browser refused audio — the caller shows "Tap to hear".
+   */
+  const speak = useCallback(async (text: string): Promise<SpeakOutcome> => {
+    const started = performance.now();
+    setPhase("speaking");
+    const outcome = await speakText(text).done;
+    lastTtsMs.current = outcome === "done" ? Math.round(performance.now() - started) : null;
+    ttsEndedAt.current = performance.now();
+    setPhase("idle");
+    return outcome;
   }, []);
 
   /** Listen for one answer. Resolves with text ("" if nothing was heard). */
@@ -236,7 +216,7 @@ export function useVoiceAnswer(opts: { recognitionCtor?: RecognitionCtor | null 
   const finishAnswer = useCallback(() => finishRef.current?.("button"), []);
   const cancel = useCallback(() => {
     cancelRef.current?.();
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    stopSpeaking();
     setPhase("idle");
   }, []);
 

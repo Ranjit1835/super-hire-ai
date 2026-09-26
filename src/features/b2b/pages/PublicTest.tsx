@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { CenteredSpinner } from "../components/B2BShell";
 import { LiveInterviewPanel } from "../components/LiveInterviewPanel";
 import { PreflightTips } from "../components/PreflightTips";
+import { AudioCheck } from "@/components/interview/AudioCheck";
 import { ReportPanel } from "../components/ReportPanel";
 import { useInterviewSession } from "../hooks/useInterviewSession";
 import { ApiError, ensureVisitorSession, interviewApi, publicTestApi, type InterviewPayload, type PublicTestInfo } from "../lib/api";
@@ -206,6 +207,7 @@ export default function PublicTest() {
             </div>
 
             <PreflightTips />
+            <AudioCheck needMic={!s.textMode} />
             {!s.support.stt && (
               <p className="text-sm text-amber-200 flex gap-2"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                 This browser can't do speech recognition. Use Chrome or Edge to answer by voice, or type your answers.</p>

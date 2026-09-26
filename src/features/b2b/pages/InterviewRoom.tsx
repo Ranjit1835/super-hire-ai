@@ -10,6 +10,7 @@ import { ModuleMeta } from "../components/ModuleMeta";
 import { ReportPanel } from "../components/ReportPanel";
 import { LiveInterviewPanel } from "../components/LiveInterviewPanel";
 import { PreflightTips } from "../components/PreflightTips";
+import { AudioCheck } from "@/components/interview/AudioCheck";
 import { useMyMemberships, useMyQuota, useStudentModules } from "../hooks/useB2B";
 import { useInterviewSession } from "../hooks/useInterviewSession";
 import { interviewApi, type InterviewPayload } from "../lib/api";
@@ -130,6 +131,7 @@ export default function InterviewRoom() {
       </div>
 
       <PreflightTips />
+      <AudioCheck needMic={!s.textMode} />
 
       {!s.support.stt && (
         <p className="text-sm text-amber-200 flex gap-2"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />

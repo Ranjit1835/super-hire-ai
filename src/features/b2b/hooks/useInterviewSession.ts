@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { primeSpeech } from "@/lib/speech";
 import { ApiError, interviewApi, type InterviewPayload } from "../lib/api";
 import { MicError, STT_LANG, useVoiceAnswer, voiceSupport } from "./useVoiceAnswer";
 
@@ -38,6 +39,7 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
   const voice = useVoiceAnswer();
   const support = voiceSupport();
   const [phase, setPhase] = useState<SessionPhase>("idle");
+  const [audioBlocked, setAudioBlocked] = useState(false);
   const [live, setLive] = useState<LivePhase>("asking");
   const [data, setData] = useState<InterviewPayload | null>(null);
   const [textMode, setTextMode] = useState(!support.stt);
@@ -138,13 +140,17 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
     setTyped("");
     if (textModeRef.current) { setLive("answering"); return; }
     setLive("asking");
-    await voice.speak(p.question ?? "");
+    const outcome = await voice.speak(p.question ?? "");
     if (!alive.current) return;
+    // The question is on screen; if the browser blocked audio, keep going and offer "Tap to hear".
+    setAudioBlocked(outcome === "blocked");
     await listenVoice(p.interview.turn_count);
   };
 
   /** Start (or resume) with any function that yields an interview payload. Throws on failure. */
   const begin = useCallback(async (load: () => Promise<InterviewPayload>) => {
+    // Called from the Start tap: unlock speech now, before the (slow) first AI call.
+    primeSpeech();
     setPhase("starting");
     setError(null);
     try {
@@ -176,7 +182,11 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
     begin, clientMeta, submitTyped, end,
     retry: () => pendingRef.current && submit(pendingRef.current),
     answerAgain: () => { setError(null); if (data?.interview) listenVoice(data.interview.turn_count); },
-    repeatQuestion: () => voice.speak(data?.question ?? ""),
+    repeatQuestion: () => {
+      primeSpeech();
+      void voice.speak(data?.question ?? "").then((o) => setAudioBlocked(o === "blocked"));
+    },
+    audioBlocked,
     typeInstead: () => { setTextMode(true); setError(null); setLive("answering"); },
   };
 }

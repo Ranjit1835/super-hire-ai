@@ -1,4 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import {
+  getRecognitionCtor, isTtsSupported, micProblemFromRecognition, primeSpeech, speakText, stopSpeaking,
+  type MicProblem, type SpeakHandle,
+} from "@/lib/speech";
 
 export interface UseSpeechReturn {
   isVoiceMode: boolean;
@@ -10,63 +14,70 @@ export interface UseSpeechReturn {
   startListening: () => void;
   stopListening: () => void;
   isSupported: boolean;
+  /** The browser refused to play speech (needs a tap). Show a "Tap to hear" button that calls replay(). */
+  audioBlocked: boolean;
+  /** From a tap: replays the last text (the tap unlocks audio on mobile). */
+  replay: () => void;
+  micProblem: MicProblem | null;
 }
 
+/** Voice mode for the text mock interview. Speech handling lives in src/lib/speech.ts. */
 export function useSpeech(): UseSpeechReturn {
-  const isSupported =
-    typeof window !== "undefined" &&
-    "speechSynthesis" in window &&
-    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  const isSupported = isTtsSupported() && !!getRecognitionCtor();
 
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  const [micProblem, setMicProblem] = useState<MicProblem | null>(null);
 
   const recognitionRef = useRef<any>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speakRef = useRef<SpeakHandle | null>(null);
+  const lastRef = useRef<{ text: string; onEnd?: () => void } | null>(null);
 
   useEffect(() => {
     return () => {
-      window.speechSynthesis?.cancel();
+      speakRef.current?.cancel();
+      stopSpeaking();
       recognitionRef.current?.abort();
     };
   }, []);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     if (!isSupported) return;
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.lang = "en-US";
-    utteranceRef.current = utterance;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => {
+    speakRef.current?.cancel();
+    lastRef.current = { text, onEnd };
+    setAudioBlocked(false);
+    const handle = speakText(text, { onStart: () => setIsSpeaking(true) });
+    speakRef.current = handle;
+    void handle.done.then((outcome) => {
+      if (speakRef.current !== handle || outcome === "cancelled") return;
       setIsSpeaking(false);
+      if (outcome === "blocked") { setAudioBlocked(true); return; }
       onEnd?.();
-    };
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
+    });
   }, [isSupported]);
+
+  const replay = useCallback(() => {
+    primeSpeech();
+    if (lastRef.current) speak(lastRef.current.text, lastRef.current.onEnd);
+  }, [speak]);
 
   const startListening = useCallback(() => {
     if (!isSupported) return;
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    const SpeechRecognition = getRecognitionCtor() as any;
+    if (!SpeechRecognition) { setMicProblem("unsupported"); return; }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
+    recognition.lang = "en-IN";
     recognition.continuous = false;
     recognition.interimResults = true;
 
     recognition.onstart = () => {
       setIsListening(true);
       setTranscript("");
+      setMicProblem(null);
     };
     recognition.onresult = (e: any) => {
       let interim = "";
@@ -83,12 +94,14 @@ export function useSpeech(): UseSpeechReturn {
     recognition.onend = () => {
       setIsListening(false);
     };
-    recognition.onerror = () => {
+    recognition.onerror = (e: any) => {
       setIsListening(false);
+      const problem = micProblemFromRecognition(e?.error ?? "");
+      if (problem) setMicProblem(problem);
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+    try { recognition.start(); } catch { setIsListening(false); }
   }, [isSupported]);
 
   const stopListening = useCallback(() => {
@@ -99,11 +112,16 @@ export function useSpeech(): UseSpeechReturn {
   const toggleVoiceMode = useCallback(() => {
     setIsVoiceMode((v) => {
       if (v) {
-        window.speechSynthesis?.cancel();
+        speakRef.current?.cancel();
+        stopSpeaking();
         recognitionRef.current?.abort();
         setIsSpeaking(false);
         setIsListening(false);
         setTranscript("");
+        setAudioBlocked(false);
+      } else {
+        // Turning voice mode on is a tap: unlock speech for the rest of the interview.
+        primeSpeech();
       }
       return !v;
     });
@@ -119,5 +137,8 @@ export function useSpeech(): UseSpeechReturn {
     startListening,
     stopListening,
     isSupported,
+    audioBlocked,
+    replay,
+    micProblem,
   };
 }

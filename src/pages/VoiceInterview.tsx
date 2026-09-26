@@ -8,8 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Mic, MicOff, ArrowLeft, PhoneOff, BarChart3, Loader2,
+  Mic, MicOff, ArrowLeft, PhoneOff, BarChart3, Loader2, Volume2, AlertTriangle,
 } from "lucide-react";
+import { AudioCheck } from "@/components/interview/AudioCheck";
+import {
+  getRecognitionCtor, micHelp, micProblemFromRecognition, primeSpeech, speakText, stopSpeaking, NO_VOICES_HELP,
+  type MicProblem, type SpeakHandle,
+} from "@/lib/speech";
 import { InterviewReport } from "@/components/interview/InterviewReport";
 import { InterviewPayment } from "@/components/interview/InterviewPayment";
 import { AnimatedGradientMesh } from "@/components/premium";
@@ -27,17 +32,6 @@ type Phase = "setup" | "payment" | "interviewing" | "scoring" | "report";
 type VoiceState = "idle" | "ai-speaking" | "listening" | "processing";
 
 interface Message { role: "user" | "assistant"; content: string; timestamp: string; }
-
-function getBestVoice(): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis.getVoices();
-  return (
-    voices.find(v => v.name.includes("Google US English")) ||
-    voices.find(v => v.name.includes("Microsoft") && v.lang.startsWith("en")) ||
-    voices.find(v => v.lang === "en-US") ||
-    voices.find(v => v.lang.startsWith("en")) ||
-    voices[0] || null
-  );
-}
 
 export default function VoiceInterview() {
   const { user, session } = useAuth();
@@ -58,7 +52,9 @@ export default function VoiceInterview() {
   const [accessInfo, setAccessInfo] = useState<any>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [starting, setStarting] = useState(false);
-  const [voicesLoaded, setVoicesLoaded] = useState(false);
+  // Why audio or the mic isn't working, shown on screen instead of failing silently.
+  const [audioIssue, setAudioIssue] = useState<null | "blocked" | "error" | "unsupported" | "no-voices">(null);
+  const [micIssue, setMicIssue] = useState<MicProblem | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,22 +63,20 @@ export default function VoiceInterview() {
   const sessionIdRef = useRef<string | null>(null);
   const stoppedRef = useRef(false);
   const retryCountRef = useRef(0);
+  const speakRef = useRef<SpeakHandle | null>(null);
+  const pendingListenRef = useRef(true);
+  const startListeningRef = useRef<() => void>(() => {});
+  const submitAnswerRef = useRef<(text: string) => void>(() => {});
   const MAX_RETRIES = 2;
   messagesRef.current = messages;
 
   useEffect(() => { document.title = "Voice Interview – HiResume"; }, []);
 
   useEffect(() => {
-    const load = () => setVoicesLoaded(true);
-    window.speechSynthesis.getVoices();
-    window.speechSynthesis.addEventListener("voiceschanged", load);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
-  }, []);
-
-  useEffect(() => {
     return () => {
       stoppedRef.current = true;
-      window.speechSynthesis?.cancel();
+      speakRef.current?.cancel();
+      stopSpeaking();
       try { recognitionRef.current?.abort(); } catch (_) {}
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     };
@@ -111,63 +105,49 @@ export default function VoiceInterview() {
     return data;
   }, [session]);
 
-  const speakAndListen = useCallback((text: string, autoListen = true) => {
-    window.speechSynthesis.cancel();
+  /**
+   * Speak a question, then (optionally) start listening. If the browser blocks audio, show
+   * "Tap to hear the question" instead of silently moving on. `after` runs once speech ends.
+   */
+  const speakAndListen = useCallback((text: string, autoListen = true, after?: () => void) => {
+    speakRef.current?.cancel();
+    setAudioIssue(null);
     setVoiceState("ai-speaking");
     setCurrentQuestion(text);
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    const voice = getBestVoice();
-    if (voice) utterance.voice = voice;
-
-    const onDone = () => {
-      if (resumeTimer) clearInterval(resumeTimer);
-      if (autoListen) startListening();
-      else setVoiceState("idle");
-    };
-
-    utterance.onend = onDone;
-    utterance.onerror = onDone;
-
-    window.speechSynthesis.speak(utterance);
-
-    let resumeTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
-      if (!window.speechSynthesis.speaking) {
-        clearInterval(resumeTimer!);
+    pendingListenRef.current = autoListen;
+    const handle = speakText(text, { rate: 0.95 });
+    speakRef.current = handle;
+    void handle.done.then((outcome) => {
+      if (speakRef.current !== handle || stoppedRef.current || outcome === "cancelled") return;
+      if (after) { setVoiceState("idle"); after(); return; }
+      if (outcome === "blocked" || outcome === "error" || outcome === "unsupported" || outcome === "no-voices") {
+        setAudioIssue(outcome);
+        setVoiceState("idle");
         return;
       }
-      window.speechSynthesis.pause();
-      window.speechSynthesis.resume();
-    }, 10000);
-
-    const wordCount = text.split(" ").length;
-    const estimatedMs = Math.max((wordCount / 2.5) * 1000 + 1000, 4000);
-    const fallbackTimer = setTimeout(() => {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-      if (resumeTimer) clearInterval(resumeTimer);
-      if (autoListen) startListening();
+      if (autoListen) startListeningRef.current();
       else setVoiceState("idle");
-    }, estimatedMs);
+    });
+  }, []);
 
-    utterance.onend = () => { clearTimeout(fallbackTimer); onDone(); };
-    utterance.onerror = () => { clearTimeout(fallbackTimer); onDone(); };
-  }, [voicesLoaded]);
+  /** From a tap: replays the question (the tap unlocks audio on mobile). */
+  const replayQuestion = () => {
+    primeSpeech();
+    if (currentQuestion) speakAndListen(currentQuestion, pendingListenRef.current);
+  };
 
   const startListening = useCallback(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    const SpeechRecognition = getRecognitionCtor() as any;
+    if (!SpeechRecognition) { setMicIssue("unsupported"); setVoiceState("idle"); return; }
+    setAudioIssue(null);
 
     finalTranscriptRef.current = "";
     setLiveTranscript("");
     setVoiceState("listening");
 
     const recognition = new SpeechRecognition();
+    // A mic failure also fires onend; don't treat that as "no answer" and re-prompt into a blocked mic.
+    let failed = false;
     recognition.lang = "en-US";
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -192,12 +172,12 @@ export default function VoiceInterview() {
     };
 
     recognition.onend = () => {
-      if (stoppedRef.current) return;
+      if (stoppedRef.current || failed) return;
       setVoiceState("processing");
       const text = finalTranscriptRef.current.trim();
       if (text) {
         retryCountRef.current = 0;
-        submitAnswer(text);
+        submitAnswerRef.current(text);
       } else if (retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current++;
         speakAndListen("I didn't catch that. Could you please repeat your answer?");
@@ -208,21 +188,27 @@ export default function VoiceInterview() {
       }
     };
 
+    recognition.onstart = () => setMicIssue(null);
     recognition.onerror = (e: any) => {
       if (stoppedRef.current) return;
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      const problem = micProblemFromRecognition(e.error);
+      if (problem) {
+        failed = true;
+        setMicIssue(problem);
         setVoiceState("idle");
-        toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings.", variant: "destructive" });
-      } else if (e.error !== "no-speech" && e.error !== "aborted") {
-        setVoiceState("idle");
-        toast({ title: "Microphone error", description: e.error, variant: "destructive" });
       }
       // no-speech and aborted are handled by onend
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      // Some mobile browsers only allow starting recognition from a tap: show "Tap to answer".
+      setVoiceState("idle");
+    }
   }, []);
+  startListeningRef.current = startListening;
 
   const submitAnswer = useCallback(async (text: string) => {
     const userMsg: Message = { role: "user", content: text, timestamp: new Date().toISOString() };
@@ -237,8 +223,8 @@ export default function VoiceInterview() {
       setQuestionNumber(q => q + 1);
 
       if (data.isComplete) {
-        speakAndListen(data.message, false);
-        setTimeout(() => generateScore(), 3000);
+        // Previously scoring started after a fixed 3 s and cut the closing message off.
+        speakAndListen(data.message, false, () => generateScore());
       } else {
         speakAndListen(data.message, true);
       }
@@ -247,9 +233,13 @@ export default function VoiceInterview() {
       setVoiceState("idle");
     }
   }, [callAPI]);
+  submitAnswerRef.current = submitAnswer;
 
   const startInterview = async () => {
     if (!role) { toast({ title: "Select a role", variant: "destructive" }); return; }
+    // Must run synchronously in the tap: the first question arrives after a long AI call, by
+    // which time mobile browsers no longer treat speech as user-initiated and block it.
+    primeSpeech();
     setStarting(true);
     stoppedRef.current = false;
     retryCountRef.current = 0;
@@ -270,7 +260,8 @@ export default function VoiceInterview() {
   };
 
   const generateScore = async () => {
-    window.speechSynthesis.cancel();
+    speakRef.current?.cancel();
+    stopSpeaking();
     recognitionRef.current?.abort();
     setPhase("scoring");
     try {
@@ -285,7 +276,8 @@ export default function VoiceInterview() {
 
   const endInterview = () => {
     stoppedRef.current = true;
-    window.speechSynthesis.cancel();
+    speakRef.current?.cancel();
+    stopSpeaking();
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     try { recognitionRef.current?.abort(); } catch (_) {}
     recognitionRef.current = null;
@@ -359,9 +351,9 @@ export default function VoiceInterview() {
                     </SelectContent>
                   </Select>
                 </div>
+                <AudioCheck />
                 <div className="glass-subtle rounded-lg p-3 text-xs text-muted-foreground space-y-1 border border-violet-500/10">
-                  <p>Allow microphone access when prompted</p>
-                  <p>Find a quiet place for best results</p>
+                  <p>Find a quiet place; headphones with a mic work best</p>
                   <p>Interview takes 10-15 minutes</p>
                 </div>
                 <motion.button
@@ -495,6 +487,38 @@ export default function VoiceInterview() {
                 )}
               </motion.div>
             </AnimatePresence>
+
+            {audioIssue && (
+              <div role="alert" className="w-full rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+                <p className="text-sm flex gap-2 text-amber-100">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-300" />
+                  {audioIssue === "blocked"
+                    ? "Your browser blocked the interviewer's voice. Tap below to enable audio."
+                    : audioIssue === "unsupported"
+                      ? "This browser can't read questions aloud. Read the question below, then answer."
+                      : audioIssue === "no-voices"
+                        ? NO_VOICES_HELP
+                      : "The interviewer's voice couldn't play. Tap to try again, or read the question below."}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {audioIssue !== "unsupported" && audioIssue !== "no-voices" && (
+                    <button type="button" onClick={replayQuestion} className="px-3 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white inline-flex items-center gap-1.5">
+                      <Volume2 className="h-4 w-4" /> Tap to enable audio
+                    </button>
+                  )}
+                  <button type="button" onClick={() => { setAudioIssue(null); startListening(); }} className="px-3 py-2 rounded-lg text-sm font-medium border border-violet-500/30 text-foreground">
+                    <Mic className="h-4 w-4 inline mr-1" /> Answer without audio
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {micIssue && (
+              <div role="alert" className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+                <p className="text-sm font-medium text-red-200 flex gap-2"><MicOff className="h-4 w-4 shrink-0 mt-0.5" /> {micHelp(micIssue).title}</p>
+                <p className="text-xs text-muted-foreground mt-1">{micHelp(micIssue).steps}</p>
+              </div>
+            )}
 
             {currentQuestion && (
               <div className="glass rounded-xl border border-violet-500/15 w-full p-4">

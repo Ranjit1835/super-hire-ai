@@ -73,6 +73,12 @@ export function LiveInterviewPanel({ s, endCopy }: { s: InterviewSession; endCop
           <p className="text-sm">{error ?? "I didn't catch an answer."}</p>
           <div className="flex gap-2">
             {!textMode && <Button size="sm" onClick={s.answerAgain}><Mic className="h-4 w-4 mr-1" /> Answer again</Button>}
+            {s.audioBlocked && !textMode && (
+              <p role="alert" className="w-full text-sm text-amber-200 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
+                <Volume2 className="h-4 w-4 shrink-0" /> Your browser blocked the interviewer's voice.
+                <Button size="sm" className="ml-auto" onClick={s.repeatQuestion}>Tap to hear the question</Button>
+              </p>
+            )}
             {!textMode && <Button size="sm" variant="ghost" onClick={s.repeatQuestion}><Volume2 className="h-4 w-4 mr-1" /> Repeat question</Button>}
             <Button size="sm" variant="ghost" onClick={s.typeInstead}><Keyboard className="h-4 w-4 mr-1" /> Type instead</Button>
           </div>

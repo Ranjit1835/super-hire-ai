@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { InterviewPayment } from "@/components/interview/InterviewPayment";
 import { InterviewReport } from "@/components/interview/InterviewReport";
 import { useSpeech } from "@/hooks/useSpeech";
+import { micHelp } from "@/lib/speech";
 import { VoiceWaveform } from "@/components/interview/VoiceWaveform";
 import { AnimatedGradientMesh } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
@@ -50,7 +51,7 @@ export default function MockInterview() {
   const [accessInfo, setAccessInfo] = useState<any>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const { isVoiceMode, toggleVoiceMode, isSpeaking, isListening, transcript, speak, startListening, isSupported } = useSpeech();
+  const { isVoiceMode, toggleVoiceMode, isSpeaking, isListening, transcript, speak, startListening, isSupported, audioBlocked, replay, micProblem } = useSpeech();
 
   useEffect(() => { document.title = "AI Mock Interview – HiResume"; }, []);
 
@@ -305,6 +306,18 @@ export default function MockInterview() {
         {/* Chat phase */}
         {phase === "chat" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-[calc(100vh-8rem)]">
+            {isVoiceMode && audioBlocked && (
+              <div role="alert" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className="flex-1 text-amber-100">Your browser blocked the interviewer's voice.</span>
+                <button type="button" onClick={replay} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white">Tap to enable audio</button>
+              </div>
+            )}
+            {isVoiceMode && micProblem && (
+              <div role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
+                <p className="font-medium text-red-200">{micHelp(micProblem).title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{micHelp(micProblem).steps} You can keep typing your answers.</p>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="font-bold text-lg text-foreground">{role} Interview</h2>
