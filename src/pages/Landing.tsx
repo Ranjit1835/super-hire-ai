@@ -90,7 +90,7 @@ export default function Landing() {
       <VoiceInterviewSection />
 
 
-      <PricingSection />
+      <PricingSection onFreeCheck={() => fileInputRef.current?.click()} />
 
       <FAQSection />
 

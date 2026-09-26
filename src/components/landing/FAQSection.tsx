@@ -46,10 +46,10 @@ export const faqJsonLd = {
 };
 
 export function FAQSection() {
-  const [open, setOpen] = useState<number | null>(0);
+  const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section className="py-16 sm:py-20 px-4" id="faq">
+    <section className="py-12 sm:py-20 px-4" id="faq">
       <div className="container max-w-3xl">
         <div className="text-center mb-12">
           <Badge className="mb-3 bg-primary/10 text-primary border-primary/20 text-xs">FAQ</Badge>

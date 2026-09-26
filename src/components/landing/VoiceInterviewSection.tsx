@@ -35,9 +35,9 @@ export function VoiceInterviewSection() {
   const handleStart = () => navigate(user ? "/voice-interview" : "/auth?redirect=/voice-interview");
 
   return (
-    <section className="py-16 sm:py-20 px-4" id="ai-interview">
+    <section className="py-12 sm:py-20 px-4" id="ai-interview">
       <div className="container max-w-5xl">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
 
           {/* Left — Content */}
           <motion.div className="min-w-0" initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
@@ -52,11 +52,11 @@ export function VoiceInterviewSection() {
               Most people prepare by reading. But interviews happen by speaking. HiResume's AI interviewer listens to your voice, asks follow-up questions, and scores your communication — just like a real recruiter.
             </p>
 
-            <ul className="space-y-2.5 mb-8">
+            <ul className="space-y-2.5 mb-6 sm:mb-8">
               {features.map((f, i) => (
                 <motion.li
                   key={i}
-                  className="flex items-start gap-2.5 text-sm"
+                  className={`items-start gap-2.5 text-sm ${i >= 3 ? "hidden sm:flex" : "flex"}`}
                   initial={{ opacity: 0, x: -10 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
@@ -68,7 +68,7 @@ export function VoiceInterviewSection() {
               ))}
             </ul>
 
-            <div className="flex flex-wrap gap-2 mb-8">
+            <div className="hidden sm:flex flex-wrap gap-2 mb-8">
               {roles.map((r) => (
                 <Badge key={r} variant="outline" className="text-xs">{r}</Badge>
               ))}

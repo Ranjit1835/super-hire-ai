@@ -8,7 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCurrency } from "@/hooks/useCurrency";
 import type { Currency } from "@/config/pricing";
 
-export function PricingSection() {
+/** onFreeCheck: opens the page's resume upload (home page). Without it the free row links to the checker. */
+export function PricingSection({ onFreeCheck }: { onFreeCheck?: () => void } = {}) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currency, setCurrency, pricing } = useCurrency();
@@ -100,9 +101,9 @@ export function PricingSection() {
   const toggleCurrency = () => setCurrency(currency === "INR" ? "USD" : "INR");
 
   return (
-    <section className="py-16 sm:py-20 px-4 border-y border-border bg-secondary/10" id="pricing">
+    <section className="py-12 sm:py-20 px-4 border-y border-border bg-secondary/10" id="pricing">
       <div className="container max-w-6xl">
-        <div className="text-center mb-10">
+        <div className="text-center mb-6 sm:mb-10">
           <Badge className="mb-3 bg-primary/10 text-primary border-primary/20 text-xs">Pricing</Badge>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Simple, Transparent Pricing</h2>
           <p className="text-muted-foreground text-sm">Pay only for what you need. One-time payments — nothing auto-renews.</p>
@@ -115,7 +116,42 @@ export function PricingSection() {
           </button>
         </div>
 
-        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {/* Phones: one tappable row per plan instead of four tall cards. */}
+        <ul className="sm:hidden rounded-2xl border border-border overflow-hidden divide-y divide-border bg-background/40">
+          <li>
+            <button type="button" onClick={() => (onFreeCheck ? onFreeCheck() : navigate("/ats-checker"))} className="w-full flex items-center gap-3 p-4 text-left hover:bg-white/[0.03]">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">ATS check</p>
+                <p className="text-xs text-muted-foreground">Score, keyword gaps and fixes</p>
+              </div>
+              <span className="font-black">Free</span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" aria-hidden />
+            </button>
+          </li>
+          {plans.map((plan) => (
+            <li key={plan.id}>
+              <button type="button" onClick={() => handleCta(plan.id)} className={`w-full flex items-center gap-3 p-4 text-left hover:bg-white/[0.03] ${plan.highlight ? "bg-primary/5" : ""}`}>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm flex items-center gap-2">
+                    {plan.name}
+                    {plan.badge && <Badge className="text-[9px] px-1.5 py-0 whitespace-nowrap shrink-0 bg-primary text-primary-foreground">{plan.badge}</Badge>}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{plan.description}</p>
+                </div>
+                <span className="text-right">
+                  <span className="block font-black">{plan.price}</span>
+                  <span className="block text-[10px] text-muted-foreground">{plan.period}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="sm:hidden text-center mt-3">
+          <a href="/pricing" className="text-sm text-primary underline underline-offset-2">Compare all plans</a>
+        </p>
+
+        <div className="hidden sm:grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.id}
@@ -171,7 +207,7 @@ export function PricingSection() {
           ))}
         </div>
 
-        <div className="text-center mt-8 space-y-2">
+        <div className="text-center mt-6 sm:mt-8 space-y-2">
           <p className="text-xs text-muted-foreground">
             Secured by Razorpay · All prices inclusive of taxes · Student discount applied automatically
           </p>
