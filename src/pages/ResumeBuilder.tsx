@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { countUnsupportedChars, safe } from "@/lib/pdf-text";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -129,9 +130,12 @@ export default function ResumeBuilder() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${displayContent.basicInfo.fullName || "resume"}_HiResume.pdf`;
+      a.download = `${safe(displayContent.basicInfo.fullName).replace(/s+/g, "_") || "resume"}_HiResume.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      if (countUnsupportedChars(displayContent) > 0) {
+        toast({ title: "Some characters were left out", description: "The PDF uses standard fonts (best for ATS), which can't show some characters such as Hindi script. Those characters were left out; write your name and details in English letters for the best result." });
+      }
     } catch (err: any) {
       toast({ title: "Download failed", description: err.message, variant: "destructive" });
     }

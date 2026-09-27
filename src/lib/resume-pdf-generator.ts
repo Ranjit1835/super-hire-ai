@@ -1,5 +1,7 @@
 import { PDFDocument, rgb, StandardFonts, type RGB } from "pdf-lib";
-import { ResumeContent, TemplateId, TEMPLATE_IDS } from "./resume-builder-types";
+import { ResumeContent, TemplateId } from "./resume-builder-types";
+import { ATS_STYLES, isAtsTemplate, renderAtsPdf } from "./ats-pdf";
+import { safe, toBullets } from "./pdf-text";
 
 interface RenderConfig {
   accentColor: RGB;
@@ -32,7 +34,7 @@ const BASE: RenderConfig = {
   sectionStyle: "line",
 };
 
-const CONFIGS: Record<TemplateId, RenderConfig> = {
+const CONFIGS: Record<Exclude<TemplateId, keyof typeof ATS_STYLES>, RenderConfig> = {
   "minimal-ats":         { ...BASE, accentColor: charcoal, sectionStyle: "line" },
   "modern-professional": { ...BASE, accentColor: blue },
   "clean-fresher":       { ...BASE, accentColor: teal, fontScale: 0.95 },
@@ -46,7 +48,8 @@ const CONFIGS: Record<TemplateId, RenderConfig> = {
 };
 
 export async function generateResumePdf(content: ResumeContent, templateId: TemplateId): Promise<Uint8Array> {
-  const cfg = CONFIGS[templateId] ?? CONFIGS["minimal-ats"];
+  if (isAtsTemplate(templateId)) return renderAtsPdf(content, ATS_STYLES[templateId]);
+  const cfg = CONFIGS[templateId as keyof typeof CONFIGS] ?? CONFIGS["minimal-ats"];
   return cfg.twoColumn
     ? renderTwoColumn(content, cfg)
     : renderSingleColumn(content, cfg);
@@ -54,7 +57,7 @@ export async function generateResumePdf(content: ResumeContent, templateId: Temp
 
 async function renderSingleColumn(content: ResumeContent, cfg: RenderConfig): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const page = doc.addPage([595, 842]);
+  let page = doc.addPage([595, 842]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
   const { width, height } = page.getSize();
@@ -69,10 +72,11 @@ async function renderSingleColumn(content: ResumeContent, cfg: RenderConfig): Pr
   let y = height - 50;
 
   const drawText = (text: string, x: number, yPos: number, size: number, f = font, color = black) => {
-    page.drawText(text, { x, y: yPos, size, font: f, color, maxWidth: maxW });
+    page.drawText(safe(text), { x, y: yPos, size, font: f, color, maxWidth: maxW });
   };
 
   const drawSection = (title: string) => {
+    if (y < 50 + 40) { page = doc.addPage([595, 842]); y = height - 50; }
     y -= 8;
     if (cfg.sectionStyle === "box") {
       page.drawRectangle({ x: margin - 4, y: y - 2, width: maxW + 8, height: 14 * fs + 4, color: rgb(0.95, 0.95, 0.95) });
@@ -85,7 +89,7 @@ async function renderSingleColumn(content: ResumeContent, cfg: RenderConfig): Pr
   };
 
   const wrapText = (text: string, size: number, f = font) => {
-    const words = text.split(" ");
+    const words = safe(text).split(" ");
     const lines: string[] = [];
     let current = "";
     for (const word of words) {
@@ -104,7 +108,8 @@ async function renderSingleColumn(content: ResumeContent, cfg: RenderConfig): Pr
   const drawWrapped = (text: string, size: number, f = font, color = black) => {
     const lines = wrapText(text, size, f);
     for (const line of lines) {
-      if (y < 50) return;
+      // Continue on a new page (content past the first page used to be dropped).
+      if (y < 50) { page = doc.addPage([595, 842]); y = height - 50; }
       drawText(line, margin, y, size, f, color);
       y -= lh;
     }
@@ -118,11 +123,11 @@ async function renderSingleColumn(content: ResumeContent, cfg: RenderConfig): Pr
   const subColor = cfg.headerBg ? rgb(0.85, 0.85, 0.85) : gray;
 
   const { basicInfo } = content;
-  const nameW = fontBold.widthOfTextAtSize(basicInfo.fullName || "Your Name", 18 * fs);
+  const nameW = fontBold.widthOfTextAtSize(safe(basicInfo.fullName) || "Your Name", 18 * fs);
   drawText(basicInfo.fullName || "Your Name", (width - nameW) / 2, y, 18 * fs, fontBold, headerColor);
   y -= 20 * fs;
 
-  const contact = [basicInfo.email, basicInfo.phone, basicInfo.linkedin, basicInfo.github].filter(Boolean).join("  •  ");
+  const contact = [basicInfo.email, basicInfo.phone, basicInfo.linkedin, basicInfo.github].map(safe).filter(Boolean).join("  •  ");
   if (contact) {
     const cw = font.widthOfTextAtSize(contact, 8 * fs);
     drawText(contact, (width - cw) / 2, y, 8 * fs, font, subColor);
@@ -146,7 +151,7 @@ async function renderSingleColumn(content: ResumeContent, cfg: RenderConfig): Pr
     drawSection("Experience");
     for (const e of exp) {
       drawWrapped(`${e.role} at ${e.company}${e.duration ? ` | ${e.duration}` : ""}`, 9 * fs, fontBold);
-      if (e.responsibilities) drawWrapped(e.responsibilities, 9 * fs);
+      for (const line of toBullets(e.responsibilities)) drawWrapped(line, 9 * fs);
       y -= 4;
     }
   }
@@ -156,7 +161,7 @@ async function renderSingleColumn(content: ResumeContent, cfg: RenderConfig): Pr
     drawSection("Projects");
     for (const p of proj) {
       drawWrapped(`${p.name}${p.techStack ? ` (${p.techStack})` : ""}`, 9 * fs, fontBold);
-      if (p.description) drawWrapped(p.description, 9 * fs);
+      for (const line of toBullets(p.description)) drawWrapped(line, 9 * fs);
       y -= 4;
     }
   }
@@ -197,14 +202,14 @@ async function renderTwoColumn(content: ResumeContent, cfg: RenderConfig): Promi
   let ySide = height - marginTop;
 
   const drawMain = (text: string, x: number, yPos: number, size: number, f = font, color = black) => {
-    page.drawText(text, { x, y: yPos, size, font: f, color, maxWidth: mainW });
+    page.drawText(safe(text), { x, y: yPos, size, font: f, color, maxWidth: mainW });
   };
   const drawSide = (text: string, yPos: number, size: number, f = font, color = black) => {
-    page.drawText(text, { x: marginX, y: yPos, size, font: f, color, maxWidth: sideMaxW });
+    page.drawText(safe(text), { x: marginX, y: yPos, size, font: f, color, maxWidth: sideMaxW });
   };
 
   const wrapSide = (text: string, size: number, f = font) => {
-    const words = text.split(" ");
+    const words = safe(text).split(" ");
     const lines: string[] = [];
     let cur = "";
     for (const w of words) {
@@ -224,7 +229,7 @@ async function renderTwoColumn(content: ResumeContent, cfg: RenderConfig): Promi
   };
 
   const wrapMain = (text: string, size: number, f = font) => {
-    const words = text.split(" ");
+    const words = safe(text).split(" ");
     const lines: string[] = [];
     let cur = "";
     for (const w of words) {
@@ -249,8 +254,8 @@ async function renderTwoColumn(content: ResumeContent, cfg: RenderConfig): Promi
   }
   const { basicInfo } = content;
   const headerColor = cfg.headerBg ? white : black;
-  const nameW = fontBold.widthOfTextAtSize(basicInfo.fullName || "Your Name", 16 * fs);
-  page.drawText(basicInfo.fullName || "Your Name", { x: (width - nameW) / 2, y: yMain, size: 16 * fs, font: fontBold, color: headerColor });
+  const nameW = fontBold.widthOfTextAtSize(safe(basicInfo.fullName) || "Your Name", 16 * fs);
+  page.drawText(safe(basicInfo.fullName) || "Your Name", { x: (width - nameW) / 2, y: yMain, size: 16 * fs, font: fontBold, color: headerColor });
   yMain -= 18 * fs;
   ySide = yMain;
 
@@ -300,7 +305,7 @@ async function renderTwoColumn(content: ResumeContent, cfg: RenderConfig): Promi
     drawMainSection("Experience");
     for (const e of exp) {
       drawMainWrapped(`${e.role} at ${e.company}${e.duration ? ` | ${e.duration}` : ""}`, 9 * fs, fontBold);
-      if (e.responsibilities) drawMainWrapped(e.responsibilities, 8.5 * fs);
+      for (const line of toBullets(e.responsibilities)) drawMainWrapped(line, 8.5 * fs);
       yMain -= 4;
     }
   }
@@ -310,7 +315,7 @@ async function renderTwoColumn(content: ResumeContent, cfg: RenderConfig): Promi
     drawMainSection("Projects");
     for (const p of proj) {
       drawMainWrapped(`${p.name}${p.techStack ? ` (${p.techStack})` : ""}`, 9 * fs, fontBold);
-      if (p.description) drawMainWrapped(p.description, 8.5 * fs);
+      for (const line of toBullets(p.description)) drawMainWrapped(line, 8.5 * fs);
       yMain -= 4;
     }
   }

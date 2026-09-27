@@ -67,6 +67,12 @@ export const TEMPLATE_IDS = [
   "two-column-pro",
   "data-tech-focused",
   "ultra-compact",
+  // ATS-safe, one column (src/lib/ats-pdf.ts)
+  "ats-classic",
+  "ats-modern",
+  "ats-fresher",
+  "ats-technical",
+  "ats-compact",
 ] as const;
 
 export type TemplateId = typeof TEMPLATE_IDS[number];
@@ -89,6 +95,11 @@ export const TEMPLATE_METADATA: Record<TemplateId, TemplateMetadata> = {
   "two-column-pro": { name: "Two-Column Pro", category: "Tech", description: "Sidebar + main column, teal theme · columns can confuse some ATS" },
   "data-tech-focused": { name: "Data/Tech Focused", category: "Tech", description: "Skills-first, monospace, cyan accents" },
   "ultra-compact": { name: "Ultra Compact", category: "Tech", description: "Maximum density, 3-column grid · columns can confuse some ATS" },
+  "ats-classic": { name: "ATS Classic", category: "Minimal ATS", description: "Traditional serif, one column, experience first", isNew: true },
+  "ats-modern": { name: "ATS Modern", category: "Minimal ATS", description: "Clean sans-serif, one column, skills up top", isNew: true },
+  "ats-fresher": { name: "ATS Fresher", category: "Fresher", description: "Education and projects first, one column", isNew: true },
+  "ats-technical": { name: "ATS Technical", category: "Tech", description: "Skills and projects first, one column", isNew: true },
+  "ats-compact": { name: "ATS Compact", category: "Minimal ATS", description: "Tighter spacing to fit one page, one column", isNew: true },
 };
 
 /** Legacy name lookup — maps TemplateId to display name */

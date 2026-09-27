@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont, RGB } from "pdf-lib";
+import { sanitizeDeep } from "./pdf-text";
 
 interface ResumeContent {
   name: string;
@@ -431,7 +432,9 @@ function renderImpact(ctx: DrawContext, content: ResumeContent): DrawContext {
 }
 
 // ─── MAIN EXPORT ────────────────────────────────────────────────────────────
-export async function generateResumePdf(content: ResumeContent, template: TemplateType): Promise<Uint8Array> {
+export async function generateResumePdf(rawContent: ResumeContent, template: TemplateType): Promise<Uint8Array> {
+  // Standard fonts only cover WinAnsi: "Rs" sign, Indic scripts or emoji used to throw and fail the download.
+  const content = sanitizeDeep(rawContent);
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);

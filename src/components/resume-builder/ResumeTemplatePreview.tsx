@@ -1,4 +1,6 @@
 import { ResumeContent, TemplateId, TEMPLATE_IDS, TEMPLATE_NAMES } from "@/lib/resume-builder-types";
+import { ATS_STYLES, SECTION_TITLES, isAtsTemplate, type AtsSection, type AtsStyle } from "@/lib/ats-pdf";
+import { toBullets } from "@/lib/pdf-text";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -72,6 +74,7 @@ export function ResumeTemplatePreview({ content, templateId, onTemplateChange, i
 }
 
 function TemplateRenderer({ content, templateId }: { content: ResumeContent; templateId: TemplateId }) {
+  if (isAtsTemplate(templateId)) return <AtsTemplate content={content} style={ATS_STYLES[templateId]} />;
   switch (templateId) {
     case "minimal-ats":
       return <MinimalATS content={content} />;
@@ -99,6 +102,61 @@ function TemplateRenderer({ content, templateId }: { content: ResumeContent; tem
 }
 
 // --- Template Components ---
+
+/**
+ * Preview for the one-column ATS templates. Driven by the same AtsStyle as the PDF engine
+ * (src/lib/ats-pdf.ts), so section order, fonts and headings match the downloaded file.
+ */
+function AtsTemplate({ content, style }: { content: ResumeContent; style: AtsStyle }) {
+  const { basicInfo } = content;
+  const accent = style.accent ? `rgb(${style.accent.map((c) => Math.round(c * 255)).join(",")})` : "#111";
+  const font = style.font === "times" ? "'Times New Roman', Times, serif" : "Helvetica, Arial, sans-serif";
+  const scale = style.size / 10;
+  const Heading = ({ children }: { children: React.ReactNode }) => (
+    <h3 className="font-bold uppercase tracking-wide mt-3 mb-1" style={{ color: accent, fontSize: `${11.5 * scale}px`, borderBottom: style.headingRule ? `1px solid ${accent}` : undefined }}>{children}</h3>
+  );
+  const Details = ({ text }: { text: string }) => {
+    const items = toBullets(text);
+    if (items.length > 1) return <ul className="list-disc pl-4">{items.map((t, i) => <li key={i}>{t}</li>)}</ul>;
+    return items[0] ? <p>{items[0]}</p> : null;
+  };
+  const Row = ({ title, right }: { title: string; right?: string }) => (
+    <div className="flex justify-between gap-3 mt-1.5"><span className="font-bold">{title}</span>{right && <span className="text-gray-600 shrink-0">{right}</span>}</div>
+  );
+  const sections: Record<AtsSection, React.ReactNode> = {
+    summary: content.summary && <><Heading>{SECTION_TITLES.summary}</Heading><p>{content.summary}</p></>,
+    skills: content.skills.length > 0 && <><Heading>{SECTION_TITLES.skills}</Heading><p>{content.skills.join(", ")}</p></>,
+    experience: content.experience.some((e) => e.company || e.role) && (
+      <><Heading>{SECTION_TITLES.experience}</Heading>{content.experience.filter((e) => e.company || e.role).map((e, i) => (
+        <div key={i}><Row title={[e.role, e.company].filter(Boolean).join(", ")} right={e.duration} /><Details text={e.responsibilities} /></div>
+      ))}</>
+    ),
+    projects: content.projects.some((p) => p.name) && (
+      <><Heading>{SECTION_TITLES.projects}</Heading>{content.projects.filter((p) => p.name).map((p, i) => (
+        <div key={i}><Row title={p.name} />{p.techStack && <p className="text-gray-600">Technologies: {p.techStack}</p>}<Details text={p.description} /></div>
+      ))}</>
+    ),
+    education: content.education.some((e) => e.degree || e.college) && (
+      <><Heading>{SECTION_TITLES.education}</Heading>{content.education.filter((e) => e.degree || e.college).map((e, i) => (
+        <div key={i}><Row title={e.degree || e.college} right={e.year} />{e.degree && e.college && <p>{e.college}</p>}</div>
+      ))}</>
+    ),
+    certifications: content.certifications.some((c) => c.name) && (
+      <><Heading>{SECTION_TITLES.certifications}</Heading><ul className="list-disc pl-4">{content.certifications.filter((c) => c.name).map((c, i) => (
+        <li key={i}>{[c.name, c.issuer, c.year].filter(Boolean).join(", ")}</li>
+      ))}</ul></>
+    ),
+  };
+  return (
+    <div style={{ fontFamily: font, fontSize: `${10.5 * scale}px`, lineHeight: style.spacing }} className="text-gray-900">
+      <div className={style.nameAlign === "center" ? "text-center" : ""}>
+        <h1 className="font-bold" style={{ fontSize: `${21 * scale}px` }}>{basicInfo.fullName || "Your Name"}</h1>
+        <p className="text-gray-600" style={{ fontSize: `${10 * scale}px` }}>{[basicInfo.email, basicInfo.phone, basicInfo.linkedin, basicInfo.github].filter(Boolean).join("  |  ")}</p>
+      </div>
+      {style.order.map((key) => <div key={key}>{sections[key]}</div>)}
+    </div>
+  );
+}
 
 function SectionTitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <h3 className={`text-xs font-bold uppercase tracking-wider mb-1.5 ${className}`}>{children}</h3>;

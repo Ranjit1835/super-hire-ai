@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { countUnsupportedChars } from "@/lib/pdf-text";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -118,7 +119,9 @@ export default function FixResume() {
     try {
       const bytes = await generateResumePdf(fixedContent, template);
       downloadPdf(bytes, `resume-${template}-${Date.now()}.pdf`);
-      toast({ title: "Downloaded!", description: "Your fixed resume PDF has been downloaded." });
+      toast(countUnsupportedChars(fixedContent) > 0
+        ? { title: "Downloaded — some characters were left out", description: "The PDF uses standard fonts (best for ATS), which can't show some characters such as Hindi script. Those characters were left out; write your name and details in English letters for the best result." }
+        : { title: "Downloaded!", description: "Your fixed resume PDF has been downloaded." });
     } catch (err: any) {
       console.error("PDF generation error:", err);
       toast({ title: "PDF generation failed", description: err.message, variant: "destructive" });
