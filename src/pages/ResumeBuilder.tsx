@@ -3,10 +3,7 @@ import { countUnsupportedChars, safe } from "@/lib/pdf-text";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { ResumeBuilderWizard } from "@/components/resume-builder/ResumeBuilderWizard";
 import { SEOHead } from "@/components/SEOHead";
@@ -22,7 +19,6 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export default function ResumeBuilder() {
   const { user, session } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [phase, setPhase] = useState<Phase>("wizard");
@@ -147,24 +143,12 @@ export default function ResumeBuilder() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="AI Resume Builder with ATS-Friendly Templates | HiResume"
-        description="Build a professional resume step by step with 10 templates, including ATS-safe single-column layouts, AI help with your content and a PDF download."
+        description="Build a professional resume step by step with 15 templates, including ATS-safe single-column layouts, AI help with your content and a PDF download."
         path="/build-resume"
         keywords="resume builder, ATS resume template, free resume maker, professional resume builder, AI resume builder, resume templates"
         breadcrumbs={[{ name: "Home", path: "/" }, { name: "Resume Builder", path: "/build-resume" }]}
       />
       {/* Header */}
-      <header className="border-b border-border glass-strong sticky top-0 z-50">
-        <div className="container flex items-center justify-between h-14">
-          <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground">HiResume</span>
-            <Badge variant="secondary" className="text-xs">Builder</Badge>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
-          </Button>
-        </div>
-      </header>
 
       <main className="container py-6 sm:py-8 px-4">
         {phase === "wizard" && (

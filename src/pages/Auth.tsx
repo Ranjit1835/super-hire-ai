@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { APP_BASE_URL, APPLE_OAUTH_ENABLED } from "@/lib/config";
@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { LogIn, UserPlus, Mail, Lock, User, KeyRound } from "lucide-react";
+import { LogIn, UserPlus, Mail, Lock, User, KeyRound, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
+import { rememberRedirect, safeRedirect } from "@/lib/safe-redirect";
 
 const PASSWORD_RULES = {
   minLength: 8,
@@ -62,19 +63,18 @@ export default function Auth() {
 
   const returnTo = searchParams.get("returnTo");
   const guestToken = searchParams.get("guestToken");
-  const redirect = searchParams.get("redirect");
+  // Only same-site paths (see safe-redirect.ts). Remembered so it survives Google sign-in and the
+  // sign-up code step, which land on other pages.
+  const redirect = safeRedirect(searchParams.get("redirect"));
+  const rawRedirect = searchParams.get("redirect");
+  useEffect(() => { rememberRedirect(rawRedirect); }, [rawRedirect]); // null clears a stale one
 
   if (user) {
-    if (redirect) {
-      navigate(redirect, { replace: true });
-    } else if (returnTo === "guest" && guestToken) {
-      navigate(`/analysis/guest/${guestToken}`, { replace: true });
-    } else if (returnTo === "analyze" && sessionStorage.getItem("pendingResume")) {
-      navigate("/dashboard?autoAnalyze=true", { replace: true });
-    } else {
-      navigate("/dashboard", { replace: true });
-    }
-    return null;
+    const to = redirect
+      ?? (returnTo === "guest" && guestToken ? `/analysis/guest/${guestToken}`
+        : returnTo === "analyze" && sessionStorage.getItem("pendingResume") ? "/dashboard?autoAnalyze=true"
+        : "/dashboard");
+    return <Navigate to={to} replace />;
   }
 
   const isCoolingDown = cooldownEnd !== null && Date.now() < cooldownEnd;
@@ -198,6 +198,9 @@ export default function Auth() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
+        <Link to="/" className="inline-flex items-center gap-1.5 mb-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back to home
+        </Link>
         <div className="glass rounded-2xl shadow-2xl shadow-violet-500/10 border border-violet-500/15 overflow-hidden">
           {/* Header */}
           <div className="text-center px-6 pt-8 pb-4 relative">

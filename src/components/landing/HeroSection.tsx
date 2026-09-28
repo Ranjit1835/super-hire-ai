@@ -141,7 +141,7 @@ export function HeroSection({ dragOver, setDragOver, onDrop, onFileSelect, fileI
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
-            className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-violet-500/20 px-4 py-3 flex items-center justify-between gap-3"
+            data-bottom-bar className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-violet-500/20 px-4 py-3 flex items-center justify-between gap-3"
           >
             <p className="text-sm font-medium hidden sm:block text-muted-foreground">Free ATS resume score — no sign-up needed</p>
             <Button

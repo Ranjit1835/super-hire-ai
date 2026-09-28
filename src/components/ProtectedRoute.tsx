@@ -1,8 +1,10 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
+import { authUrlFor } from "@/lib/safe-redirect";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -12,6 +14,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) return <Navigate to="/auth" replace />;
+  // Sign in, then come straight back here (e.g. a "Resume builder" link from the home page).
+  if (!user) return <Navigate to={authUrlFor(location.pathname + location.search)} replace />;
   return <>{children}</>;
 }

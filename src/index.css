@@ -256,3 +256,7 @@
     }
   }
 }
+/* Pages with a fixed bottom action bar: keep the end of the footer visible above it. */
+body:has([data-bottom-bar]) footer {
+  padding-bottom: 6rem;
+}

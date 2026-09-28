@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { describeAnalysisError } from "@/hooks/useGuestResumeUpload";
 import {
-  Upload, FileText, LogOut, Zap, Clock, TrendingUp, Trash2, ChevronDown,
+  Upload, FileText, Zap, Clock, TrendingUp, Trash2, ChevronDown,
   FileEdit, Mic, Crown, Package, Sparkles, ArrowRight, MessageSquare, Eye, LayoutGrid, ArrowUpRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -62,7 +62,7 @@ function GradientDivider() {
    DASHBOARD
    ══════════════════════════════════════════════════════ */
 export default function Dashboard() {
-  const { user, signOut, session } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
@@ -177,14 +177,6 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-background">
         <AnimatedGradientMesh />
-        <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50">
-          <div className="container flex items-center justify-between h-14">
-            <div className="flex items-center gap-2">
-              <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
-              <span className="font-bold text-foreground tracking-tight">HiResume</span>
-            </div>
-          </div>
-        </header>
         <ScanningAnimation />
       </div>
     );
@@ -204,43 +196,6 @@ export default function Dashboard() {
       {/* ── ANIMATED MESH BACKGROUND ────────────── */}
       <AnimatedGradientMesh />
 
-      {/* ── NAV BAR ─────────────────────────────── */}
-      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50">
-        <div className="container flex items-center justify-between h-14 px-4">
-          <div className="flex items-center gap-2">
-            <motion.img
-              src="/logo.svg"
-              alt="HiResume"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              className="h-7 w-7 rounded-lg"
-            />
-            <span className="font-bold text-foreground tracking-tight">HiResume</span>
-            {planType === "UNLIMITED" && (
-              <Badge className="bg-violet-500/15 text-violet-300 border-violet-500/25 text-[10px] ml-2 hidden sm:inline-flex gap-1">
-                <Crown className="h-2.5 w-2.5" /> Unlimited
-              </Badge>
-            )}
-            {planType === "COMBO" && (
-              <Badge className="bg-cyan-500/15 text-cyan-300 border-cyan-500/25 text-[10px] ml-2 hidden sm:inline-flex gap-1">
-                <Package className="h-2.5 w-2.5" /> Combo
-              </Badge>
-            )}
-            {earlyBirdActive && planType !== "UNLIMITED" && planType !== "COMBO" && (
-              <Badge className="bg-violet-500/15 text-violet-300 border-violet-500/25 text-[10px] ml-2 hidden sm:inline-flex">Early Bird</Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground/60 hidden sm:block font-mono">{user?.email}</span>
-            <Button variant="ghost" size="sm" className="text-muted-foreground/60 hover:text-foreground" onClick={async () => {
-              if (session?.access_token) { const s = session.access_token.slice(-16); await supabase.from("user_sessions").delete().eq("session_token", s); }
-              await signOut(); navigate("/auth");
-            }}>
-              <LogOut className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Sign Out</span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
       <main className="container py-8 sm:py-10 max-w-5xl px-4 relative z-10">
         <InstitutionBanner />
         <motion.div variants={stagger.container} initial="hidden" animate="show">
@@ -250,9 +205,24 @@ export default function Dashboard() {
               ═══════════════════════════════════════════ */}
           <motion.div variants={stagger.item} className="flex items-end justify-between mb-2">
             <div>
-              <GradientText as="h1" className="text-3xl sm:text-4xl font-extrabold tracking-tight" animate>
-                Dashboard
-              </GradientText>
+              <div className="flex items-center gap-1">
+                <GradientText as="h1" className="text-3xl sm:text-4xl font-extrabold tracking-tight" animate>
+                  Dashboard
+                </GradientText>
+                {planType === "UNLIMITED" && (
+                  <Badge className="bg-violet-500/15 text-violet-300 border-violet-500/25 text-[10px] ml-2 inline-flex gap-1">
+                    <Crown className="h-2.5 w-2.5" /> Unlimited
+                  </Badge>
+                )}
+                {planType === "COMBO" && (
+                  <Badge className="bg-cyan-500/15 text-cyan-300 border-cyan-500/25 text-[10px] ml-2 inline-flex gap-1">
+                    <Package className="h-2.5 w-2.5" /> Combo
+                  </Badge>
+                )}
+                {earlyBirdActive && planType !== "UNLIMITED" && planType !== "COMBO" && (
+                  <Badge className="bg-violet-500/15 text-violet-300 border-violet-500/25 text-[10px] ml-2 inline-flex">Early Bird</Badge>
+                )}
+              </div>
               <motion.p
                 className="text-muted-foreground/50 text-sm mt-1"
                 initial={{ opacity: 0 }}
@@ -598,7 +568,7 @@ export default function Dashboard() {
             {[
               {
                 title: "Build Resume From Scratch",
-                desc: "AI-guided step-by-step resume creation with 10 templates.",
+                desc: "AI-guided step-by-step resume creation with 15 templates.",
                 icon: FileEdit,
                 color: "violet",
                 href: "/build-resume",

@@ -108,6 +108,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Release this device's slot in the active-session list (was only done from the dashboard).
+    const token = session?.access_token;
+    if (token) {
+      try {
+        await supabase.from("user_sessions").delete().eq("session_token", token.slice(-16));
+      } catch { /* best effort: signing out must not fail on this */ }
+    }
     await supabase.auth.signOut();
   };
 

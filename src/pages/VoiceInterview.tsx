@@ -3,12 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Mic, MicOff, ArrowLeft, PhoneOff, BarChart3, Loader2, Volume2, AlertTriangle,
+  Mic, MicOff, PhoneOff, BarChart3, Loader2, Volume2, AlertTriangle,
 } from "lucide-react";
 import { AudioCheck } from "@/components/interview/AudioCheck";
 import {
@@ -296,18 +295,6 @@ export default function VoiceInterview() {
     <div className="min-h-screen bg-background relative">
       <AnimatedGradientMesh />
 
-      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
-        <div className="container flex items-center justify-between h-14">
-          <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground">HiResume</span>
-            <Badge className="text-xs bg-violet-500/10 text-violet-300 border-violet-500/20">Voice Interview</Badge>
-          </div>
-          <button onClick={() => navigate("/mock-interview")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </button>
-        </div>
-      </header>
 
       <main className="container py-8 px-4 max-w-2xl relative z-10">
         {!canAccess && phase !== "report" && (

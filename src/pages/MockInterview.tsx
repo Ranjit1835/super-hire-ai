@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Mic, MicOff, Send, Loader2, Bot, User, BarChart3 } from "lucide-react";
+import { Mic, MicOff, Send, Loader2, Bot, User, BarChart3 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { InterviewPayment } from "@/components/interview/InterviewPayment";
 import { InterviewReport } from "@/components/interview/InterviewReport";
@@ -202,18 +202,6 @@ export default function MockInterview() {
       />
       <AnimatedGradientMesh />
 
-      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
-        <div className="container flex items-center justify-between h-14">
-          <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="HiResume" className="h-7 w-7 rounded-lg" />
-            <span className="font-bold text-foreground">HiResume</span>
-            <Badge className="text-xs bg-violet-500/10 text-violet-300 border-violet-500/20">Interview</Badge>
-          </div>
-          <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
-          </button>
-        </div>
-      </header>
 
       <main className="container py-6 sm:py-8 px-4 max-w-3xl relative z-10">
         {phase === "setup" && !canAccess && (

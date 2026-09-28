@@ -2,16 +2,22 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { takePendingInvite } from "@/features/b2b/lib/api";
+import { takeRememberedRedirect } from "@/lib/safe-redirect";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // A student who started from an institution invite link goes back to it.
+    // A student who started from an institution invite link goes back to it; anyone else to the
+    // page they were on when they chose to sign in, else the dashboard.
+    let done = false;
     const goHome = () => {
+      if (done) return;
+      done = true;
       const invite = takePendingInvite();
-      navigate(invite ? `/invite/${invite}` : "/dashboard", { replace: true });
+      const back = takeRememberedRedirect();
+      navigate(invite ? `/invite/${invite}` : back ?? "/dashboard", { replace: true });
     };
 
     // Supabase automatically detects and processes the OAuth code/token in the URL.

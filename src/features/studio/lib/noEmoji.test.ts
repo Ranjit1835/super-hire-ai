@@ -28,7 +28,7 @@ describe("Resume Studio has no emojis", () => {
   it("in UI code and server functions", () => {
     const roots = [
       "src/features/studio",
-      "src/components/StudioNavBar.tsx", "src/components/StudioFAB.tsx", "src/components/StudioOnboardingTooltip.tsx", "src/components/PostAnalysisStudioToast.tsx",
+      "src/components/layout", "src/components/StudioFAB.tsx", "src/components/StudioOnboardingTooltip.tsx", "src/components/PostAnalysisStudioToast.tsx",
       "supabase/functions/studio-chat", "supabase/functions/studio-parse-resume", "supabase/functions/studio-create-session",
       "supabase/functions/_shared/no-emoji.ts",
     ];

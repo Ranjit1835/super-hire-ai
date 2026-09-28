@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { generateResumePdf, downloadPdf, TemplateType } from "@/lib/pdf-generator";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, FileText, Briefcase, Award, Minus, Target, Pencil, Eye, Home, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, FileText, Briefcase, Award, Minus, Target, Pencil, Eye, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import ResumePreview, { FixedContent } from "@/components/fix-resume/ResumePreview";
 import { AnimatedGradientMesh } from "@/components/premium";
@@ -173,7 +173,7 @@ export default function FixResume() {
     <div className="min-h-screen bg-background relative">
       <AnimatedGradientMesh />
 
-      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50 relative">
+      <div className="border-b border-violet-500/10 glass-strong sticky top-16 z-40">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => navigate(`/analysis/${id}`)} className="text-muted-foreground hover:text-foreground hover:bg-violet-500/5">
@@ -182,9 +182,6 @@ export default function FixResume() {
             <span className="font-semibold text-sm text-foreground">Fix My Resume</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="text-muted-foreground hover:text-foreground hover:bg-violet-500/5">
-              <Home className="h-4 w-4 mr-1" /> Dashboard
-            </Button>
             <Button
               variant={editable ? "default" : "outline"}
               size="sm"
@@ -203,7 +200,7 @@ export default function FixResume() {
             </motion.button>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="container py-8 max-w-6xl relative z-10">
         {/* Template Selection */}

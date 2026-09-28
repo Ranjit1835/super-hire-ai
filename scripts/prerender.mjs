@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { assertParsesAsRendered } from "./html-structure.mjs";
 
 const SITE = "https://hiresume.in";
 const DIST = "dist";
@@ -38,6 +39,7 @@ const { render, PRERENDER_ROUTES } = await import(pathToFileURL(join(process.cwd
 const titles = new Map();
 for (const route of PRERENDER_ROUTES) {
   const { html, head } = await render(route.path);
+  assertParsesAsRendered(route.path, html); // would fail hydration (React #418) in the browser
   if (!/<title[^>]*>[^<]+<\/title>/.test(head)) throw new Error(`${route.path}: no <title> rendered`);
   if (!head.includes('rel="canonical"')) throw new Error(`${route.path}: no canonical link rendered`);
   if (/noindex/.test(head)) throw new Error(`${route.path}: rendered noindex — is the route/slug valid?`);

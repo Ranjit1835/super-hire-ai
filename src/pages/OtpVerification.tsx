@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShieldCheck, Lock, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
+import { takeRememberedRedirect } from "@/lib/safe-redirect";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 30;
@@ -123,7 +124,10 @@ export default function OtpVerification() {
 
         toast({ title: "Welcome back!", description: "Successfully authenticated." });
 
-        if (returnTo === "guest" && guestToken) {
+        const back = takeRememberedRedirect();
+        if (back) {
+          navigate(back, { replace: true });
+        } else if (returnTo === "guest" && guestToken) {
           navigate(`/analysis/guest/${guestToken}`, { replace: true });
         } else if (returnTo === "analyze" && sessionStorage.getItem("pendingResume")) {
           navigate("/dashboard?autoAnalyze=true", { replace: true });

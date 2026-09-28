@@ -43,7 +43,7 @@ export function PricingSection({ onFreeCheck }: { onFreeCheck?: () => void } = {
       period: "one-time",
       description: "Build a new resume from scratch",
       features: [
-        "10 templates, incl. ATS-safe single-column",
+        "15 templates, incl. 5 one-column ATS layouts",
         "Step-by-step AI guidance",
         "PDF download",
         "Recruiter-ready structure",
@@ -132,10 +132,10 @@ export function PricingSection({ onFreeCheck }: { onFreeCheck?: () => void } = {
             <li key={plan.id}>
               <button type="button" onClick={() => handleCta(plan.id)} className={`w-full flex items-center gap-3 p-4 text-left hover:bg-white/[0.03] ${plan.highlight ? "bg-primary/5" : ""}`}>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm flex items-center gap-2">
+                  <div className="font-semibold text-sm flex items-center gap-2">
                     {plan.name}
                     {plan.badge && <Badge className="text-[9px] px-1.5 py-0 whitespace-nowrap shrink-0 bg-primary text-primary-foreground">{plan.badge}</Badge>}
-                  </p>
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">{plan.description}</p>
                 </div>
                 <span className="text-right">

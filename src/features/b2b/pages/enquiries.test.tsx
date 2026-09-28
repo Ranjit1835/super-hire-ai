@@ -4,7 +4,8 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
 
-const hooks = vi.hoisted(() => ({ useIsSuperAdmin: vi.fn() }));
+// useMyMemberships: the site header asks which institution areas the user can open.
+const hooks = vi.hoisted(() => ({ useIsSuperAdmin: vi.fn((): { data?: boolean; isLoading?: boolean } => ({ data: false })), useMyMemberships: () => ({ data: [] }) }));
 vi.mock("../hooks/useB2B", () => hooks);
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "sa" }, signOut: vi.fn() }) }));
 

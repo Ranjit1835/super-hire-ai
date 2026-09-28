@@ -3,12 +3,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Landing from "./pages/Landing";
-import { StudioNavBar } from "./components/StudioNavBar";
+import { AppHeader, AppFooter } from "./components/layout/AppChrome";
 import { StudioFAB } from "./components/StudioFAB";
 import { StudioOnboardingTooltip } from "./components/StudioOnboardingTooltip";
 
@@ -39,8 +39,6 @@ const MockInterview = lazy(() => import("./pages/MockInterview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CollegePlacement = preloadable(() => import("./pages/CollegePlacement"));
 const Leaderboard = lazy(() => import("./pages/Leaderboard"));
-const ReelsCampaign = lazy(() => import("./pages/ReelsCampaign"));
-const WeeklyStats = lazy(() => import("./pages/WeeklyStats"));
 const VoiceInterview = lazy(() => import("./pages/VoiceInterview"));
 const StudioPage = lazy(() => import("./features/studio/pages/StudioPage"));
 const StudioPaywallPage = lazy(() => import("./features/studio/pages/StudioPaywallPage"));
@@ -107,8 +105,9 @@ function AppRoutes() {
       <Route path="/blog/:slug" element={<BlogPost />} />
       <Route path="/college-placement" element={<CollegePlacement />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
-      <Route path="/reels-campaign" element={<ReelsCampaign />} />
-      <Route path="/weekly-stats" element={<ProtectedRoute><WeeklyStats /></ProtectedRoute>} />
+      {/* Retired pages: keep old links working. */}
+      <Route path="/reels-campaign" element={<Navigate to="/" replace />} />
+      <Route path="/weekly-stats" element={<Navigate to="/dashboard" replace />} />
       <Route path="/voice-interview" element={<ProtectedRoute><VoiceInterview /></ProtectedRoute>} />
       <Route path="/studio" element={<ProtectedRoute><StudioPaywallPage /></ProtectedRoute>} />
       <Route path="/studio/:resumeId" element={<ProtectedRoute><StudioPage /></ProtectedRoute>} />
@@ -157,10 +156,11 @@ export function AppContent() {
   return (
     <AuthProvider>
       <ErrorBoundary>
-        <StudioNavBar />
+        <AppHeader />
         <Suspense fallback={<PageLoader />}>
           <AppRoutes />
         </Suspense>
+        <AppFooter />
         <StudioFAB />
         <StudioOnboardingTooltip />
       </ErrorBoundary>

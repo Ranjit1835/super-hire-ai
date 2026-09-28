@@ -9,6 +9,7 @@ import { ScanningAnimation } from "@/components/ScanningAnimation";
 import { SEOHead } from "@/components/SEOHead";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection";
+import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { SampleResultSection } from "@/components/landing/SampleResultSection";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { CreatorSection } from "@/components/landing/CreatorSection";
@@ -82,6 +83,8 @@ export default function Landing() {
 
 
       <HowItWorksSection />
+
+      <FeaturesSection />
 
       <SampleResultSection onCtaClick={() => fileInputRef.current?.click()} />
 

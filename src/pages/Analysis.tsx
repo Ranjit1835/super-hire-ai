@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, Zap, AlertTriangle, Lightbulb, CheckCircle2,
-  XCircle, Wrench, TrendingUp, Brain, Target, ChevronDown, ChevronUp, Home, Upload,
+  XCircle, Wrench, TrendingUp, Brain, Target, ChevronDown, ChevronUp, Upload,
   GraduationCap, Lock, Eye, Share2, Copy, Check, Sparkles,
 } from "lucide-react";
 import type { AnalysisResult, AnalysisIssue } from "@/lib/analysis-types";
@@ -303,7 +303,7 @@ export default function Analysis() {
     <div className="min-h-screen bg-background pb-20 relative">
       <AnimatedGradientMesh />
 
-      <header className="border-b border-violet-500/10 glass-strong sticky top-0 z-50">
+      <div className="border-b border-violet-500/10 glass-strong sticky top-16 z-40">
         <div className="container flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="shrink-0 text-muted-foreground hover:text-foreground">
@@ -315,9 +315,6 @@ export default function Analysis() {
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
-              <Home className="h-4 w-4 mr-1" /> Home
-            </Button>
             <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")} className="hidden md:inline-flex border-border/50 hover:border-violet-500/30">
               <Upload className="h-4 w-4 mr-1" /> Analyze New
             </Button>
@@ -332,7 +329,7 @@ export default function Analysis() {
             </motion.button>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Studio sticky banner — top of results */}
       <motion.div
@@ -624,7 +621,7 @@ export default function Analysis() {
       {/* Sticky bottom conversion bar */}
       {!isFixUnlocked && showStickyBar && (
         <motion.div
-          className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-violet-500/10 py-3"
+          data-bottom-bar className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-violet-500/10 py-3"
           initial={{ y: 100 }}
           animate={{ y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
