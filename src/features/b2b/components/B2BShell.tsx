@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,15 @@ export function B2BShell({ title, subtitle, logoUrl, isDemo, tabs, actions, chil
             {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
           </div>
           {actions}
+          {/* Institution and admin screens have their own layout; this is the way back to the main site. */}
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 shrink-0"
+            aria-label="Back to HiResume"
+            title="Back to HiResume"
+          >
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">HiResume</span>
+          </Link>
           <button
             onClick={async () => {
               await signOut();

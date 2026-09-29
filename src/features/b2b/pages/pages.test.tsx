@@ -359,7 +359,7 @@ describe("student start / resume", () => {
     live.useMyInterviews.mockReturnValue(ok([{ id: "i2", module_id: "m2", status: "in_progress", module_name: "Java", turn_count: 3 }]));
     renderApp("/learn");
     expect(screen.getByText(/Continue your/)).toHaveTextContent("Continue your Java interview (question 4)");
-    expect(screen.getByRole("link", { name: /Resume/ }).getAttribute("href")).toBe("/learn/interview/m2");
+    expect(screen.getByRole("link", { name: /^Resume/ }).getAttribute("href")).toBe("/learn/interview/m2");
     expect(screen.queryAllByRole("link", { name: /Start interview/ })).toHaveLength(0);
     expect(screen.getByRole("button", { name: /Start interview/ })).toBeDisabled();
   });

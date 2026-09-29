@@ -20,9 +20,10 @@ export function StudioFAB() {
     setIsFirstVisit(!localStorage.getItem("studio_fab_seen"));
   }, []);
 
-  // Don't show on studio pages, auth pages, or when not logged in
-  const hideOn = ["/studio", "/auth", "/verify-otp", "/reset-password", "/auth/callback"];
-  if (hideOn.some((p) => location.pathname.startsWith(p))) return null;
+  // Only where editing a resume is the natural next step. It used to float over every page,
+  // covering the interview's mic/End buttons and the upload box on phones.
+  const showOn = [/^\/dashboard\/?$/, /^\/analysis\/(?!guest\/)/];
+  if (!showOn.some((re) => re.test(location.pathname))) return null;
   if (isB2BPath(location.pathname)) return null;
   if (!user || dismissed) return null;
 
@@ -52,7 +53,7 @@ export function StudioFAB() {
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 10 }}
-            className="glass rounded-xl px-3 py-2 shadow-xl max-w-[180px] border-violet-500/20"
+            className="hidden sm:block glass rounded-xl px-3 py-2 shadow-xl max-w-[180px] border-violet-500/20"
           >
             <p className="text-[11px] text-muted-foreground leading-tight">
               <strong className="text-violet-400">New!</strong> Chat with AI to edit your resume in real-time
