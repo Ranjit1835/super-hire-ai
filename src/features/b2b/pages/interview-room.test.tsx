@@ -96,34 +96,35 @@ describe("InterviewRoom", () => {
     expect(evalApi.evaluate).toHaveBeenCalledWith("iv-1");
   });
 
-  it("text mode (no speech support): typed answers are submitted", async () => {
+  it("voice only: a browser without speech recognition is told to use Chrome or Edge and can't start", async () => {
     voice.support = { stt: false, tts: true };
-    api.start.mockResolvedValue(payload("Explain an inner join."));
+    renderRoom();
+    expect(await screen.findByText(/Open this page in Google Chrome or Microsoft Edge/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Start interview/ })).toBeDisabled();
+    expect(screen.queryByText(/Type my answers/)).toBeNull();
+  });
+
+  it("ignores the microphone hearing the interviewer's own question and keeps listening", async () => {
+    api.start.mockResolvedValue(payload("Can you explain what an inner join returns in SQL?"));
+    voice.hook.listen
+      .mockResolvedValueOnce({ text: "explain what an inner join returns in SQL", meta: { input_mode: "voice", ended_by: "silence" } })
+      .mockResolvedValueOnce({ text: "Only the rows that match in both tables", meta: { input_mode: "voice", ended_by: "silence" } });
     api.answer.mockResolvedValue(payload("Next one?", { turn_count: 1 }));
     renderRoom();
-    expect(await screen.findByText(/This browser can't do speech recognition/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Start interview/ }));
-    const box = await screen.findByLabelText(/Your answer/);
-    expect(voice.hook.speak).not.toHaveBeenCalled();
-    fireEvent.change(box, { target: { value: "Rows that match in both tables" } });
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
-    await waitFor(() => expect(api.answer).toHaveBeenCalledWith(expect.objectContaining({
-      answer: "Rows that match in both tables", meta: { input_mode: "text", ended_by: "typed" },
-    })));
-    expect(await screen.findByText("Next one?")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /Start interview/ }));
+    await waitFor(() => expect(api.answer).toHaveBeenCalledTimes(1), { timeout: 4000 });
+    expect(api.answer.mock.calls[0][0]).toMatchObject({ answer: "Only the rows that match in both tables" });
   });
 
   it("connection drop: keeps the answer and retries with the same clientTurnId", async () => {
-    voice.support = { stt: false, tts: true };
     api.start.mockResolvedValue(payload("Q1?"));
+    voice.hook.listen.mockResolvedValueOnce({ text: "my answer", meta: { input_mode: "voice", ended_by: "silence" } });
     api.answer
       .mockRejectedValueOnce(new ApiError(0, "NETWORK", "offline"))
       .mockResolvedValueOnce(payload("Q2?", { turn_count: 1 }));
     renderRoom();
     fireEvent.click(await screen.findByRole("button", { name: /Start interview/ }));
-    fireEvent.change(await screen.findByLabelText(/Your answer/), { target: { value: "my answer" } });
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
-    expect(await screen.findByText(/Connection lost/)).toBeInTheDocument();
+    expect(await screen.findByText(/Connection lost/, {}, { timeout: 4000 })).toBeInTheDocument();
     expect(JSON.parse(sessionStorage.getItem("hiresume_b2b_pending_iv-1")!)).toMatchObject({ answer: "my answer", turnCount: 0 });
     fireEvent.click(screen.getByRole("button", { name: /Try again/ }));
     expect(await screen.findByText("Q2?")).toBeInTheDocument();
@@ -132,7 +133,6 @@ describe("InterviewRoom", () => {
   });
 
   it("after a reload, offers resume and re-sends an answer that was in flight", async () => {
-    voice.support = { stt: false, tts: true };
     api.current.mockResolvedValue(payload("Q2?", { turn_count: 1 }));
     api.resume.mockResolvedValue(payload("Q2?", { turn_count: 1 }));
     sessionStorage.setItem("hiresume_b2b_pending_iv-1", JSON.stringify({ clientTurnId: "ct-1", turnCount: 1, answer: "saved answer", meta: {} }));
@@ -144,16 +144,14 @@ describe("InterviewRoom", () => {
   });
 
   it("resyncs on a turn conflict (e.g. answered in another tab)", async () => {
-    voice.support = { stt: false, tts: true };
     api.start.mockResolvedValue(payload("Q1?"));
+    voice.hook.listen.mockResolvedValueOnce({ text: "x y", meta: { input_mode: "voice", ended_by: "silence" } });
     const conflict = new ApiError(409, "TURN_CONFLICT", "Out of sync");
     conflict.data = payload("Q2 from other tab?", { turn_count: 1 });
     api.answer.mockRejectedValueOnce(conflict);
     renderRoom();
     fireEvent.click(await screen.findByRole("button", { name: /Start interview/ }));
-    fireEvent.change(await screen.findByLabelText(/Your answer/), { target: { value: "x y" } });
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
-    expect(await screen.findByText("Q2 from other tab?")).toBeInTheDocument();
+    expect(await screen.findByText("Q2 from other tab?", {}, { timeout: 4000 })).toBeInTheDocument();
   });
 
   it("blocks starting while a different module's interview is live", async () => {
@@ -171,14 +169,14 @@ describe("InterviewRoom", () => {
     expect(screen.getByRole("button", { name: /Start interview/ })).toBeInTheDocument();
   });
 
-  it("falls back to typing when the microphone is blocked", async () => {
+  it("explains a blocked microphone and offers to answer again (no typing)", async () => {
     const { MicError } = await import("../hooks/useVoiceAnswer");
     api.start.mockResolvedValue(payload("Q1?"));
     voice.hook.listen.mockRejectedValueOnce(new MicError("blocked", "Microphone access is blocked."));
     renderRoom();
     fireEvent.click(await screen.findByRole("button", { name: /Start interview/ }));
     expect(await screen.findByText("Microphone access is blocked.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Type instead/ }));
-    expect(await screen.findByLabelText(/Your answer/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Answer again/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Type instead/ })).toBeNull();
   });
 });

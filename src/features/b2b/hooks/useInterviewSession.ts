@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { primeSpeech } from "@/lib/speech";
+import { isEchoOfPrompt, primeSpeech, waitForSpeechEnd } from "@/lib/speech";
 import { ApiError, interviewApi, type InterviewPayload } from "../lib/api";
 import { MicError, STT_LANG, useVoiceAnswer, voiceSupport } from "./useVoiceAnswer";
 
@@ -42,15 +42,11 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [live, setLive] = useState<LivePhase>("asking");
   const [data, setData] = useState<InterviewPayload | null>(null);
-  const [textMode, setTextMode] = useState(!support.stt);
-  const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [clockOffset, setClockOffset] = useState(0);
   const [now, setNow] = useState(Date.now());
   const pendingRef = useRef<Pending | null>(null);
   const alive = useRef(true);
-  const textModeRef = useRef(textMode);
-  textModeRef.current = textMode;
   const onFinishedRef = useRef(opts.onFinished);
   onFinishedRef.current = opts.onFinished;
 
@@ -104,17 +100,30 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
     }
   }, [finish]);
 
+  // The question just spoken, to recognise the mic hearing it back through the speaker.
+  const questionRef = useRef("");
+
   const listenVoice = useCallback(async (turnCount: number) => {
     setLive("answering");
     try {
-      const a = await voice.listen();
+      // Android can report the question finished while the speaker is still playing it.
+      await waitForSpeechEnd();
       if (!alive.current) return;
+      let a = await voice.listen();
+      if (!alive.current) return;
+      if (a.text && isEchoOfPrompt(a.text, questionRef.current)) {
+        setError("Your microphone picked up the interviewer's voice. Use headphones or lower the volume, then answer.");
+        await waitForSpeechEnd();
+        a = await voice.listen();
+        if (!alive.current) return;
+        if (a.text && isEchoOfPrompt(a.text, questionRef.current)) { setLive("empty"); return; }
+        setError(null);
+      }
       if (!a.text) { setLive("empty"); return; }
       await submit({ clientTurnId: newTurnId(), turnCount, answer: a.text, meta: a.meta as unknown as Record<string, unknown> });
     } catch (e) {
       if (!alive.current) return;
       setError(e instanceof MicError ? e.message : (e as Error).message);
-      if (e instanceof MicError && (e.code === "blocked" || e.code === "no-mic" || e.code === "unsupported")) setTextMode(true);
       setLive("empty");
     }
   }, [voice, submit]);
@@ -125,7 +134,7 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
     setData(p);
     setClockOffset(Date.parse(p.interview.server_now) - Date.now());
     if (p.interview.status !== "in_progress") {
-      if (p.closing && !textModeRef.current) { setLive("asking"); await voice.speak(p.closing); }
+      if (p.closing) { setLive("asking"); await voice.speak(p.closing); }
       finish(p);
       return;
     }
@@ -137,9 +146,8 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
       return;
     }
     if (saved) savePending(p.interview.id, null);
-    setTyped("");
-    if (textModeRef.current) { setLive("answering"); return; }
     setLive("asking");
+    questionRef.current = p.question ?? "";
     const outcome = await voice.speak(p.question ?? "");
     if (!alive.current) return;
     // The question is on screen; if the browser blocked audio, keep going and offer "Tap to hear".
@@ -161,13 +169,7 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
     }
   }, []);
 
-  const clientMeta = () => ({ ...browserInfo(), input_mode: textModeRef.current ? "text" : "voice", stt_lang: STT_LANG, stt_supported: support.stt });
-
-  const submitTyped = () => {
-    const text = typed.trim();
-    if (!text || !data?.interview) return;
-    submit({ clientTurnId: newTurnId(), turnCount: data.interview.turn_count, answer: text, meta: { input_mode: "text", ended_by: "typed" } });
-  };
+  const clientMeta = () => ({ ...browserInfo(), input_mode: "voice", stt_lang: STT_LANG, stt_supported: support.stt });
 
   const end = async () => {
     voice.cancel();
@@ -177,9 +179,9 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
   };
 
   return {
-    phase, live, data, error, setError, textMode, setTextMode, typed, setTyped, voice, support,
+    phase, live, data, error, setError, voice, support,
     remainingMs: data?.interview ? Date.parse(data.interview.deadline_at) - (now + clockOffset) : 0,
-    begin, clientMeta, submitTyped, end,
+    begin, clientMeta, end,
     retry: () => pendingRef.current && submit(pendingRef.current),
     answerAgain: () => { setError(null); if (data?.interview) listenVoice(data.interview.turn_count); },
     repeatQuestion: () => {
@@ -187,7 +189,6 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
       void voice.speak(data?.question ?? "").then((o) => setAudioBlocked(o === "blocked"));
     },
     audioBlocked,
-    typeInstead: () => { setTextMode(true); setError(null); setLive("answering"); },
   };
 }
 

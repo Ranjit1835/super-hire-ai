@@ -23,7 +23,7 @@ describe("blog content", () => {
   });
 
   it("internal links point at pages that exist", () => {
-    const known = new Set([...PRERENDER_ROUTES.map((r) => r.path), "/mock-interview", "/build-resume"]);
+    const known = new Set([...PRERENDER_ROUTES.map((r) => r.path), "/voice-interview", "/build-resume"]);
     for (const a of ARTICLES) {
       for (const [, href] of text(a).matchAll(/\]\((\/[^)]*)\)/g)) {
         expect(known.has(href), `${a.slug} links to ${href}`).toBe(true);

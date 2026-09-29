@@ -11,7 +11,7 @@ const voice = vi.hoisted(() => ({
 vi.mock("../hooks/useVoiceAnswer", async (orig) => ({
   ...(await orig<typeof import("../hooks/useVoiceAnswer")>()),
   useVoiceAnswer: () => voice.hook,
-  voiceSupport: () => ({ stt: false, tts: true }), // typed answers keep the test simple
+  voiceSupport: () => ({ stt: true, tts: true }),
 }));
 const api = vi.hoisted(() => ({
   publicTestApi: { info: vi.fn(), start: vi.fn() },
@@ -98,6 +98,7 @@ describe("PublicTest", () => {
     api.publicTestApi.start.mockResolvedValue({ interviewId: "iv1" });
     api.interviewApi.resume.mockResolvedValue(payload());
     api.interviewApi.answer.mockResolvedValue({ ...payload({ status: "completed", end_reason: "max_turns", turn_count: 1 }, null), closing: "Thank you." });
+    voice.hook.listen.mockResolvedValueOnce({ text: "A class is a blueprint", meta: { input_mode: "voice", ended_by: "silence" } });
     renderPublic();
     await screen.findByText("Java Academy");
     fill();
@@ -110,9 +111,8 @@ describe("PublicTest", () => {
       slug: "java-academy", moduleId: "m1",
       lead: { full_name: "Ravi Kumar", phone: "+919876543210", email: "ravi@gmail.com", target_course: "" },
     });
-    fireEvent.change(await screen.findByLabelText(/Your answer/), { target: { value: "A class is a blueprint" } });
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
-    expect(await screen.findByText("Your readiness report")).toBeInTheDocument();
+    expect(await screen.findByText("Your readiness report", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(api.interviewApi.answer.mock.calls[0][0]).toMatchObject({ answer: "A class is a blueprint" });
     const cta = screen.getByRole("link", { name: /Book a free demo class/ });
     expect(cta.getAttribute("href")).toBe("https://wa.me/919876543210");
     expect(api.evaluateApi.evaluate).toHaveBeenCalledWith("iv1");

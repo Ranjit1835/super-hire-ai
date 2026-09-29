@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { AudioCheck } from "@/components/interview/AudioCheck";
 import {
-  getRecognitionCtor, micHelp, micProblemFromRecognition, primeSpeech, speakText, stopSpeaking, NO_VOICES_HELP,
+  getRecognitionCtor, isEchoOfPrompt, micHelp, micProblemFromRecognition, primeSpeech, speakText, stopSpeaking, waitForSpeechEnd, NO_VOICES_HELP,
   type MicProblem, type SpeakHandle,
 } from "@/lib/speech";
 import { InterviewReport } from "@/components/interview/InterviewReport";
@@ -66,6 +66,10 @@ export default function VoiceInterview() {
   const pendingListenRef = useRef(true);
   const startListeningRef = useRef<() => void>(() => {});
   const submitAnswerRef = useRef<(text: string) => void>(() => {});
+  // What the interviewer last said, to recognise the mic picking it up from the speaker.
+  const lastSpokenRef = useRef("");
+  const echoCountRef = useRef(0);
+  const [echoHint, setEchoHint] = useState(false);
   const MAX_RETRIES = 2;
   messagesRef.current = messages;
 
@@ -108,15 +112,17 @@ export default function VoiceInterview() {
    * Speak a question, then (optionally) start listening. If the browser blocks audio, show
    * "Tap to hear the question" instead of silently moving on. `after` runs once speech ends.
    */
-  const speakAndListen = useCallback((text: string, autoListen = true, after?: () => void) => {
+  const speakAndListen = useCallback((text: string, autoListen = true, after?: () => void, opts: { isQuestion?: boolean } = {}) => {
     speakRef.current?.cancel();
     setAudioIssue(null);
     setVoiceState("ai-speaking");
-    setCurrentQuestion(text);
+    // A re-prompt ("I didn't catch that") must not replace the question on screen.
+    if (opts.isQuestion !== false) setCurrentQuestion(text);
+    lastSpokenRef.current = opts.isQuestion !== false ? text : `${text} ${lastSpokenRef.current}`;
     pendingListenRef.current = autoListen;
     const handle = speakText(text, { rate: 0.95 });
     speakRef.current = handle;
-    void handle.done.then((outcome) => {
+    void handle.done.then(async (outcome) => {
       if (speakRef.current !== handle || stoppedRef.current || outcome === "cancelled") return;
       if (after) { setVoiceState("idle"); after(); return; }
       if (outcome === "blocked" || outcome === "error" || outcome === "unsupported" || outcome === "no-voices") {
@@ -124,8 +130,11 @@ export default function VoiceInterview() {
         setVoiceState("idle");
         return;
       }
-      if (autoListen) startListeningRef.current();
-      else setVoiceState("idle");
+      if (!autoListen) { setVoiceState("idle"); return; }
+      // Don't open the mic while the speaker may still be playing the question.
+      await waitForSpeechEnd();
+      if (speakRef.current !== handle || stoppedRef.current) return;
+      startListeningRef.current();
     });
   }, []);
 
@@ -174,12 +183,22 @@ export default function VoiceInterview() {
       if (stoppedRef.current || failed) return;
       setVoiceState("processing");
       const text = finalTranscriptRef.current.trim();
+      if (text && isEchoOfPrompt(text, lastSpokenRef.current)) {
+        // The mic heard the interviewer through the speaker, not the candidate. Drop it.
+        setEchoHint(true);
+        setLiveTranscript("");
+        if (echoCountRef.current++ < 2) { void waitForSpeechEnd().then(() => { if (!stoppedRef.current) startListeningRef.current(); }); }
+        else { echoCountRef.current = 0; setVoiceState("idle"); }
+        return;
+      }
       if (text) {
         retryCountRef.current = 0;
+        echoCountRef.current = 0;
+        setEchoHint(false);
         submitAnswerRef.current(text);
       } else if (retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current++;
-        speakAndListen("I didn't catch that. Could you please repeat your answer?");
+        speakAndListen("I didn't catch that. Could you please repeat your answer?", true, undefined, { isQuestion: false });
       } else {
         retryCountRef.current = 0;
         setVoiceState("idle");
@@ -505,6 +524,12 @@ export default function VoiceInterview() {
                 <p className="text-sm font-medium text-red-200 flex gap-2"><MicOff className="h-4 w-4 shrink-0 mt-0.5" /> {micHelp(micIssue).title}</p>
                 <p className="text-xs text-muted-foreground mt-1">{micHelp(micIssue).steps}</p>
               </div>
+            )}
+
+            {echoHint && (
+              <p role="status" className="w-full text-xs text-amber-200 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                Your microphone picked up the interviewer's voice. Use headphones or lower the volume, then answer.
+              </p>
             )}
 
             {currentQuestion && (

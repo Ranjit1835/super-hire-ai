@@ -35,7 +35,6 @@ const FixResume = lazy(() => import("./pages/FixResume"));
 const GuestAnalysis = lazy(() => import("./pages/GuestAnalysis"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ResumeBuilder = lazy(() => import("./pages/ResumeBuilder"));
-const MockInterview = lazy(() => import("./pages/MockInterview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CollegePlacement = preloadable(() => import("./pages/CollegePlacement"));
 const Leaderboard = lazy(() => import("./pages/Leaderboard"));
@@ -97,7 +96,8 @@ function AppRoutes() {
       <Route path="/analysis/:id" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
       <Route path="/fix/:id" element={<ProtectedRoute><FixResume /></ProtectedRoute>} />
       <Route path="/build-resume" element={<ProtectedRoute><ResumeBuilder /></ProtectedRoute>} />
-      <Route path="/mock-interview" element={<ProtectedRoute><MockInterview /></ProtectedRoute>} />
+      {/* The typed mock interview was retired: interviews are voice only. */}
+      <Route path="/mock-interview" element={<Navigate to="/voice-interview" replace />} />
       <Route path="/ats-checker" element={<ATSChecker />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/about" element={<About />} />

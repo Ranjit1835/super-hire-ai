@@ -191,6 +191,37 @@ export function stopSpeaking() {
   synth()?.cancel();
 }
 
+/**
+ * Resolve once the device has really stopped speaking, plus a short gap. Android's TTS can report
+ * the end of an utterance before the audio finishes; listening straight away made the microphone
+ * pick up the interviewer's own voice and send it as the candidate's answer.
+ */
+export async function waitForSpeechEnd(gapMs = 450, maxWaitMs = 8000): Promise<void> {
+  const s = synth();
+  if (!s) return; // nothing can be playing
+  const started = Date.now();
+  while (s.speaking && Date.now() - started < maxWaitMs) await new Promise((r) => setTimeout(r, 100));
+  await new Promise((r) => setTimeout(r, gapMs));
+}
+
+const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9\s']/g, " ").split(/\s+/).filter((w) => w.length > 1);
+
+const trigrams = (w: string[]) => w.slice(0, -2).map((_, i) => `${w[i]} ${w[i + 1]} ${w[i + 2]}`);
+
+/**
+ * Did the microphone just hear the interviewer (from the speaker) rather than the candidate?
+ * Echo repeats the question's word *sequences*; a real answer reuses some of its words but not
+ * their order ("I have worked on React projects" answering "...React projects you have worked
+ * on" is not an echo). True when most three-word runs of what was heard occur in the prompt.
+ */
+export function isEchoOfPrompt(heard: string, prompt: string): boolean {
+  const h = trigrams(words(heard));
+  if (!h.length) return false;
+  const p = new Set(trigrams(words(prompt)));
+  if (!p.size) return false;
+  return h.filter((t) => p.has(t)).length / h.length >= 0.6;
+}
+
 // ── Microphone ────────────────────────────────────────────────────────────────
 
 export type MicProblem = "denied" | "no-mic" | "in-use" | "insecure" | "unsupported" | "unknown";

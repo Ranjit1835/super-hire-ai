@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { chunkText, micHelp, micProblemFromError, micProblemFromRecognition, pickVoice, primeSpeech, speakText } from "./speech";
+import { isEchoOfPrompt } from "./speech";
 
 type Mode = "ok" | "silent" | "not-allowed";
 
@@ -95,5 +96,18 @@ describe("speech", () => {
     expect(micProblemFromRecognition("no-speech")).toBeNull();
     expect(micHelp("denied", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)").steps).toMatch(/Settings → Safari → Microphone/);
     expect(micHelp("denied", "Mozilla/5.0 (Linux; Android 14)").steps).toMatch(/lock icon/);
+  });
+});
+
+describe("isEchoOfPrompt (mic hearing the interviewer through the speaker)", () => {
+  const q = "Great. Can you walk me through the React projects you have worked on, and what you built yourself?";
+  it("recognises the question, or its tail, coming back through the microphone", () => {
+    expect(isEchoOfPrompt("can you walk me through the react projects you have worked on", q)).toBe(true);
+    expect(isEchoOfPrompt("what you built yourself", q)).toBe(true);
+  });
+  it("keeps real answers, even ones that reuse the question's words", () => {
+    expect(isEchoOfPrompt("I have worked on React projects like a campus marketplace", q)).toBe(false);
+    expect(isEchoOfPrompt("Sure. I built the checkout myself using React and Node", q)).toBe(false);
+    expect(isEchoOfPrompt("yes", q)).toBe(false);
   });
 });

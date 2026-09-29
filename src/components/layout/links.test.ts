@@ -88,7 +88,7 @@ describe("internal links", () => {
   });
 
   it("every product feature has a home-page entry", () => {
-    const featureRoutes = ["/ats-checker", "/build-resume", "/studio", "/mock-interview", "/voice-interview", "/leaderboard", "/college-placement"];
+    const featureRoutes = ["/ats-checker", "/build-resume", "/studio", "/voice-interview", "/leaderboard", "/college-placement"];
     const onHome = new Set(FEATURES.map((f) => f.href));
     expect(featureRoutes.filter((r) => !onHome.has(r))).toEqual([]);
   });

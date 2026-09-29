@@ -1,11 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { aiText, isRateLimit } from "../_shared/ai.ts";
+import { aiText, isRateLimit, type ChatMessage } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Every interviewer reply is read aloud by the browser.
+const SPOKEN_RULES = `
+- Your reply is spoken aloud: plain sentences only, no markdown, lists, headings or emojis`;
+
+const kickoff = (role: string, level: string) => `Start the interview. I'm applying for the ${role} role at ${level} level.`;
+
+/**
+ * One interviewer reply. Low reasoning effort: a conversational turn doesn't need deep thought,
+ * and the default budget made each reply take 10-25 s (the candidate saw "Processing..." and
+ * thought the interviewer had stopped responding). A thinking model can also return no text at
+ * all; an empty reply used to be spoken as silence and the page went straight back to listening.
+ */
+async function interviewerTurn(system: string, messages: ChatMessage[], fallback: string): Promise<string> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const r = await aiText({ system, messages, reasoningEffort: "low", maxTokens: 4096 });
+    const text = (r.text || "").replace(/[*_#`]+/g, "").trim();
+    if (text) return text;
+    console.warn(`[MOCK-INTERVIEW] empty interviewer reply (attempt ${attempt + 1})`);
+  }
+  return fallback;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -131,13 +153,9 @@ Rules:
 
       let aiMessage: string;
       try {
-        const r = await aiText({
-          system: systemPrompt,
-          messages: [
-            { role: "user", content: `Start the interview. I'm applying for the ${role} role at ${experienceLevel} level.` },
-          ],
-        });
-        aiMessage = r.text || "Let's begin the interview.";
+        aiMessage = await interviewerTurn(systemPrompt + SPOKEN_RULES, [
+          { role: "user", content: kickoff(role, experienceLevel) },
+        ], `Welcome. Let's start with an introduction: tell me about yourself and why you're interested in this ${role} role.`);
       } catch (e) {
         console.error("[MOCK-INTERVIEW] start AI error:", e);
         if (isRateLimit(e)) throw new Error("AI service is busy. Please try again.");
@@ -189,12 +207,20 @@ Rules:
 - After about 6-8 questions total, wrap up by saying "That concludes our interview" and give brief feedback
 - Keep responses concise`;
 
-      const aiMessages = messages.map((m: any) => ({ role: m.role, content: m.content }));
+      // Same opening as "start", so the conversation always begins with a user turn.
+      const aiMessages = [
+        { role: "user", content: kickoff(session.role, session.experience_level) },
+        ...messages.map((m: any) => ({ role: m.role, content: m.content })),
+      ];
+      const asked = (messages as { role: string }[]).filter((m) => m.role === "assistant").length;
 
       let aiMessage: string;
       try {
-        const r = await aiText({ system: systemPrompt, messages: aiMessages });
-        aiMessage = r.text || "";
+        aiMessage = await interviewerTurn(
+          systemPrompt + SPOKEN_RULES + `\n- You have asked ${asked} question(s) so far. Do not wrap up before question 6 unless the candidate asks to stop.`,
+          aiMessages,
+          "Thanks. Could you give me a specific example from a project or internship that shows how you handled that?",
+        );
       } catch (e) {
         console.error("[MOCK-INTERVIEW] respond AI error:", e);
         if (isRateLimit(e)) throw new Error("AI service is busy. Please try again.");

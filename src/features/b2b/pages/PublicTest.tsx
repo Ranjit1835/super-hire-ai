@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { CenteredSpinner } from "../components/B2BShell";
 import { LiveInterviewPanel } from "../components/LiveInterviewPanel";
@@ -207,15 +206,11 @@ export default function PublicTest() {
             </div>
 
             <PreflightTips />
-            <AudioCheck needMic={!s.textMode} />
+            <AudioCheck needMic />
             {!s.support.stt && (
-              <p className="text-sm text-amber-200 flex gap-2"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                This browser can't do speech recognition. Use Chrome or Edge to answer by voice, or type your answers.</p>
+              <p className="text-sm text-amber-200 flex gap-2" role="alert"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                This browser can't recognise speech, and the test is answered by voice. Open this page in Google Chrome or Microsoft Edge.</p>
             )}
-            <div className="flex items-center gap-2">
-              <Switch id="text-mode" checked={s.textMode} onCheckedChange={s.setTextMode} disabled={!s.support.stt} />
-              <Label htmlFor="text-mode" className="text-sm font-normal">Type my answers instead of speaking</Label>
-            </div>
 
             <div className="flex items-start gap-2">
               <Checkbox id="consent" checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
@@ -223,7 +218,7 @@ export default function PublicTest() {
             </div>
 
             {pageError && <p className="text-sm text-red-300" role="alert">{pageError}</p>}
-            <Button size="lg" className="w-full" onClick={start} disabled={!moduleId || !consent}>
+            <Button size="lg" className="w-full" onClick={start} disabled={!moduleId || !consent || !s.support.stt}>
               <Mic className="h-4 w-4 mr-2" /> Start my free test
             </Button>
           </>

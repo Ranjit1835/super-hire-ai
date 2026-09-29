@@ -3,8 +3,6 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Loader2, Mic, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { B2BShell, CenteredSpinner, EmptyState } from "../components/B2BShell";
 import { ModuleMeta } from "../components/ModuleMeta";
 import { ReportPanel } from "../components/ReportPanel";
@@ -131,26 +129,22 @@ export default function InterviewRoom() {
       </div>
 
       <PreflightTips />
-      <AudioCheck needMic={!s.textMode} />
+      <AudioCheck needMic />
 
       {!s.support.stt && (
-        <p className="text-sm text-amber-200 flex gap-2"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          This browser can't do speech recognition. Use Google Chrome or Microsoft Edge for a voice interview, or type your answers below.</p>
+        <p className="text-sm text-amber-200 flex gap-2" role="alert"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          This browser can't recognise speech, and the interview is answered by voice. Open this page in Google Chrome or Microsoft Edge.</p>
       )}
-      <div className="flex items-center gap-2">
-        <Switch id="text-mode" checked={s.textMode} onCheckedChange={s.setTextMode} disabled={!s.support.stt} />
-        <Label htmlFor="text-mode" className="text-sm font-normal">Type my answers instead of speaking</Label>
-      </div>
 
       {pageError && <p className="text-sm text-red-300" role="alert">{pageError}</p>}
 
       {resumable ? (
-        <Button size="lg" className="w-full" onClick={() => begin(true)}>
+        <Button size="lg" className="w-full" onClick={() => begin(true)} disabled={!s.support.stt}>
           <RotateCcw className="h-4 w-4 mr-2" /> Resume interview (question {resumable.turn_count + 1} of {resumable.max_turns})
         </Button>
       ) : (
         <>
-          <Button size="lg" className="w-full" onClick={() => begin(false)} disabled={!!noneLeft}>
+          <Button size="lg" className="w-full" onClick={() => begin(false)} disabled={!!noneLeft || !s.support.stt}>
             <Mic className="h-4 w-4 mr-2" /> Start interview
           </Button>
           <p className="text-xs text-muted-foreground text-center">

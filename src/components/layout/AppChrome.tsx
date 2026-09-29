@@ -5,7 +5,7 @@ import { useLocation } from "react-router-dom";
 import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 
-const APP_PAGES = [/^\/dashboard\/?$/, /^\/analysis\//, /^\/fix\//, /^\/build-resume\/?$/, /^\/mock-interview\/?$/, /^\/voice-interview\/?$/, /^\/studio\/?$/];
+const APP_PAGES = [/^\/dashboard\/?$/, /^\/analysis\//, /^\/fix\//, /^\/build-resume\/?$/, /^\/voice-interview\/?$/, /^\/studio\/?$/];
 
 export const hasAppChrome = (pathname: string) => APP_PAGES.some((re) => re.test(pathname));
 

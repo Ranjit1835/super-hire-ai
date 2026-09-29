@@ -1,7 +1,7 @@
 // Every link in the site header and footer, in one place. src/components/layout/links.test.ts
 // checks each one (and every other internal link in the code) resolves to a real route.
 import {
-  BarChart3, Building2, FileText, Headphones, Mic, Sparkles, Trophy, Wrench, type LucideIcon,
+  BarChart3, Building2, FileText, Mic, Sparkles, Trophy, Wrench, type LucideIcon,
 } from "lucide-react";
 
 export interface NavLinkItem {
@@ -15,7 +15,7 @@ export interface NavLinkItem {
 export const PUBLIC_NAV: NavLinkItem[] = [
   { href: "/ats-checker", label: "ATS Checker" },
   { href: "/build-resume", label: "Resume Builder" },
-  { href: "/mock-interview", label: "Mock Interview", alsoActive: ["/voice-interview"] },
+  { href: "/voice-interview", label: "AI Interview" },
   { href: "/college-placement", label: "For Colleges" },
   { href: "/pricing", label: "Pricing" },
   { href: "/blog", label: "Blog" },
@@ -26,7 +26,7 @@ export const APP_NAV: NavLinkItem[] = [
   { href: "/dashboard", label: "Dashboard", alsoActive: ["/analysis/", "/fix/"] },
   { href: "/studio", label: "Studio" },
   { href: "/build-resume", label: "Builder" },
-  { href: "/mock-interview", label: "Interview", alsoActive: ["/voice-interview"] },
+  { href: "/voice-interview", label: "Interview" },
 ];
 
 /** Secondary links in the signed-in account menu. */
@@ -42,8 +42,7 @@ export const FOOTER_COLUMNS: { title: string; links: NavLinkItem[] }[] = [
       { href: "/ats-checker", label: "ATS Score Checker" },
       { href: "/build-resume", label: "Resume Builder" },
       { href: "/studio", label: "Resume Studio" },
-      { href: "/mock-interview", label: "Mock Interview" },
-      { href: "/voice-interview", label: "Voice Interview" },
+      { href: "/voice-interview", label: "AI Voice Interview" },
       { href: "/pricing", label: "Pricing" },
     ],
   },
@@ -85,10 +84,8 @@ export const FEATURES: Feature[] = [
     desc: "No resume yet? Fill in your details step by step and pick from 15 templates, including one-column ATS layouts." },
   { href: "/studio", icon: Sparkles, title: "Resume Studio", cta: "Open Studio", signIn: true,
     desc: "Edit your resume by chatting with AI: tailor it to a job description, tighten bullets and see changes live." },
-  { href: "/mock-interview", icon: Mic, title: "Mock interview", cta: "Practise now", signIn: true,
-    desc: "Answer role-specific questions by typing or speaking, then get a scored report on what to improve." },
-  { href: "/voice-interview", icon: Headphones, title: "Voice interview", cta: "Start talking", signIn: true,
-    desc: "A spoken interview: the AI interviewer asks questions out loud and listens to your answers, like the real thing." },
+  { href: "/voice-interview", icon: Mic, title: "AI voice interview", cta: "Start practising", signIn: true,
+    desc: "A spoken interview for your role: the AI interviewer asks questions out loud, listens to your answers, then gives you a scored report." },
   { href: "/leaderboard", icon: Trophy, title: "Leaderboard", cta: "See the leaderboard",
     desc: "Opt in to share your ATS score and see how it compares with others on HiResume." },
   { href: "/college-placement", icon: Building2, title: "For colleges", cta: "For placement offices",

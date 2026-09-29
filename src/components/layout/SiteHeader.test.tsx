@@ -26,7 +26,7 @@ describe("SiteHeader", () => {
   it("gives visitors real links to every public product page", () => {
     renderAt("/pricing");
     const hrefs = mainNav().getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(hrefs).toEqual(["/ats-checker", "/build-resume", "/mock-interview", "/college-placement", "/pricing", "/blog"]);
+    expect(hrefs).toEqual(["/ats-checker", "/build-resume", "/voice-interview", "/college-placement", "/pricing", "/blog"]);
     expect(mainNav().getByRole("link", { name: "Pricing" })).toHaveAttribute("aria-current", "page");
   });
 
@@ -39,7 +39,7 @@ describe("SiteHeader", () => {
     auth.state = { user: { id: "u1", email: "a@b.in" }, loading: false, signOut: vi.fn() };
     renderAt("/voice-interview");
     const hrefs = mainNav().getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(hrefs).toEqual(["/dashboard", "/studio", "/build-resume", "/mock-interview"]);
+    expect(hrefs).toEqual(["/dashboard", "/studio", "/build-resume", "/voice-interview"]);
     expect(mainNav().getByRole("link", { name: "Interview" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Account menu" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
