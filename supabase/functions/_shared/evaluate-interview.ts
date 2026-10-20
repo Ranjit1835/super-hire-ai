@@ -30,6 +30,8 @@ export async function evaluateInterview(admin: SupabaseClient, interviewId: stri
   const c = claim as { claimed: boolean; status?: string; evaluation_id?: string; reason?: string };
   if (!c.claimed) {
     if (c.reason) return { status: "skipped", reason: c.reason };
+    // Failed and not yet due for a retry (the sweep retries after a pause, at most 5 attempts).
+    if (c.status === "failed") return { status: "failed", evaluation_id: c.evaluation_id!, error: "retry_not_due" };
     return { status: c.status === "completed" ? "completed" : "pending", evaluation_id: c.evaluation_id! };
   }
   const evaluationId = c.evaluation_id!;

@@ -7,7 +7,7 @@
 //     (answer / resume / end) goes through b2b-interview and scoring through b2b-evaluate, exactly
 //     like a student interview.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { HttpError, handle, json, requireUser, serviceClient, sha256Hex, str, uuid } from "../_shared/b2b-http.ts";
+import { HttpError, handle, json, publicTestEnabled, requireUser, serviceClient, sha256Hex, str, uuid } from "../_shared/b2b-http.ts";
 import { normalizeModuleSpec } from "../_shared/module-spec.ts";
 import { initState } from "../_shared/interview-engine.ts";
 import { INTERVIEWER_PROMPT_VERSION } from "../_shared/interview-prompts.ts";
@@ -35,6 +35,7 @@ function clientIp(req: Request): string | null {
 serve(handle("B2B-PUBLIC-TEST", async (req, body) => {
   const action = str(body.action, "action", 20);
   if (action !== "start") throw new HttpError(400, "BAD_REQUEST", "Unknown action");
+  if (!publicTestEnabled()) throw new HttpError(404, "NOT_AVAILABLE", REASONS.NOT_AVAILABLE[1]);
 
   const user = await requireUser(req); // anonymous session is fine
   const admin = serviceClient();
