@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TurnLatency } from "@/lib/turn-latency";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -113,7 +114,7 @@ export const interviewApi = {
     callB2B<InterviewPayload>("b2b-interview", { action: "start", moduleId, clientMeta }, { timeoutMs: TURN_TIMEOUT_MS }),
   resume: (interviewId: string) =>
     callB2B<InterviewPayload>("b2b-interview", { action: "resume", interviewId }, { timeoutMs: 15_000 }),
-  answer: (a: { interviewId: string; clientTurnId: string; turnCount: number; answer: string; meta: Record<string, unknown> }) =>
+  answer: (a: { interviewId: string; clientTurnId: string; turnCount: number; answer: string; meta: Record<string, unknown>; clientLatency?: TurnLatency | null }) =>
     callB2B<InterviewPayload>("b2b-interview", { action: "answer", ...a }, { timeoutMs: TURN_TIMEOUT_MS }),
   end: (interviewId: string) =>
     callB2B<InterviewPayload>("b2b-interview", { action: "end", interviewId }, { timeoutMs: 15_000 }),

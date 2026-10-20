@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { createTurnTimer } from "@/lib/turn-latency";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -66,6 +67,8 @@ export default function VoiceInterview() {
   const pendingListenRef = useRef(true);
   const startListeningRef = useRef<() => void>(() => {});
   const submitAnswerRef = useRef<(text: string) => void>(() => {});
+  // Logging only: answer end → next question audible, reported with the next request.
+  const turnTimerRef = useRef(createTurnTimer());
   // What the interviewer last said, to recognise the mic picking it up from the speaker.
   const lastSpokenRef = useRef("");
   const echoCountRef = useRef(0);
@@ -120,7 +123,7 @@ export default function VoiceInterview() {
     if (opts.isQuestion !== false) setCurrentQuestion(text);
     lastSpokenRef.current = opts.isQuestion !== false ? text : `${text} ${lastSpokenRef.current}`;
     pendingListenRef.current = autoListen;
-    const handle = speakText(text, { rate: 0.95 });
+    const handle = speakText(text, { rate: 0.95, onStart: () => turnTimerRef.current.audible() });
     speakRef.current = handle;
     void handle.done.then(async (outcome) => {
       if (speakRef.current !== handle || stoppedRef.current || outcome === "cancelled") return;
@@ -152,6 +155,7 @@ export default function VoiceInterview() {
     finalTranscriptRef.current = "";
     setLiveTranscript("");
     setVoiceState("listening");
+    turnTimerRef.current.reset();
 
     const recognition = new SpeechRecognition();
     // A mic failure also fires onend; don't treat that as "no answer" and re-prompt into a blocked mic.
@@ -172,6 +176,7 @@ export default function VoiceInterview() {
       }
       if (final) finalTranscriptRef.current += final;
       setLiveTranscript((finalTranscriptRef.current + interim).trim());
+      turnTimerRef.current.heard();
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = setTimeout(() => {
@@ -195,6 +200,7 @@ export default function VoiceInterview() {
         retryCountRef.current = 0;
         echoCountRef.current = 0;
         setEchoHint(false);
+        turnTimerRef.current.closed();
         submitAnswerRef.current(text);
       } else if (retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current++;
@@ -235,7 +241,11 @@ export default function VoiceInterview() {
     setLiveTranscript("");
 
     try {
-      const data = await callAPI({ action: "respond", sessionId: sessionIdRef.current, messages: updated });
+      const timer = turnTimerRef.current;
+      const clientLatency = timer.take();
+      timer.sent();
+      const data = await callAPI({ action: "respond", sessionId: sessionIdRef.current, messages: updated, clientLatency });
+      timer.replied();
       const aiMsg: Message = { role: "assistant", content: data.message, timestamp: new Date().toISOString() };
       setMessages(prev => [...prev, aiMsg]);
       setQuestionNumber(q => q + 1);
@@ -283,7 +293,7 @@ export default function VoiceInterview() {
     recognitionRef.current?.abort();
     setPhase("scoring");
     try {
-      const data = await callAPI({ action: "score", sessionId: sessionIdRef.current });
+      const data = await callAPI({ action: "score", sessionId: sessionIdRef.current, clientLatency: turnTimerRef.current.take() });
       setScores(data.scores);
       setPhase("report");
     } catch (err: any) {

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isEchoOfPrompt, primeSpeech, waitForSpeechEnd } from "@/lib/speech";
+import { createTurnTimer } from "@/lib/turn-latency";
 import { ApiError, interviewApi, type InterviewPayload } from "../lib/api";
-import { MicError, STT_LANG, useVoiceAnswer, voiceSupport } from "./useVoiceAnswer";
+import { MicError, SILENCE_MS, STT_LANG, useVoiceAnswer, voiceSupport } from "./useVoiceAnswer";
 
 // The live interview loop, shared by the student interview room and the public readiness
 // test: speak the question → listen (or type) → submit with an idempotency key → present
@@ -49,6 +50,8 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
   const alive = useRef(true);
   const onFinishedRef = useRef(opts.onFinished);
   onFinishedRef.current = opts.onFinished;
+  // Logging only: answer end → next question audible, reported with the next answer.
+  const turnTimer = useRef(createTurnTimer()).current;
 
   useEffect(() => () => { alive.current = false; voice.cancel(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { try { window.speechSynthesis?.getVoices(); } catch { /* ignore */ } }, []);
@@ -78,7 +81,10 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
     setLive("submitting");
     setError(null);
     try {
-      const res = await interviewApi.answer({ interviewId: id, ...p });
+      const clientLatency = turnTimer.take();
+      turnTimer.sent();
+      const res = await interviewApi.answer({ interviewId: id, ...p, clientLatency });
+      turnTimer.replied();
       pendingRef.current = null;
       savePending(id, null);
       await presentRef.current(res);
@@ -105,6 +111,7 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
 
   const listenVoice = useCallback(async (turnCount: number) => {
     setLive("answering");
+    turnTimer.reset();
     try {
       // Android can report the question finished while the speaker is still playing it.
       await waitForSpeechEnd();
@@ -120,6 +127,9 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
         setError(null);
       }
       if (!a.text) { setLive("empty"); return; }
+      // An answer closed by the silence timeout ended SILENCE_MS before now.
+      turnTimer.heard(performance.now() - (a.meta.ended_by === "silence" ? SILENCE_MS : 0));
+      turnTimer.closed();
       await submit({ clientTurnId: newTurnId(), turnCount, answer: a.text, meta: a.meta as unknown as Record<string, unknown> });
     } catch (e) {
       if (!alive.current) return;
@@ -148,7 +158,7 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
     if (saved) savePending(p.interview.id, null);
     setLive("asking");
     questionRef.current = p.question ?? "";
-    const outcome = await voice.speak(p.question ?? "");
+    const outcome = await voice.speak(p.question ?? "", { onStart: turnTimer.audible });
     if (!alive.current) return;
     // The question is on screen; if the browser blocked audio, keep going and offer "Tap to hear".
     setAudioBlocked(outcome === "blocked");

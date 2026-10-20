@@ -95,10 +95,10 @@ export function useVoiceAnswer(opts: { recognitionCtor?: RecognitionCtor | null 
    * Speak the question (src/lib/speech.ts handles chunking, voices and autoplay).
    * Resolves with "blocked" when the browser refused audio — the caller shows "Tap to hear".
    */
-  const speak = useCallback(async (text: string): Promise<SpeakOutcome> => {
+  const speak = useCallback(async (text: string, opts: { onStart?: () => void } = {}): Promise<SpeakOutcome> => {
     const started = performance.now();
     setPhase("speaking");
-    const outcome = await speakText(text).done;
+    const outcome = await speakText(text, { onStart: opts.onStart }).done;
     lastTtsMs.current = outcome === "done" ? Math.round(performance.now() - started) : null;
     ttsEndedAt.current = performance.now();
     setPhase("idle");
