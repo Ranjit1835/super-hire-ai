@@ -18,7 +18,8 @@ export interface EvalDeps {
 
 export type V1EvalOutcome =
   | { status: "completed"; evaluation_id: string }
-  | { status: "pending" | "failed"; evaluation_id: string; error?: string }
+  | { status: "pending"; evaluation_id: string }
+  | { status: "failed"; evaluation_id: string; error: string }
   | { status: "skipped"; reason: string };
 
 interface InputTurn { turn: number; role: "interviewer" | "student"; content: string; topic: string | null; meta: Record<string, unknown> | null; created_at: string }
@@ -37,7 +38,8 @@ export async function evaluateV1(deps: EvalDeps, interviewId: string): Promise<V
   if (!claim.claimed) {
     if (claim.reason) return { status: "skipped", reason: claim.reason };
     if (claim.status === "completed") return { status: "completed", evaluation_id: claim.evaluation_id! };
-    return { status: claim.status === "failed" ? "failed" : "pending", evaluation_id: claim.evaluation_id! };
+    if (claim.status === "failed") return { status: "failed", evaluation_id: claim.evaluation_id!, error: "retry_not_due" };
+    return { status: "pending", evaluation_id: claim.evaluation_id! };
   }
   const evaluationId = claim.evaluation_id!;
   let attempts = 0;
