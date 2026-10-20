@@ -12,6 +12,7 @@
   "include": [
     "src/b2b",
     "src/vite-env.d.ts",
+    "src/test/setup.ts",
     "supabase/functions/_shared/contracts",
     "supabase/functions/_shared/ai-gateway/core.ts",
     "supabase/functions/_shared/ai-gateway/config.ts"
