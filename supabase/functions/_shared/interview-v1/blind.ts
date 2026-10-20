@@ -12,6 +12,7 @@ export interface BlindContext {
 
 const GENDER: [RegExp, string][] = [
   [/\b(he|she)\b/gi, "they"],
+  [/\bher\b(?=\s+[a-z])/gi, "their"],     // "her project": the possessive is the common case in answers
   [/\b(him|her)\b/gi, "them"],
   [/\b(his|hers)\b/gi, "their"],
   [/\b(himself|herself)\b/gi, "themself"],

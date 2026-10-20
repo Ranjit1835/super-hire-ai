@@ -11,7 +11,7 @@ const RULES: { id: string; re: RegExp }[] = [
   { id: "ignore_instructions", re: /\b(ignore|disregard|forget|override|bypass)\b[^.?!]{0,40}\b(previous|prior|above|earlier|your|all|the|system)\b[^.?!]{0,30}\b(instructions?|prompts?|rules?|guidelines?|directions?)\b/i },
   { id: "new_instructions", re: /\b(new|updated|real)\s+(instructions?|rules?|system prompt)\b|\byour (new )?(instructions?|task) (is|are) (now|to)\b/i },
   { id: "role_override", re: /\b(you are now|act as|pretend (to be|you are)|from now on,? you|you('| a)re no longer)\b/i },
-  { id: "system_prompt", re: /\b(system prompt|developer (message|mode)|jailbreak|reveal (your|the) (prompt|instructions))\b/i },
+  { id: "system_prompt", re: /\b(your|reveal|show me|print|repeat)\b[^.?!]{0,20}\b(system prompt|hidden instructions|prompt)\b|\b(developer mode|jailbreak)\b/i },
   { id: "score_request", re: /\b(give|award|grant|assign|mark|rate|score)\s+(me|this( answer)?|my answers?|the candidate)\b[^.?!]{0,30}\b(full|maximum|max|perfect|highest|top|10|ten|five|5|100)\b[^.?!]{0,15}\b(marks?|scores?|points?|rating|out of)\b/i },
   { id: "score_request", re: /\b(full|maximum|perfect)\s+(marks?|score|points)\b[^.?!]{0,30}\b(please|for me|to me)\b/i },
   { id: "verdict_request", re: /\b(mark|rate|recommend|pass|select|hire)\s+(me|this candidate)\s+(as\s+)?(strong|excellent|selected|hired|a strong hire|passed)\b/i },
