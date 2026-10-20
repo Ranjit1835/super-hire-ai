@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Playwright: only Linux screenshot baselines (made in CI) are committed
+/test-results/
+/playwright-report/
+/e2e/**/*-win32.png
+/e2e/**/*-darwin.png

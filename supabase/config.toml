@@ -77,3 +77,21 @@ verify_jwt = false
 
 [functions.b2b-public-test]
 verify_jwt = false
+
+[functions.b2b-admin]
+verify_jwt = false
+
+[functions.b2b-college]
+verify_jwt = false
+
+[functions.b2b-company]
+verify_jwt = false
+
+[functions.b2b-candidate]
+verify_jwt = false
+
+[functions.b2b-assess]
+verify_jwt = false
+
+[functions.b2b-proctor]
+verify_jwt = false

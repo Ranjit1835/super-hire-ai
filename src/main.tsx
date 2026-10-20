@@ -2,6 +2,11 @@ import { createRoot, hydrateRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import App, { preloadPublicPage } from "./App.tsx";
 import "./index.css";
+import { MotionGlobalConfig } from "framer-motion";
+
+// Screenshot tests (vite --mode e2e) need still frames: decorative animations jump to their end
+// state. Production builds compile this away (MODE is "production").
+if (import.meta.env.MODE === "e2e") MotionGlobalConfig.skipAnimations = true;
 
 // Force dark mode
 document.documentElement.classList.add("dark");

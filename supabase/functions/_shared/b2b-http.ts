@@ -45,10 +45,10 @@ export const b2bEnabled = () => envTrue("B2B_ENABLED");
 export const publicTestEnabled = () => b2bEnabled() && envTrue("B2B_PUBLIC_TEST_ENABLED");
 
 /**
- * Resolve the caller from their JWT, or throw 401. Anonymous sessions exist only for the public test,
- * so they are refused while that is switched off.
+ * Resolve the caller from their JWT, or throw 401. Anonymous sessions are refused unless the caller
+ * opts in (candidate token flows) or the public test is switched on.
  */
-export async function requireUser(req: Request): Promise<User> {
+export async function requireUser(req: Request, opts: { allowAnonymous?: boolean } = {}): Promise<User> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) throw new HttpError(401, "UNAUTHENTICATED", "Please sign in.");
   const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -57,7 +57,7 @@ export async function requireUser(req: Request): Promise<User> {
   });
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new HttpError(401, "UNAUTHENTICATED", "Please sign in again.");
-  if (data.user.is_anonymous && !publicTestEnabled()) throw new HttpError(403, "FORBIDDEN", "Please sign in.");
+  if (data.user.is_anonymous && !opts.allowAnonymous && !publicTestEnabled()) throw new HttpError(403, "FORBIDDEN", "Please sign in.");
   return data.user;
 }
 

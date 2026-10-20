@@ -40,11 +40,24 @@ beforeAll(async () => {
 
 describe("seeded plans", () => {
   it("match the pilot / basic / pro spec", async () => {
-    const rows = (await db.query("SELECT id, interviews_per_student, company_packs_enabled, dashboard_enabled, max_students FROM plans ORDER BY id")).rows;
+    const rows = (await db.query("SELECT id, interviews_per_student, company_packs_enabled, dashboard_enabled, max_students FROM plans WHERE id IN ('basic', 'pilot', 'pro') ORDER BY id")).rows;
     expect(rows).toEqual([
       { id: "basic", interviews_per_student: 4, company_packs_enabled: false, dashboard_enabled: false, max_students: null },
       { id: "pilot", interviews_per_student: 6, company_packs_enabled: true, dashboard_enabled: true, max_students: 150 },
       { id: "pro", interviews_per_student: 10, company_packs_enabled: true, dashboard_enabled: true, max_students: null },
+    ]);
+  });
+
+  it("V1 college plans carry pooled credits; basic and pro are retired", async () => {
+    const rows = (await db.query(
+      "SELECT id, org_type, price_inr_per_student::float AS price, drives_included, credits_per_student::float AS credits, is_active FROM plans WHERE org_type IS NOT NULL OR NOT is_active ORDER BY id")).rows;
+    expect(rows).toEqual([
+      { id: "basic", org_type: null, price: 149, drives_included: 0, credits: 0, is_active: false },
+      { id: "college_plus", org_type: "college", price: 599, drives_included: 3, credits: 5, is_active: true },
+      { id: "college_standard", org_type: "college", price: 499, drives_included: 2, credits: 5, is_active: true },
+      { id: "college_starter", org_type: "college", price: 399, drives_included: 1, credits: 4, is_active: true },
+      { id: "company_v1", org_type: "company", price: 0, drives_included: 0, credits: 0, is_active: true },
+      { id: "pro", org_type: null, price: 299, drives_included: 0, credits: 0, is_active: false },
     ]);
   });
 });

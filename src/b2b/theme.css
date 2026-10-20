@@ -1,0 +1,24 @@
+/* Scoped B2B theme (V1). Applied to <body> only while a B2B V1 screen is mounted (V1Shell), so
+   dialogs and menus rendered in portals pick it up too, and B2C pages never see it.
+   Calm and data-first: slate surfaces, a steady blue accent. Design DNA / paint replace this after V1. */
+body.b2b-theme {
+  --background: 222 24% 8%;
+  --foreground: 210 20% 96%;
+  --card: 222 22% 11%;
+  --card-foreground: 210 20% 96%;
+  --popover: 222 22% 12%;
+  --popover-foreground: 210 20% 96%;
+  --primary: 213 90% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 16% 20%;
+  --secondary-foreground: 210 20% 96%;
+  --muted: 220 16% 18%;
+  --muted-foreground: 215 14% 65%;
+  --accent: 220 16% 18%;
+  --accent-foreground: 210 20% 96%;
+  --border: 220 14% 22%;
+  --input: 220 14% 24%;
+  --ring: 213 90% 58%;
+  --radius: 0.5rem;
+  background: hsl(var(--background));
+}

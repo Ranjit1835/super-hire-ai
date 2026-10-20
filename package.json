@@ -15,10 +15,18 @@
     "load-test:b2b": "node scripts/b2b-load-test.ts",
     "calibrate:b2b": "node scripts/b2b-calibrate.ts",
     "demo:b2b": "node scripts/b2b-demo.ts",
-    "build:spa": "vite build"
+    "build:spa": "vite build",
+    "build:e2e": "vite build --mode e2e && vite build --mode e2e --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "e2e": "playwright test",
+    "e2e:update": "playwright test --update-snapshots",
+    "typecheck:b2b": "tsc -p tsconfig.b2b.json --noEmit",
+    "quality": "node scripts/quality-baseline.mjs check",
+    "quality:update": "node scripts/quality-baseline.mjs update"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
+    "@mediapipe/tasks-vision": "^1.1.1",
+    "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -77,6 +85,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",

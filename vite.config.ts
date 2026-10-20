@@ -31,6 +31,8 @@ export default defineConfig(({ isSsrBuild }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Shared contracts (supabase/functions/_shared/contracts) import zod the Deno way.
+      "npm:zod@3.25.76": "zod",
     },
   },
 }));

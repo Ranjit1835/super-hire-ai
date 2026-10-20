@@ -1,0 +1,29 @@
+name: Deploy edge functions
+
+# main is the only deploy source. Deploys ALL functions so every bundle carries the same _shared code.
+# Needs the SUPABASE_ACCESS_TOKEN repository secret (see docs/b2b/PROGRESS.md).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: zhfahrrxuguagwbujkiz
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy
+        run: supabase functions deploy --project-ref "$PROJECT_REF"

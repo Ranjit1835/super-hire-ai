@@ -3,94 +3,119 @@
 > Read this first at the start of every session; update it at the end.
 > Spec + **Decisions log**: `docs/b2b/hiresume-b2b-build-prompt.md` · Evidence and numbers: `docs/b2b/AUDIT.md`
 
-_Last updated: 2026-10-20_
+_Last updated: 2026-10-21_
 
 ## Where things stand
 
-**Phase 0 is done and reviewed. Phase 0 follow-ups are on branches waiting for your review. Phase 1 starts only when
-you say "go".**
+**Fast-track mode (Decisions log 2026-10-20).** Phase 1 (foundations + contracts) is done on
+`feat/b2b-v1-phase1` → PR #3. Next: V1 tracks A–E (up to 3 in parallel), then the two end-to-end walkthroughs.
 
-The 2026-09 B2B pilot (10 steps, `docs/b2b/step-*.md`) is live in production with 0 organisations. The follow-up
-branch switches it off by default.
+## PRs
+| PR | Branch | Base | What |
+|---|---|---|---|
+| #1 | `fix/b2b-lockdown` | main | B2B off by default; no model calls without membership; evaluation retry cap |
+| #2 | `chore/b2b-followups` | main (stacked on #1) | Real cost rates, voice latency logging, decisions, fast-track spec |
+| #3 | `feat/b2b-v1-phase1` | `chore/b2b-followups` (stacked) | Phase 1: V1 schema, AI gateway, contracts, super admin v1, e2e + CI |
+
+Merge in order #1 → #2 → #3. Merging to `main` deploys the website (Vercel) immediately; edge functions deploy
+from `main` once the `SUPABASE_ACCESS_TOKEN` secret exists. **B2B stays off in production either way** (frontend
+flag unset, `B2B_ENABLED` secret unset). Production migrations are batched and applied only by you (see below).
 
 ## Waiting on you
-1. **Move `main` and tag it** (my push/merge to `main` was blocked by the permission system). From the repo:
-   ```sh
-   git checkout main && git pull --ff-only origin main
-   git merge --ff-only fix/live-issues
-   git tag -a live-2026-10-20 -m "Live production state merged into main (2026-10-20)"
-   git push origin main live-2026-10-20
+1. **Docker for local Supabase** (you chose this, 2026-10-20). In an *administrator* PowerShell:
+   ```powershell
+   wsl --install            # then reboot
    ```
-   `fix/live-issues` = `origin/main` + the Phase 0 docs commit, so this is a fast-forward and the deploy it triggers
-   ships the same code as now.
-2. **Review and merge `chore/b2b-followups`** (it contains `fix/b2b-lockdown`). See "Branches to review" below.
-3. **Apply two migrations** after review: `20261020000001_b2b_evaluation_claim_cap.sql`,
-   `20261020000002_b2b_pricing_rates.sql`.
-4. **Deploy the edge functions** from `main` after the merge (B2B stays off because `B2B_ENABLED` is not set):
-   `npx supabase functions deploy b2b-interview b2b-evaluate b2b-public-test b2b-invites mock-interview --project-ref zhfahrrxuguagwbujkiz`
-5. Decide on the deploy proposal (AUDIT.md section 13): branch protection + CI deploys.
-6. Run the voice check on phones (below) and tell me roughly how long replies take.
-7. Optional clean-up: the archive tag for `feat/proctoring` (`git tag archive/proctoring-2026-09-28 feat/proctoring`),
-   deleting merged branches, and the 1 leftover anonymous user in production.
+   After the reboot, install Docker Desktop (https://www.docker.com/products/docker-desktop/), start it once, then tell
+   me. I'll run local Supabase without the heavy extras: `npx supabase start -x studio,imgproxy,vector,logflare`.
+2. **Judge0 server** (track A). Judge0 needs cgroup v1, which Docker Desktop on Windows doesn't provide, so it can't run
+   on this laptop. Please create the **DigitalOcean droplet: Bangalore (BLR1), Basic, 4 vCPU / 8 GB, Ubuntu 22.04,
+   $48/month**, add your SSH key, and send me its IP. (Approved hosting; this is the pilot server.)
+3. **CI secrets** (CI proposal approved):
+   - Supabase → Account → Access Tokens → *Generate new token* (name: `github-actions`) → copy it.
+   - Then, in the repo folder: `gh secret set SUPABASE_ACCESS_TOKEN` and paste the token
+     (or GitHub → repo → Settings → Secrets and variables → Actions → *New repository secret*).
+   - For the manual migration workflow also: `gh secret set SUPABASE_DB_PASSWORD` (Supabase → Project Settings →
+     Database → database password; reset it there if you don't have it).
+4. **Branch protection** (after PR #3 is merged, so the `checks` and `e2e` checks exist on `main`): GitHub → repo →
+   Settings → Branches → *Add branch protection rule* → `main` → tick *Require a pull request before merging*
+   (Required approvals: **0**) and *Require status checks to pass* → add `checks` and `e2e` → Save. I can do this
+   with `gh api` if you prefer; say so.
+5. **Phone voice check** (still open from Phase 0) and the old items: Resend domain + MX, archive tag for
+   `feat/proctoring` (`git tag archive/proctoring-2026-09-28 feat/proctoring && git push origin archive/proctoring-2026-09-28`).
 
-## Branches to review (all based on `0a6e936` = what `main` becomes)
-| Branch | Commits | What |
-|---|---|---|
-| `fix/b2b-lockdown` | `721d929` | B2B switched off by default (server `B2B_ENABLED`, public test `B2B_PUBLIC_TEST_ENABLED`, frontend `VITE_B2B_ENABLED`); anonymous sessions refused while the public test is off; evaluation retry cap on every path (migration `…0001`). |
-| `chore/b2b-followups` (on top of the above) | `f0e00dc`, `a8409a0`, docs | Real Gemini rates in the cost log (migration `…0002`); voice turn-latency logging (no behaviour change); spec Decisions log + Next.js/Claude assumptions fixed; AUDIT cost model re-verified with break-even and pooled credits; deploy proposal. |
+## Phase 1 — done (2026-10-21)
 
-## Done
-- [x] Phase 0 audit (2026-10-18): `docs/b2b/AUDIT.md`
-- [x] Secret scan of all history (2026-10-20): clean. Only two Supabase **anon** keys were ever committed (in
-      `.env`; public by design). No service-role keys, API keys, tokens, private keys or DB passwords.
-- [x] Docs committed (`0a6e936`) and `fix/live-issues` pushed (Vercel made a preview, not a production deploy)
-- [x] Deploy path investigated (AUDIT.md section 13)
-- [x] Membership-less model-call paths found and fixed (on `fix/b2b-lockdown`)
-- [x] Super admin check: only one admin row in prod (`ra***@gmail.com`); `user_roles` has no write policy and sign-up
-      inserts `'user'`, so there's no UI path to become admin
-- [x] Cost model re-verified on vendor pages; rates migration written
-- [x] Turn-latency logging added (B2C `/voice-interview` and the B2B interview)
+**Built**
+- **Schema** (migrations `20261021000001…0005`, not applied; batched for the V1 release):
+  - Tenancy reshaped in place: org type and member role are **text + CHECK** (enums dropped). Org types `college`,
+    `company` (+ legacy `coaching_institute`). Roles `org_admin` (TPO admin / company admin), `trainer`, `student`,
+    `recruiter`, `hiring_manager`; a trigger ties roles to the org type; the type is locked once an org has members.
+  - Orgs: status, seat limit, contacts, `settings` (modules, quotas, proctoring/results defaults, retention 90 days),
+    **pooled credit balance + ledger** (atomic, idempotent consume/refund; super-admin grant/top-up).
+  - **Audit log** written by triggers on every admin-managed table, with the acting user.
+  - **Consents** itemised by purpose, withdrawable by the subject. **Staff invites** bound to the invited email.
+  - **Every V1 table**: students (held if under 18), candidates, question bank + test cases + reference solutions,
+    assessments, drives + assignments, job roles + role candidates + comments, attempts + autosaved answers +
+    submissions + edit history, interviews linked to drives/roles/coding attempts, proctoring sessions/events/reviews,
+    competency dimensions + scores, share links, resume links. RLS on all of them.
+  - Results visibility: practice always; drives per the release rule; candidates never. Hiring managers see only
+    assigned roles.
+- **AI gateway** (`supabase/functions/_shared/ai-gateway`): per-feature provider/model config (Gemini default,
+  `B2B_AI_CONFIG` overrides), exact-match cache (per org for personal data), **single flight**, quotas, zod-validated
+  output with one retry, cost log with context-cached tokens. Interview turns and evaluations never cached.
+- **Contracts** (`supabase/functions/_shared/contracts`): zod schemas for admin, college, company, candidate, assess,
+  proctor, interview — shared by edge functions and browser. Stub functions answer 501 until a track implements them.
+- **Super admin v1**: `b2b-admin` function + `/admin/orgs` (create college/company with plan, seats, validity, opening
+  credits and first admin invite; invite staff; credits ledger; suspend/reactivate) + `/admin/usage` (per-org AI cost,
+  cache hit rate, credits, students/candidates). Scoped B2B theme (slate/blue) on V1 screens only.
+- **Quality gates**: Playwright B2C smoke + screenshots (8 pages × desktop/mobile) and "B2B routes are 404 in production
+  builds"; ESLint/TypeScript baseline (fail on new errors only); strict TS for new B2B code; CI workflows.
 
-## Next (when you say go): Phase 1 — Foundations
-1. Local Supabase (Docker) running; migrations replayed locally.
-2. Test baseline first: Playwright B2C smoke tests + screenshot baseline; ESLint baseline file (132 errors).
-3. Strict `tsconfig` for new B2B code.
-4. Reshape pilot tables: `org_type` gains `company`; role columns → `text` + `CHECK`; `settings` jsonb on
-   organizations; org credit pool (replaces per-student usage); audit log; itemised consents with withdrawal.
-5. AI gateway (provider-agnostic, per-feature config, context caching, exact-match cache, single-flight, cost log,
-   quotas).
-6. Super admin v1 (plain UI), feature flags, B2B layouts, seed script (300-student demo college).
+**Tests**: 431 pass / 3 skipped (Vitest: unit, UI, RLS on embedded Postgres) + 36 Playwright tests. New: V1 isolation
+suite (4 orgs × every role × every V1 table, reads and writes), AI gateway DB + unit tests, contract tests, admin UI tests.
+**Bugs caught and fixed by the new tests:** an org admin could invite staff into another org (NULL role comparison);
+a taken-over AI cache key kept its old expiry so the prune job could delete an in-flight claim.
+
+**Found, not fixed (B2C frozen):** `supabase/functions/referral` selects the profile without `id` and then filters by
+`profile.id`, so referral stats are probably always empty. CI skips Deno-checking it until you decide.
+
+**Manual test (once local Supabase runs; before that, the UI tests cover it):**
+1. `.env.local`: `VITE_B2B_ENABLED=true`; `supabase/functions/.env`: `B2B_ENABLED=true`, `GEMINI_API_KEY=…`.
+2. Make your local user super admin: `insert into user_roles (user_id, role) select id, 'admin' from auth.users where email = '<you>';`
+3. `/admin/orgs` → New organisation → College, Starter, 300 seats → credits suggested 1,200 → Create with a TPO email →
+   copy the invite link (email isn't configured locally) → open it signed in as that email → you're the TPO admin.
+4. New organisation → Company → Company plan → invite a recruiter → `/admin/usage` shows both orgs.
+
+## Next: V1 tracks
+Up to 3 at a time, subagents in separate worktrees; tracks list schema changes, I add the migrations.
+- **A** assessment engine (needs the Judge0 server for real runs; bank, generation, runner, MCQ can start without it)
+- **B** proctoring V1
+- **C** interview V1 + Gemini Live spike
+- **D** college portal
+- **E** startup portal
+
+Planned order: A + B + D first (college walkthrough), then C + E (startup walkthrough).
 
 ## Decisions made
-See the **Decisions log** at the top of the build prompt (2026-10-20). Earlier: production-only for the pilot
-(2026-09-24, now replaced by local Docker + staging before the pilot), Gemini instead of Anthropic (2026-09-26),
-voice-only interviews (2026-09-29).
-
-## Corrections
-- Phase 0 said `8ed509e`/`857c330` weren't on GitHub. Wrong: they were on `origin/main`; I compared against an
-  unfetched remote. Only local `main` was behind.
-
-## Manual checks for you
-1. **Voice on real phones.** Open https://hiresume.in/voice-interview on Android Chrome and on an iPhone (Safari),
-   start an interview, answer 3 questions on the phone speaker (no headphones). Expected: you hear each question,
-   the interviewer doesn't answer itself, it doesn't end early.
-2. **After the latency logging is deployed:** run one interview, then in Supabase → Edge Functions → mock-interview
-   → Logs, search `[VOICE-LATENCY]`. Expect one line per answer with `turn_end_to_first_audio_ms` and its parts.
-3. **After the lockdown is deployed:** `https://hiresume.in/org` shows the 404 page; `/admin/enquiries` still works
-   for you; a POST to `/functions/v1/b2b-interview` returns `404 {"code":"B2B_DISABLED"}`.
+See the **Decisions log** at the top of the build prompt. Phase 1 implementation choices:
+- Roles: `org_admin` serves as both TPO admin and company admin (label by org type); no separate enum values.
+- Legacy org type `coaching_institute` kept (the pilot's public test uses it); not offered when creating orgs.
+- Candidate sessions are Supabase anonymous users linked to the candidate row on first token use.
+- Super admin stays `user_roles.role = 'admin'` (owner's account only, granted by SQL; no UI path).
 
 ## How to run locally
 ```sh
 npm install
-npm run dev            # B2C only; add VITE_B2B_ENABLED=true to .env.local to see B2B pages
-npm test               # Vitest (about 4 min; use --maxWorkers=2 if memory is low). Runs with B2B on.
-npm run test:db        # RLS + DB tests on embedded Postgres (PGlite)
-npx -y deno@latest check supabase/functions/<fn>/index.ts   # type-check an edge function
-npm run build          # SPA + SSR + pre-render
+npm run dev                 # add VITE_B2B_ENABLED=true to .env.local for B2B pages
+npm test                    # Vitest (about 4 min; --maxWorkers=2 if memory is low)
+npm run test:db             # RLS + DB tests on embedded Postgres (PGlite)
+npm run typecheck:b2b       # strict TS for new B2B code
+npm run quality             # fails only on NEW lint/type errors (quality:update after fixing old ones)
+npm run build:e2e && npm run e2e   # B2C smoke + screenshots (local win32 baselines are not committed)
+npx -y deno@latest check supabase/functions/<fn>/index.ts
 ```
-B2B edge functions also need `B2B_ENABLED=true` in their secrets (local: `supabase/functions/.env`).
-Supabase project: `zhfahrrxuguagwbujkiz` (prod). Read-only queries only; changes go through reviewed migrations.
 
-## Baselines (2026-10-20, branch `chore/b2b-followups`)
-- Tests: 380 total, 377 pass / 3 skipped (staging-only). `tsc` (app): 25 errors, strict off. ESLint: 132 errors.
-- Prod: 38/38 migrations applied; 34 public tables, all with RLS; 0 B2B organisations; 1 super admin.
+## Baselines (2026-10-21, `feat/b2b-v1-phase1`)
+- Vitest 431 pass / 3 skipped; Playwright 36 pass. tsc (app) 25 errors; ESLint 132 errors (both baselined).
+- Prod unchanged: 38/38 migrations applied; 5 V1 migrations + 2 Phase-0 migrations pending your approval.

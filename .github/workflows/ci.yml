@@ -1,0 +1,79 @@
+name: CI
+
+# Required checks for main (branch protection): "checks" and "e2e".
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: No new lint or type errors (baseline in quality-baseline.json)
+        run: npm run quality
+      - name: Strict types for new B2B code
+        run: npm run typecheck:b2b
+      - name: Unit, UI and database (RLS) tests
+        run: npx vitest run --maxWorkers=2
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check edge functions
+        # referral has a pre-existing B2C type error (B2C is frozen; reported, not fixed here).
+        run: |
+          for f in supabase/functions/*/index.ts; do
+            case "$f" in */referral/*) continue;; esac
+            deno check "$f" || exit 1
+          done
+      - name: Production build (B2B flag off)
+        run: npm run build
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write   # commits first-time Linux screenshot baselines back to the PR branch
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build against no backend (.env.e2e)
+        run: npm run build:e2e
+      - name: B2C smoke + screenshots, B2B-off checks
+        run: npx playwright test --update-snapshots=missing
+      - name: Commit new Linux baselines (first run only)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if [ -n "$(git status --porcelain e2e)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add e2e
+            git commit -m "test(e2e): add Linux screenshot baselines"
+            git push
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
