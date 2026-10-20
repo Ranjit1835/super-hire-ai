@@ -87,7 +87,8 @@ BEGIN
     END IF;
   END IF;
 
-  IF NEW.status = 'open' AND (NEW.skills_matrix = '{}'::jsonb
+  -- Browser edits only (service-role / seed inserts are trusted).
+  IF current_user = 'authenticated' AND NEW.status = 'open' AND (NEW.skills_matrix = '{}'::jsonb
      OR (NEW.assessment_id IS NULL AND NOT (c->>'enabled')::boolean)) THEN
     RAISE EXCEPTION 'ROLE_INCOMPLETE: an open role needs a skills matrix and a coding test or an AI interview'
       USING ERRCODE = 'check_violation';

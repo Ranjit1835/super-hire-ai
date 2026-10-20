@@ -86,7 +86,7 @@ export function TokenFlow({ token }: { token: string }) {
   }
   if (startError) return <div className="space-y-2"><h1 className="text-xl font-semibold">{d.role?.title}</h1><p role="alert">{startError}</p></div>;
   if (!state) return <Loading />;
-  return <Steps info={d} state={state} token={token} onState={(s) => { setState(s); void qc.invalidateQueries({ queryKey: ["b2b-candidate"] }); }} />;
+  return <Steps info={d as Info} state={state} token={token} onState={(s) => { setState(s); void qc.invalidateQueries({ queryKey: ["b2b-candidate"] }); }} />;
 }
 
 type Info = { company?: { name: string } ; role?: { title: string }; candidate?: { fullName: string; emailMasked: string }; purposes?: CandidatePurpose[]; proctored?: boolean };

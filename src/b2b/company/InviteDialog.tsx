@@ -56,7 +56,7 @@ export function InviteDialog({ open, onOpenChange, jobRoleId, roleTitle, onDone 
     setBusy(true);
     try {
       const r = await companyApi("inviteCandidates", { jobRoleId, candidates, sendEmail, source: mode === "file" ? "csv" : "invite" });
-      setResult(r);
+      setResult(r as Result);
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't send the invites.");
