@@ -47,7 +47,7 @@ function studentInviteMail(o: { to: string; name: string; orgName: string; link:
   return { to: o.to, subject, html, text };
 }
 
-interface PreparedInvite { student_id: string; invite_id: string; email: string; full_name: string; token_index: number }
+interface PreparedInvite { student_id: string; invite_id: string; email: string; roll_no: string; full_name: string; token_index: number }
 
 /** Resend batch API (100 per request), paced under the provider's default 2 requests/second. */
 async function sendStudentInvites(org: string, invites: Array<PreparedInvite & { link: string }>): Promise<number> {
@@ -86,7 +86,7 @@ async function inviteStudents(actor: string, orgId: string, studentIds: string[]
   const queued = await sendStudentInvites(await orgName(orgId), invites);
   return {
     queued,
-    links: invites.map((i) => ({ studentId: i.student_id, link: i.link })),
+    links: invites.map((i) => ({ studentId: i.student_id, link: i.link, rollNo: i.roll_no, fullName: i.full_name, email: i.email })),
     skipped: r.skipped.map((s) => ({ studentId: s.student_id, reason: s.reason })),
     emailConfigured: emailConfigured(),
   };

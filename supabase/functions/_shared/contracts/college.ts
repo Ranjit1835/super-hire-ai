@@ -4,7 +4,10 @@
 import { z } from "./zod.ts";
 import { Email, IntegrityBand, NonEmpty, Ok, Page, Uuid } from "./common.ts";
 
-const InviteLink = z.object({ studentId: Uuid, link: z.string().url() });
+const InviteLink = z.object({
+  studentId: Uuid, link: z.string().url(),
+  rollNo: z.string().optional(), fullName: z.string().optional(), email: z.string().optional(),
+});
 
 export const StudentRow = z.object({
   row: z.number().int().min(1),
