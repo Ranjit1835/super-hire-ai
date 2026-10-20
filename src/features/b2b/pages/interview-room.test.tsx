@@ -83,8 +83,9 @@ describe("InterviewRoom", () => {
 
     await waitFor(() => expect(api.answer).toHaveBeenCalledTimes(2));
     expect(api.start).toHaveBeenCalledWith("mod-sql", expect.objectContaining({ input_mode: "voice", stt_lang: "en-IN" }));
-    expect(voice.hook.speak).toHaveBeenNthCalledWith(1, "Explain an inner join.");
-    expect(voice.hook.speak).toHaveBeenNthCalledWith(2, "What is an index?");
+    // Questions carry an onStart hook for turn-latency logging.
+    expect(voice.hook.speak).toHaveBeenNthCalledWith(1, "Explain an inner join.", { onStart: expect.any(Function) });
+    expect(voice.hook.speak).toHaveBeenNthCalledWith(2, "What is an index?", { onStart: expect.any(Function) });
     expect(voice.hook.speak).toHaveBeenLastCalledWith("Thank you.");
     const [first, second] = api.answer.mock.calls.map((c) => c[0]);
     expect(first).toMatchObject({ interviewId: "iv-1", turnCount: 0, answer: "It returns matching rows" });

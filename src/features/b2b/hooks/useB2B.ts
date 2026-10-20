@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { b2bDb } from "../lib/db";
+import { B2B_ENABLED } from "@/lib/config";
 import type {
   Batch, InterviewModule, InterviewQuota, MembershipWithOrg, OrgInvite, OrgMembership, OrgUsageSummary, Organization, Plan, StudentUsage,
 } from "../types";
@@ -26,7 +27,7 @@ export function useMyMemberships() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["b2b", "my-memberships", user?.id],
-    enabled: !!user,
+    enabled: !!user && B2B_ENABLED,
     staleTime: 60_000,
     queryFn: () =>
       unwrap<MembershipWithOrg[]>(

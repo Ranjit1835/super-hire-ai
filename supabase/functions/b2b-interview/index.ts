@@ -22,6 +22,7 @@ import {
   buildSystemPrompt, buildTurnMessage, cleanQuestion, fallbackQuestion, nextTurnTool, type TranscriptTurn,
 } from "../_shared/interview-prompts.ts";
 import { callTool, type LlmUsage } from "../_shared/b2b-llm.ts";
+import { logTurnLatency } from "../_shared/turn-latency.ts";
 import { askOpeningQuestion, firstNameOf } from "../_shared/interview-opening.ts";
 import { sanitizeAnswerMeta, sanitizeClientMeta } from "../_shared/interview-meta.ts";
 import { evaluateInBackground } from "../_shared/evaluate-interview.ts";
@@ -217,6 +218,8 @@ serve(handle("B2B-INTERVIEW", async (req, body) => {
     if (!Number.isInteger(expected) || expected < 0) throw new HttpError(400, "BAD_REQUEST", "turnCount must be a non-negative integer");
     const answer = str(body.answer, "answer", MAX_ANSWER_CHARS + 500).slice(0, MAX_ANSWER_CHARS);
     const answerMeta = sanitizeAnswerMeta(body.meta, answer);
+    // Previous turn's timing from the browser (logging only).
+    logTurnLatency("b2b-interview", interviewId, body.clientLatency);
 
     const iv = await loadInterview(admin, interviewId, user.id);
     let turns = await loadTurns(admin, iv.id);

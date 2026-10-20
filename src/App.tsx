@@ -11,6 +11,7 @@ import Landing from "./pages/Landing";
 import { AppHeader, AppFooter } from "./components/layout/AppChrome";
 import { StudioFAB } from "./components/StudioFAB";
 import { StudioOnboardingTooltip } from "./components/StudioOnboardingTooltip";
+import { B2B_ENABLED } from "./lib/config";
 
 /**
  * lazy() for pre-rendered public pages. Once preload() has resolved the chunk, the page renders
@@ -112,26 +113,31 @@ function AppRoutes() {
       <Route path="/studio" element={<ProtectedRoute><StudioPaywallPage /></ProtectedRoute>} />
       <Route path="/studio/:resumeId" element={<ProtectedRoute><StudioPage /></ProtectedRoute>} />
       <Route path="/studio/shared/:shareToken" element={<StudioSharedPage />} />
-      {/* B2B: institutions */}
-      <Route path="/admin/orgs" element={<ProtectedRoute><SuperAdminOrgs /></ProtectedRoute>} />
-      <Route path="/admin/costs" element={<ProtectedRoute><SuperAdminCosts /></ProtectedRoute>} />
+      {/* Institution enquiries come from the B2C college page, so the inbox stays on with B2B off. */}
       <Route path="/admin/enquiries" element={<ProtectedRoute><SuperAdminEnquiries /></ProtectedRoute>} />
-      <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
-      <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
-        <Route index element={<OrgOverview />} />
-        <Route path="dashboard" element={<OrgDashboard />} />
-        <Route path="students/:userId" element={<StudentDetail />} />
-        <Route path="modules" element={<OrgModules />} />
-        <Route path="modules/:moduleId" element={<ModuleEditor />} />
-        <Route path="invites" element={<OrgInvites />} />
-        <Route path="leads" element={<OrgLeads />} />
-        <Route path="import" element={<OrgImport />} />
-      </Route>
-      <Route path="/invite/:token" element={<InviteAccept />} />
-      <Route path="/test/:slug" element={<PublicTest />} />
-      <Route path="/learn" element={<ProtectedRoute><LearnHome /></ProtectedRoute>} />
-      <Route path="/learn/interview/:moduleId" element={<ProtectedRoute><InterviewRoom /></ProtectedRoute>} />
-      <Route path="/learn/report/:interviewId" element={<ProtectedRoute><StudentReport /></ProtectedRoute>} />
+      {/* B2B: institutions. Only registered when VITE_B2B_ENABLED=true (off in production). */}
+      {B2B_ENABLED && (
+        <>
+          <Route path="/admin/orgs" element={<ProtectedRoute><SuperAdminOrgs /></ProtectedRoute>} />
+          <Route path="/admin/costs" element={<ProtectedRoute><SuperAdminCosts /></ProtectedRoute>} />
+          <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
+          <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
+            <Route index element={<OrgOverview />} />
+            <Route path="dashboard" element={<OrgDashboard />} />
+            <Route path="students/:userId" element={<StudentDetail />} />
+            <Route path="modules" element={<OrgModules />} />
+            <Route path="modules/:moduleId" element={<ModuleEditor />} />
+            <Route path="invites" element={<OrgInvites />} />
+            <Route path="leads" element={<OrgLeads />} />
+            <Route path="import" element={<OrgImport />} />
+          </Route>
+          <Route path="/invite/:token" element={<InviteAccept />} />
+          <Route path="/test/:slug" element={<PublicTest />} />
+          <Route path="/learn" element={<ProtectedRoute><LearnHome /></ProtectedRoute>} />
+          <Route path="/learn/interview/:moduleId" element={<ProtectedRoute><InterviewRoom /></ProtectedRoute>} />
+          <Route path="/learn/report/:interviewId" element={<ProtectedRoute><StudentReport /></ProtectedRoute>} />
+        </>
+      )}
       {DemoPreview && <Route path="/dev/b2b-demo/*" element={<DemoPreview />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
