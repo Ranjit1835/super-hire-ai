@@ -118,6 +118,30 @@ the bank's "Portal" tab points at the college portal (company portal comes with 
 
 Next: tracks C (interview V1 + Gemini Live spike) and E (startup portal).
 
+## V1 tracks C, E — merged (2026-10-21)
+
+Same branch `feat/b2b-v1-tracks`; migrations `20261021000009_b2b_v1_interview`, `…10_b2b_v1_startup` (not applied).
+- **C, interview:** `_shared/interview-v1/` (template, section state machine with follow-ups, coverage and time-boxes,
+  code walkthrough, injection detector, blind scrub, verified quotes, answer signals, latency p50/p95, evaluator with
+  1–5 anchors and band); V1 actions in `b2b-interview/v1.ts`; room `/interview/v1/start`, `/interview/v1/i/:id`
+  (**voice only**, audio re-check + resume); dev page `/interview/v1/live-spike` + `docs/b2b/gemini-live-spike.md`
+  (owner runs it; nothing measured yet). b2b-evaluate no longer shows unreleased drive results.
+- **E, startup:** `b2b-company`, `b2b-candidate`, `/co/:orgId/*` (roles from JD + skills matrix, pipeline, report,
+  credits & team), `/t/:token` (+ `/t` resumes the last link), `/share/:token`, `/portal/:orgId` (routes to `/c` or
+  `/co`). `job_roles.interview_config` drives C's interview. Credits charged once per completed candidate.
+- **Lead fixes on merge:** a drive assignment completes only when both test and interview are done (trigger +
+  analytics status); pilot `current` ignores V1 interviews; runner "Done" returns to the drive / candidate steps /
+  practice zone; the internal-links test now reads B2B route files (all B2B links resolve).
+
+Checks: Vitest 760 pass / 3 skipped (whole suite); strict tsc 0; quality no new errors (132 / 25); deno check passes
+for all 9 B2B functions.
+
+Known gaps: nothing run in a real browser or against local Supabase yet (needs Docker); Judge0 server not created;
+Gemini Live untested; job-role completion (credits, notification) is synced when the candidate, recruiter or report
+touches the row, not by a trigger; candidate system check is self-reported.
+
+Next: local Supabase (Docker) → college + startup walkthroughs end to end → one batched production release for approval.
+
 ## Decisions made
 See the **Decisions log** at the top of the build prompt. Phase 1 implementation choices:
 - Roles: `org_admin` serves as both TPO admin and company admin (label by org type); no separate enum values.
