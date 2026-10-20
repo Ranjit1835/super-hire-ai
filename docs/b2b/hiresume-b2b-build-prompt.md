@@ -253,7 +253,7 @@ Rules:
 - Streaming speech-to-text that handles Indian English accents well; streaming text-to-speech; the LLM from the AI gateway as the interviewer brain (Gemini by default). Model IDs and provider live in config per feature: a fast model for live turns, a stronger model for final evaluation.
 - Latency target: about 1.5 s or less from the candidate finishing speaking to the interviewer's audio starting. Measure and report p50 and p95.
 - Voice-activity-based turn detection and barge-in (the candidate can interrupt; the interviewer stops talking).
-- If voice fails mid-interview, fall back to text mode without losing interview state.
+- If voice fails mid-interview, keep the interview state on the server and offer an audio re-check + resume. **No text mode** (owner, 2026-09-29, reconfirmed 2026-10-20: interviews are voice only).
 - Record candidate audio (plus webcam video if the policy requires it) and interviewer audio; keep a timestamped transcript of both sides.
 - Real-time streaming runs in a persistent process outside the edge functions: **LiveKit Agents** (decided), built after the college pilot, after a Deepgram vs Sarvam bake-off on Indian-English clips (Svarah + real student recordings). Until then the current browser-speech flow is used, labelled beta, with turn-latency logging.
 
@@ -519,7 +519,7 @@ Then STOP. (Done 2026-10-18; decisions recorded in the Decisions log.)
 **Acceptance:** each signal type fires correctly in a documented manual test script; Maximum policy pauses when screen share stops and resumes after the fix; CPU stays within budget on a throttled low-end profile; the integrity report shows evidence for every flag.
 
 ### Phase 5 — AI voice interview (V1 = track C on the beta voice flow + Gemini Live spike; the upgrade is fast-follow)
-- Voice fix/rebuild per the Phase 0 decision, templates, adaptive state machine, code walkthrough, avatar tiers, recording + transcript, evaluation with quote verification, AI-answer signals, injection defense, text fallback.
+- Voice fix/rebuild per the Phase 0 decision, templates, adaptive state machine, code walkthrough, avatar tiers, recording + transcript, evaluation with quote verification, AI-answer signals, injection defense, audio re-check + resume (voice only, no text fallback).
 
 **Acceptance:** 3 full mock interviews end-to-end with a latency report (p50/p95); an injection attempt is ignored and logged; every evaluation quote is verified; the avatar falls back correctly on a throttled CPU.
 
