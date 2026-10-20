@@ -104,7 +104,7 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
         setLive("retry");
       }
     }
-  }, [finish]);
+  }, [finish, turnTimer]);
 
   // The question just spoken, to recognise the mic hearing it back through the speaker.
   const questionRef = useRef("");
@@ -136,7 +136,7 @@ export function useInterviewSession(opts: { onFinished?: (p: InterviewPayload) =
       setError(e instanceof MicError ? e.message : (e as Error).message);
       setLive("empty");
     }
-  }, [voice, submit]);
+  }, [voice, submit, turnTimer]);
 
   presentRef.current = async (p: InterviewPayload) => {
     if (!alive.current || !p.interview) return;
