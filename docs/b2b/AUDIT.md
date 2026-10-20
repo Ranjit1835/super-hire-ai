@@ -3,7 +3,10 @@
 > Read-only audit against `docs/b2b/hiresume-b2b-build-prompt.md`. Date: 2026-10-18.
 > Branch at audit time: `fix/live-issues` (2 commits ahead of the stale local `main`). No code was changed.
 > **Correction (2026-10-20):** finding 2 below was wrong. Those 2 commits were already on `origin/main`; the audit
-> compared against an unfetched remote. Only the local `main` was behind. Fixed by the merge tagged `live-2026-10-20`.
+> compared against an unfetched remote. Only the local `main` was behind. To be resolved by fast-forwarding `main` and tagging `live-2026-10-20`.
+> **Update 2026-10-20:** decisions on every question in section 12 are recorded in the Decisions log at the top of
+> `hiresume-b2b-build-prompt.md`. Cost model (section 9) re-verified on vendor pages, with break-even and a pooled-credits
+> plan. Deploy path documented in section 13. B2B is switched off by default on branch `fix/b2b-lockdown`.
 > Production checks were SELECT-only queries on Supabase project `zhfahrrxuguagwbujkiz`
 > (table list, RLS flags, row counts, cron jobs, buckets, migration history).
 
@@ -41,7 +44,7 @@
    (**doubling to $1.50/$7.50 on 1 Jan 2027**), and the rupee is about **₹95/USD**. Logged LLM cost would read
    about 2.5–3× too low. No rows exist yet, so nothing is wrong today.
 7. **Pilot prices may be under cost.** Basic is ₹149 and Pro ₹299 per student per year. With a real voice
-   stack, one proctored drive plus 4 practice interviews costs about ₹270 per student per year in variable
+   stack, one proctored drive plus 4 practice interviews costs about ₹281 per student per year in variable
    cost alone (section 9). Practice quotas are the main lever.
 
 ---
@@ -308,7 +311,7 @@ interview in Phase 5 on a **persistent realtime component** (options in section 
 
 | Option | How | ₹ per 20-min interview | Latency (p50, expected) | Effort | Risk |
 |---|---|---|---|---|---|
-| **A. LiveKit Agents on our own VM (recommended)** | Browser ↔ WebRTC ↔ LiveKit server + Python/Node agent worker on one VM (Hetzner Singapore or DigitalOcean Bangalore). Streaming STT (Deepgram Nova-3 or Sarvam Saaras) → LLM (state machine calls) → streaming TTS (Deepgram Aura-2, Sarvam Bulbul, or Cartesia). Silero VAD + turn detector for barge-in. Records both sides server-side to Storage. | **₹42–44** at 1,500 interviews per month (section 9) | about 1.0–1.6 s | Medium-high | We run one VM. Need an STT/TTS shoot-out on Indian accents. |
+| **A. LiveKit Agents on our own VM (recommended)** | Browser ↔ WebRTC ↔ LiveKit server + Python/Node agent worker on one VM (DigitalOcean Bangalore, $48/month). Streaming STT (Deepgram Nova-3 or Sarvam Saaras) → LLM (state machine calls) → streaming TTS (Deepgram Aura-2, Sarvam Bulbul, or Cartesia). Silero VAD + turn detector for barge-in. Records both sides server-side to Storage. | **≈ ₹45 (Sarvam) / ₹54 (Deepgram)** at 2027 Gemini prices, 1,500 interviews per month (section 9.1) | about 1.0–1.6 s | Medium-high | We run one VM. Need an STT/TTS shoot-out on Indian accents. |
 | B. Gemini Live (native audio), browser direct | Browser opens a WebSocket straight to Gemini Live using a short-lived token minted by an edge function. No server of ours. State machine via function calls. | about ₹20–60 (list price about ₹20; per-turn context re-billing can multiply it) | about 0.6–1.0 s | Medium | Model is the brain and the voice, so less control. Not Claude. Recording needs extra client capture. Vendor lock-in. |
 | C. Keep Web Speech, streaming LLM + sentence TTS | Same browser stack, stream tokens and speak sentences early | about ₹14 (₹27 from 1 Jan 2027) | about 3–5 s | Low | Misses latency, barge-in and recording requirements. |
 
@@ -320,7 +323,7 @@ during Phase 5 and move to self-hosting once volume justifies it.
 
 | Option | Monthly | Fits a 300-student drive? | Notes |
 |---|---|---|---|
-| **Self-hosted Judge0 CE on 1–2 VMs (recommended)** | about $32–56 per VM (Hetzner SG / DO BLR) | Yes. Scale workers for drive peaks. | Judge0 1.13 needs **cgroup v1**, so the host boot setting has to change on Ubuntu 22.04+. Isolated from the web app as required. A per-org concurrency limit lives in our queue. |
+| **Self-hosted Judge0 CE on 1–2 VMs (recommended)** | $48 per droplet (DigitalOcean BLR1; Hetzner SG is now $58–73) | Yes. Scale workers for drive peaks. | Judge0 1.13 needs **cgroup v1**, so the host boot setting has to change on Ubuntu 22.04+. Isolated from the web app as required. A per-org concurrency limit lives in our queue. |
 | Judge0.com managed | €27 / €54 / €107 for 2K / 5K / 10K submissions **per day** | **No.** 300 students × about 105 executions ≈ 31K in one day, over the top cap. | Fine for Phase 3 development only. |
 | RapidAPI pay-per-use | $0.0017 per submission (≈ ₹17 per candidate test) | Yes | Most expensive at volume. |
 
@@ -350,87 +353,144 @@ seeded demo.
 
 ---
 
-## 8. Hosting summary (proposal)
+## 8. Hosting summary (decided 2026-10-20; prices verified on vendor pages)
 
-| Component | Where | Monthly (approx.) |
+| Component | Where | Monthly |
 |---|---|---|
-| Web app (SPA + pre-rendered pages) | Vercel (existing) | existing |
-| DB, Auth, Storage, Edge Functions, cron, queues | Supabase Pro + Small compute (Medium for drive peaks) | $40 → $85 |
-| Voice agent + LiveKit server + job worker | 1 × 4 vCPU / 8 GB VM | $32–56 |
-| Judge0 (API + workers) | 1–2 × 4 vCPU / 8 GB VM | $32–112 |
-| LiveKit Cloud (optional instead of self-hosting) | Ship | $50 + $0.01/min over 5,000 min |
-| Error tracking | Sentry (free → Team) | $0–26 |
-| Email | Resend (verify hiresume.in) | $0–20 |
-| **Total fixed** | | **about $150–350 ≈ ₹14K–33K/month** |
+| Web app (SPA + pre-rendered pages) | Vercel (existing, deploys from `main`) | existing |
+| DB, Auth, Storage, Edge Functions, cron, queues | Supabase Pro (shared with B2C; base fee not counted) + compute Micro → Small | +$15 |
+| Staging (before the first college pilot) | Second Supabase project, Micro compute | about $10 |
+| **Judge0 + job worker (pilot)** | **One DigitalOcean droplet in Bangalore (BLR1)**, Basic 4 vCPU / 8 GB | **$48** |
+| Voice agent (after the pilot) | A second droplet in BLR1, or LiveKit Cloud | $48 / $50 + $0.01 per agent-minute over 5,000 |
+| Error tracking | Sentry Developer (free, 5K errors, 1 user) → Team | $0 → $29 ($26 annual) |
+| Email (invites, OTP) | Resend Pro (50K emails, no daily cap; the free plan caps at 100 a day) | $20 |
+| **B2B fixed cost, pilot** | | **about $93 ≈ ₹8,800/month ≈ ₹1.06 lakh/year** |
+| **B2B fixed cost, after the voice upgrade** | | **about $141 ≈ ₹13,400/month ≈ ₹1.61 lakh/year** |
+
+Why DigitalOcean Bangalore and not Hetzner Singapore (as I suggested in Phase 0): Hetzner raised Singapore prices in
+June 2026. CPX31 is now $73.49/month and CPX32 $57.99/month, against the $32 a blog quoted. DigitalOcean's 4 vCPU /
+8 GB droplet is $48/month in every region, and BLR1 is in India. Judge0 needs cgroup v1 on the host (a boot setting on
+Ubuntu 22.04+). The server must be load-tested before the first real drive.
 
 ---
 
-## 9. Cost model (variable cost per use)
+## 9. Cost model (re-verified 2026-10-20)
 
-**Assumptions:** $1 = ₹95 (mid-October 2026). Gemini 3.6 Flash $0.75/$3.75 per 1M tokens until 31 Dec 2026,
-then $1.50/$7.50. Claude Haiku 4.5 $1/$5, Sonnet 5 $2/$10, cache reads at 0.1×. Deepgram Nova-3 streaming
-$0.0077/min, Aura-2 TTS $0.015 per 1K chars. Sarvam STT ₹0.49/min, Bulbul V4 Flash TTS ₹2 per 1K chars.
-Supabase storage $0.021/GB-month, egress $0.09/GB over the included 250 GB. Hetzner SG 4 vCPU/8 GB $32/mo.
+### 9.0 Prices: Phase 0 figure vs the vendor's own page
+
+All prices are from the vendor's official pricing page on 2026-10-20. **₹95 per USD**: USD/INR traded at 94.7–96.8
+in October 2026. The FBIL/RBI reference-rate pages are script-rendered and couldn't be read automatically, so please
+check the FBIL rate when quoting. Planning uses **2027 prices**, because a pilot that starts now runs into 2027.
+
+| Item | Phase 0 (source) | Official page (2026-10-20) | Change |
+|---|---|---|---|
+| **gemini-3.6-flash** (what the app runs) | $0.75 / $3.75 per 1M (3.8 Flash, third-party blog) | **Same as 3.8 Flash: $0.75 / $3.75 through 31 Dec 2026; $1.50 / $7.50 from 1 Jan 2027.** Context cache: $0.075 per 1M cached input (→ $0.15) + $0.50 per 1M tokens per hour storage (→ $1.00). [ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing) | Reconciled; doubling confirmed on Google's page |
+| Gemini Live (native audio) | $0.005 / $0.018 per min (blog) | Same: audio in $0.005/min, audio out $0.018/min | Confirmed |
+| Deepgram Nova-3 streaming | $0.0077/min | Page shows **$0.0048/min** pay-as-you-go with $0.0077 struck through (Growth $0.0042). Planned at **$0.0077** in case the offer ends. [deepgram.com/pricing](https://deepgram.com/pricing) | Confirmed (promo noted) |
+| Deepgram Aura-2 TTS | $0.015 per 1K chars (blog) | **$0.030 per 1K chars** (Growth $0.027) | **2× higher** |
+| Sarvam STT (Saaras) | ₹0.49/min | ₹0.49/min real-time (₹0.41 on Growth). [sarvam.ai/api-pricing](https://www.sarvam.ai/api-pricing) | Confirmed |
+| Sarvam TTS (Bulbul V4 Flash) | ₹2 per 1K chars | ₹2.00 per 1K chars (₹1.70 on Growth) | Confirmed |
+| LiveKit Cloud | $50 Ship, $0.01/agent-min | Same: Build free (1,000 min), Ship $50 (5,000 min), Scale $500 (50,000 min); overage $0.01/min. [livekit.com/pricing](https://livekit.com/pricing) | Confirmed |
+| Claude (not the default; kept for comparison) | Haiku 4.5 $1/$5, Sonnet 5 $2/$10 | Same; cache read $0.10 / $0.20, cache write $1.25 / $2.50. [claude.com/pricing](https://claude.com/pricing) | Confirmed |
+| Judge0 managed | €27 / €54 / €107 for 2K / 5K / 10K per day | Same, + €0.001 per extra submission. [judge0.com](https://judge0.com/) | Confirmed |
+| Supabase | storage $0.021/GB | Pro $25 (+$10 compute credit), Micro $10 / Small $15 / Medium $60, storage 100 GB then $0.0213/GB, egress 250 GB then $0.09/GB. [supabase.com/pricing](https://supabase.com/pricing) | Confirmed |
+| Server | Hetzner SG CPX31 $32 (blog) | **Hetzner SG CPX31 $73.49, CPX32 $57.99** (June 2026 increase); **DigitalOcean 4 vCPU / 8 GB $48** (all regions incl. BLR1) | **Switched to DigitalOcean BLR1** |
+| Sentry Team | $26 | $29 monthly / $26 annual; Developer free (5K errors) | Minor |
+| Resend | $20 | Pro $20 (50K/month); free plan 100 a day | Confirmed |
+
+The cost log's rate table is fixed by migration `20261020000002_b2b_pricing_rates.sql` (₹71.25 / ₹356.25 per 1M
+now, ₹142.5 / ₹712.5 from 1 Jan 2027). It isn't applied yet; it's for your review.
 
 ### 9.1 One 20-minute AI voice interview
 
-Assumes 20 min of mic audio streamed, about 6 min (about 5,000 chars) of interviewer speech, 15 turns averaging
-about 6K input / 800 output tokens, and one evaluation of about 10K input / 6K output tokens.
+Assumptions: 20 min of mic audio streamed; about 6 min (about 5,000 characters) of interviewer speech; 15 turns
+averaging about 6K input / 800 output tokens (90K / 12K in total), of which about 2.5K per turn is a static prompt
+that context caching can serve at 10%; one evaluation of about 10K input / 6K output tokens (medium thinking).
 
-| Line | Option A (Deepgram + Claude) | Option A-India (Sarvam + Claude) | Current stack (browser speech + Gemini) |
+| Line | Pilot stack (browser speech + Gemini) | Target: LiveKit + Sarvam + Gemini | Target: LiveKit + Deepgram + Gemini |
 |---|---|---|---|
-| STT | ₹14.6 | ₹9.8 | ₹0 (Google, via Chrome) |
-| TTS | ₹7.1 | ₹10.0 | ₹0 (device voice) |
-| LLM turns | ₹9 (Haiku 4.5, cached prefix) | ₹9 | ₹10.7 (₹21 from 2027) |
-| Evaluation | ₹8 (Sonnet 5) | ₹8 | ₹2.9 (₹6 from 2027) |
-| Realtime infra (self-host, 1,500 interviews/mo) | ₹2–5 | ₹2–5 | ₹0 |
-| **Total** | **≈ ₹41–44** | **≈ ₹39–42** | **≈ ₹14 (₹27 from 2027)** |
+| STT | ₹0 (Chrome sends audio to Google) | ₹9.8 | ₹14.6 (₹9.1 at the current promo) |
+| TTS | ₹0 (device voice) | ₹10.0 | ₹14.3 |
+| LLM turns, 2026 / **2027** | ₹10.7 / **₹21.4** (₹8.3 / **₹16.6** with context caching) | ₹8.3 / **₹16.6** (cached) | same |
+| Evaluation, 2026 / **2027** | ₹2.9 / **₹5.7** | same | same |
+| Realtime infra (one $48 BLR1 droplet, 1,500 interviews/month) | ₹0 | ₹3 | ₹3 |
+| **Total, 2027 prices** | **≈ ₹27** (≈ ₹22 cached) | **≈ ₹45** | **≈ ₹54** |
+| Total, 2026 prices | ≈ ₹14 | ≈ ₹34 | ≈ ₹43 |
 
-Using LiveKit Cloud instead of self-hosting adds about ₹19. Double-scoring for the startup tier adds about ₹8.
-Running Gemini instead of Claude for turns and evaluation saves about ₹5–10.
+LiveKit Cloud instead of our own droplet: Ship's $50 covers 5,000 agent-minutes (250 interviews), then about ₹19 per
+interview. Gemini Live (native audio) would be about ₹20 per interview at list price, plus per-turn context re-billing.
 
-### 9.2 One coding test (60 min, 3 problems)
+### 9.2 One coding test (60 min, 3 problems, proctored by snapshots)
 
-About 20 sample runs × 3 tests + 3 submits × 15 hidden tests ≈ 105 executions.
-
-| Line | ₹ |
+| Line | ₹ (2027) |
 |---|---|
-| Judge0 self-hosted (2 VMs, 3,000 tests/month) | ≈ 3 |
-| Judge0 managed / pay-per-use | ≈ 4 / ≈ 17 |
-| Optional AI code-quality review (3 solutions) | 2 (Gemini) – 7 (Haiku) |
-| Proctoring: about 150 screen + webcam snapshots (about 13 MB, 90 days) | < 0.1 |
-| Optional vision labelling of about 20 flagged frames | 1–3 |
-| AI question generation | ≈ 0 (cached, shared across candidates) |
-| **Typical total** | **≈ ₹5–13** (₹30 worst case on pay-per-use) |
+| Judge0 on the shared BLR1 droplet (about 105 executions) | ≈ 0 marginal (fixed $48/month) |
+| Optional AI code-quality review (3 solutions, 3K in / 1K out each) | 3.4 |
+| Screen + webcam snapshots every 30 s + on events (about 16 MB, 90-day retention) | 0.1 |
+| Optional vision labelling of about 20 flagged frames | about 2 |
+| **Typical** | **≈ ₹3–6** |
 
-### 9.3 One resume optimisation
+If the droplet is overloaded at drive peaks, Judge0's managed overflow costs €0.001 per execution (≈ ₹10 per test).
 
-| Line | Gemini 3.6 Flash | Claude Sonnet 5 |
+### 9.3 One resume optimisation (Gemini, 2027)
+
+Analysis (6K in / 5K out) ₹4.4. Each Studio edit turn (8K in / 1.5K out) about ₹2.2. **Planned: analysis + 3 edits
+≈ ₹11.** A duplicate resubmission served from the cache costs ₹0.
+
+### 9.4 Evidence storage
+
+Snapshots only (no continuous video for colleges): about 16 MB per coding test + about 5 MB per 20-minute interview
+≈ 21 MB per student per drive. At 90-day retention that's **about ₹0.13** per student per drive. Supabase's included
+100 GB holds about 4,700 drives' worth before the $0.0213/GB rate applies.
+
+### 9.5 Per student per year
+
+Usage profile (unchanged from Phase 0): 1 proctored drive (coding + interview + resume task) + 4 practice interviews +
+2 practice coding tests + 3 resume optimisations. 2027 prices; pilot stack without context-cache savings (conservative), target stack with caching (as in 9.1).
+
+| | Pilot stack | Target stack (Sarvam) |
 |---|---|---|
-| Analysis (about 6K in / 5K out incl. thinking) | ₹2.2 | ₹5.9 |
-| + 10 Studio edit turns | +₹11 | +₹15 (cached) to ₹29 |
-| Duplicate resubmission (cache hit) | ₹0 | ₹0 |
+| Drive (3.4 + 2 + interview + 11 + 0.13) | ₹43.5 | ₹61.5 |
+| 4 practice interviews | ₹108 | ₹180 |
+| 2 practice coding tests | ₹6.8 | ₹6.8 |
+| 3 resume optimisations | ₹33 | ₹33 |
+| **Variable cost per student per year** | **≈ ₹190** | **≈ ₹281** |
 
-### 9.4 Proctoring evidence storage per session
+Startup candidate (later): proctored coding + AI review + 30-minute target-stack interview + double-scored evaluation +
+resume screen ≈ **₹90** (2027).
 
-Coding snapshots about 13 MB + interview audio (both sides, Opus 32 kbps) about 10 MB ≈ 23 MB per student
-per drive. That costs **about ₹0.15** at 90-day retention. Optional low-bitrate webcam video for a 20-minute
-interview adds about 45 MB, so **about ₹0.4 stored + about ₹0.4 per reviewer playback**. Pro's included 100 GB
-holds about 4,000 audio-only sessions or about 1,500 with video.
+### 9.6 Break-even students at ₹399 / ₹499 / ₹599 per student per year
 
-### 9.5 Per student / per candidate
+Break-even = B2B fixed cost per year ÷ (price − variable cost per student). Prices are ex-GST. Excluded: GST, payment
+fees (Razorpay about 2% + GST if a college pays online), sales and support time, the shared Supabase Pro base fee.
 
-| Scenario | Option A stack | Current stack |
-|---|---|---|
-| **College student per drive** (coding + interview + resume + evidence) | ≈ 10 + 44 + 6 + 0.5 = **₹61** | ≈ ₹27 |
-| **College student per year** (1 drive + 4 practice interviews + 2 practice coding + 3 resume opts) | **≈ ₹270** | ≈ ₹105 |
-| **Startup candidate** (proctored coding + AI review + 30-min interview + double score + resume screen + video) | **≈ ₹100** | n/a |
+| Price | Pilot stack: margin per student | Students to cover ₹1.06 lakh/year | Per college if 3 colleges | Target stack: margin | Students to cover ₹1.61 lakh/year | Per college if 3 colleges |
+|---|---|---|---|---|---|---|
+| ₹399 | ₹209 | **508** | 170 | ₹118 | **1,363** | 455 |
+| ₹499 | ₹309 | **344** | 115 | ₹218 | **738** | 246 |
+| ₹599 | ₹409 | **260** | 87 | ₹318 | **506** | 169 |
 
-**Implication for quoting.** Current plan prices are Basic ₹149 and Pro ₹299 per student per year. On
-Option A, a plan with 4 practice interviews isn't profitable once fixed costs (₹14K–33K/month) are spread
-over a small pilot. Either price at **₹399–599 per student per year**, or cap practice interviews (for
-example 2 per month), or sell interview minutes as an add-on. Startups at about ₹100 variable cost per
-candidate leave plenty of room at micro1-style pricing.
+These numbers assume every student uses the full profile in 9.5. Real usage is usually lower, so real break-even is
+lower. A single 300-student pilot college at ₹499 covers the pilot fixed cost on its own.
+
+### 9.7 Pooled-credits plan (your decision: pooled per college, not unlimited per student)
+
+- **Credit** = one 20-minute practice AI interview. A practice coding test = ¼ credit; a resume optimisation = ½
+  credit; cache hits are free. Proctored **drives are included** in the plan and don't use credits.
+- **Pool** = students × credits per student, shared by the whole college, valid for the contract period. A student
+  can use more or less than "their" share. The TPO sees the balance; the super admin gets an alert at 80%.
+- **Top-up**: 100 credits for ₹7,500 (₹75 per credit). Margin per credit is ≈ 64% on the pilot stack (₹27) and
+  ≈ 40% on the target stack (₹45).
+
+| Plan | Per student per year | Includes | Cost per student at full use, pilot / target | Margin, pilot / target | Break-even students (all colleges), pilot / target |
+|---|---|---|---|---|---|
+| Starter | ₹399 | 1 drive + 4 credits | ₹152 / ₹242 | ₹248 (62%) / ₹158 (39%) | 429 / 1,021 |
+| Standard | ₹499 | 2 drives + 5 credits | ₹222 / ₹348 | ₹277 (56%) / ₹151 (30%) | 383 / 1,065 |
+| Plus | ₹599 | 3 drives + 5 credits | ₹266 / ₹410 | ₹333 (56%) / ₹189 (32%) | 318 / 849 |
+
+The plans are sized so the target stack keeps at least 30% margin even if every credit is used. The current pilot
+plans (Basic ₹149, Pro ₹299) should be retired before quoting; the 30-day free pilot can stay. Implementing this
+replaces the per-student `org_student_usage` counter with an org credit balance (Phase 1 schema, Phase 6 UI).
 
 ---
 
@@ -508,3 +568,35 @@ skip these components).
     depends on it.
 19. Plan prices: revisit ₹149/₹299 against the cost model before quoting colleges?
 20. Design DNA (Phase 2): please send 2–3 reference URLs or screenshots, or say "you pick".
+
+---
+
+## 13. How production is deployed (and the proposal to deploy only from `main`)
+
+**Today** (verified 2026-10-20 in Vercel and Supabase):
+
+| Part | How it reaches production | Tied to `main`? |
+|---|---|---|
+| Website (Vercel project `super-hire-ai`, domains hiresume.in + www) | Vercel's GitHub integration. Every push to `main` builds and goes live; every other branch gets a preview URL (e.g. my push of `fix/live-issues` made a preview, not a production deploy). The last 15 production deploys all came from `main`. | **Yes** |
+| Edge functions (27) | `npx supabase functions deploy` run by hand from a laptop. Versions range from 2026-05-25 to 2026-09-29. | **No.** Whatever is on the laptop gets deployed. The deployed code I could download (7 functions) matches `main`; the 3 b2b ones I couldn't download haven't changed in git since they were deployed. Each function bundles its own copy of `_shared/`, so older bundles carry older shared code. |
+| Migrations | `npx supabase db push` by hand. 38/38 applied, matching the repo. | **No** |
+| Secrets | Set by hand (`supabase secrets set`) | n/a |
+| Vercel env vars | Set in the Vercel dashboard | n/a |
+
+There is no CI (no `.github/`) and `main` has no branch protection.
+
+**Proposal: `main` is the only deploy source**
+1. **Branch protection on `main`**: changes only through pull requests; required check = tests + type check + lint (no
+   new errors). You approve every PR.
+2. **GitHub Actions `deploy-functions.yml`**: on push to `main`, if `supabase/functions/**` changed, run
+   `supabase functions deploy` for **all** functions (so every bundle has the same `_shared/` code). Uses a
+   `SUPABASE_ACCESS_TOKEN` repository secret. Manual laptop deploys stop.
+3. **GitHub Actions `migrate.yml`**: **manual trigger only**, in a protected GitHub "production" environment that
+   needs your approval. It runs `supabase db push` from `main`. Migrations are reviewed in the PR and applied only
+   when you press the button, which keeps your "I review and apply every migration" rule with an audit trail. The
+   same workflow can target staging first once the staging project exists.
+4. **Vercel**: keep production branch = `main`. Turn off CLI production deploys by convention (or restrict the team
+   token), so the only way to production is a merge.
+5. **Tags**: tag every production release (`live-YYYY-MM-DD`), as with `live-2026-10-20`.
+
+Nothing above has been set up yet. It needs your OK: it adds a GitHub token secret and changes repository settings.

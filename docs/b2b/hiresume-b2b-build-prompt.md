@@ -4,6 +4,67 @@
 
 ---
 
+## Decisions log
+
+Newest first. Where a decision conflicts with older text below, the decision wins; the sections below have been
+edited to match. Evidence and numbers: `docs/b2b/AUDIT.md`.
+
+### 2026-10-20 (after the Phase 0 review)
+
+**Stack and process**
+- **Framework: Vite + React + React Router stays.** No Next.js. B2B gets its own lazy-loaded route tree and
+  layout components (the React Router equivalent of route groups). B2B landing pages are **pre-rendered at build
+  time** by the existing pre-render step (`scripts/prerender.mjs`, `src/seo/routes.ts`) for SEO.
+- **LLM: Gemini stays the default.** The AI gateway is provider-agnostic: model and provider are set **per feature in
+  config**, so another provider (e.g. Claude) can be added to one feature later without touching the others. Use the
+  provider's **context caching** where available (Gemini: explicit/implicit context caching).
+- **Production deploys come from `main` only.** All new work branches from `main` (tagged `live-2026-10-20`).
+  Proposal for CI-driven deploys: AUDIT.md section 13.
+- **Never write to the production database directly.** Every change is a migration file that the owner reviews and
+  applies. Read-only queries are allowed for audits.
+- **Environments:** local Supabase (Docker) for development and migration tests now; a paid staging project before
+  the first college pilot.
+- **TypeScript strict only for new B2B code** (its own `tsconfig`). Don't fix B2C type errors. **Lint:** baseline the
+  current 132 errors and fail only on new ones.
+
+**Pilot leftovers**
+- All B2B routes are behind a feature flag, **off in production** (frontend `VITE_B2B_ENABLED`, server
+  `B2B_ENABLED`; the anonymous public test has its own `B2B_PUBLIC_TEST_ENABLED`). No B2B endpoint may make a model
+  call without an org membership (fixed 2026-10-20, branch `fix/b2b-lockdown`).
+- **Reshape the pilot tables; no parallel tables.** While they are empty, change role columns from Postgres enums to
+  `text` + `CHECK` so role changes stay reversible.
+- **Super admin: the owner's account only**, granted by a one-time SQL statement the owner runs. No UI path to
+  become super admin.
+- **Proctoring branch:** keep `feat/proctoring`, tag it as an archive, don't merge it. Reuse parts.
+- genjutsu is installed as standalone skills: invoke **`paint`** and **`cast`** (not `/genjutsu:paint`).
+
+**Section 14 answers**
+1. **Hosting:** one server in a region close to India (DigitalOcean Bangalore, $48/month) for Judge0 + the job
+   worker during the pilot. Load-test it before the first real drive.
+2. **Voice:** LiveKit Agents is the target, **built after the pilot**. Before that, a **bake-off**: Deepgram vs Sarvam
+   on Indian-English clips (AI4Bharat's Svarah benchmark plus a few real student recordings), measuring accuracy,
+   end-to-end latency from a server near India, and cost per 20-minute interview. **Now:** log turn latency (turn end
+   to first audio) in the current voice flow with no behaviour change. The pilot uses the current voice flow,
+   labelled **beta**.
+3. **Evidence:** periodic screen + webcam **snapshots** by default. **No continuous video for colleges** (lab Wi-Fi
+   can't take hundreds of uploads). Startups can enable video later.
+4. **Retention:** 90 days for evidence and recordings, configurable per org. Scores and reports stay for the contract
+   period.
+5. **Results:** practice scores shown immediately; drive results only when the TPO releases them. Practice usage comes
+   from **pooled per-college credits**, not unlimited per student (plan: AUDIT.md section 9.7).
+6. **Startups:** self-serve signup and payments later. Sales-led V1.
+7. **URLs:** path-based.
+8. **Department coordinator role:** later.
+9. **Under-18:** not activated in V1. Check DOB at import.
+
+**Re-sequenced plan (college pilot first)** — see Section 13:
+Phase 1 → Phase 2 (time-boxed: tokens + app shells only) → Phase 3 → Phase 4-lite (system check, consent,
+entire-screen share + snapshots, basic camera checks: no face, multiple faces) → Phase 6 core (student import,
+drives, TPO analytics) → pilot with one college. Gaze/audio proctoring, the voice upgrade, the startup portal and the
+marketing pages come after the first college signs.
+
+---
+
 ## 0. How to work
 
 You are the lead engineer turning Hiresume (hiresume.in) into a B2B platform with two new portals, **Colleges** and **Startups**, while the existing **B2C product keeps working exactly as it does today**.
@@ -11,13 +72,13 @@ You are the lead engineer turning Hiresume (hiresume.in) into a B2B platform wit
 1. **Phase-gated.** Do only the current phase (Section 13). Start with Phase 0, which is a read-only audit. At the end of every phase, stop and report: what was built, step-by-step manual test instructions, automated test results, preview routes or screenshots, and open questions. Wait for my "go" before starting the next phase.
 2. **Keep a progress file.** Maintain `docs/b2b/PROGRESS.md` with: done / in progress / next / decisions made / blockers / how to run locally. Read it at the start of every session and update it at the end. I had a long gap last time and lost track of where things stood; this file must make any future gap painless.
 3. **B2C is frozen.** Do not change B2C routes, pages, styles, prompts, DB tables or behavior. If a shared module must change, first add tests that lock the current B2C behavior, then change it. Ask me before altering any existing table.
-4. **Ask before:** adding a paid service or new infrastructure, changing auth, deleting files or data, or running an irreversible migration.
+4. **Ask before:** adding a paid service or new infrastructure, changing auth, deleting files or data, or running an irreversible migration. **Never write to the production database directly**: every change is a migration file the owner reviews and applies.
 5. **Options, not guesses.** For big decisions give 2–3 options with cost, effort and risk, and recommend one.
-6. **Branches and flags.** Work on feature branches, commit in small steps with clear messages, and keep every B2B surface behind a feature flag until I switch it on.
-7. **Quality bar.** TypeScript strict. zod validation on every API input and every LLM output. No secrets on the client. Every new table gets RLS. Every permission is checked server-side.
+6. **Branches and flags.** Work on feature branches from `main` (the only deploy source), commit in small steps with clear messages, and keep every B2B surface behind a feature flag (`VITE_B2B_ENABLED` / `B2B_ENABLED`) until I switch it on.
+7. **Quality bar.** TypeScript strict for new B2B code (separate `tsconfig`; B2C type errors are left alone). ESLint: the 132 existing errors are a baseline; no new ones. zod validation on every API input and every LLM output. No secrets on the client. Every new table gets RLS. Every permission is checked server-side.
 8. **Reuse, don't fork.** The resume analyzer, Resume Studio and the mock interview agent already exist. Pull shared logic into a services layer and call it from B2B instead of copying it.
 9. **Honest copy.** Never write "100% proctoring", "cheat-proof" or "guaranteed" anywhere in the product or marketing. Use "AI proctoring", "integrity score", "flagged for review".
-10. **Installed skills.** These Claude Code skills are installed and must be used as described in Section 11: Three.js (`CloudAI-X/threejs-skills`), GSAP (`greensock/gsap-skills`), Motion Design (`lottiefiles/motion-design-skill`), genjutsu (`AThevon/genjutsu`), Design DNA (`zanwei/design-dna`). If one isn't available in the session, tell me instead of improvising.
+10. **Installed skills.** These Claude Code skills are installed and must be used as described in Section 11: Three.js (`CloudAI-X/threejs-skills`), GSAP (`greensock/gsap-skills`), Motion Design (`lottiefiles/motion-design-skill`), genjutsu (`AThevon/genjutsu`, installed as the standalone skills `paint`, `cast` and `bunshin`), Design DNA (`zanwei/design-dna`). If one isn't available in the session, tell me instead of improvising.
 
 ### Definition of done (every phase)
 - Acceptance criteria for the phase pass and are demonstrated.
@@ -29,7 +90,7 @@ You are the lead engineer turning Hiresume (hiresume.in) into a B2B platform wit
 
 ## 1. What exists today (verify everything in Phase 0)
 
-- **Stack:** Next.js, Supabase (auth, Postgres, storage), Claude API, Razorpay (currently configured INR-only).
+- **Stack:** Vite + React 18 SPA with React Router 6 and a build-time pre-render step for public pages; Supabase (auth, Postgres, storage, Deno edge functions, pg_cron); **Gemini** (`gemini-3.6-flash`) through a shared AI client; Razorpay (INR only); hosted on Vercel. (Verified in Phase 0; see AUDIT.md.)
 - **B2C features:** LLM resume analyzer, Resume Studio (conversational AI resume editor), ATS templates, mock interview agent with voice mode. Voice-to-voice was reported broken in late September 2026.
 - **B2B conversion** was started and left half-done after a long gap. Its exact state is unknown; Phase 0 finds it.
 - **Domain is `hiresume.in`** (not hireresume.in). Use it in every URL, email, metadata tag and link.
@@ -99,7 +160,7 @@ Rules:
 - MCQ (aptitude, CS fundamentals, module-wise topics): single and multi-select. Build after coding works, in the same engine.
 
 **AI question generation**
-- Claude generates original problems from topic + difficulty + role, together with test cases and a reference solution.
+- The LLM (through the AI gateway; Gemini by default) generates original problems from topic + difficulty + role, together with test cases and a reference solution.
 - Run the reference solution against every test case in the sandbox. Publish only if all pass; then mark `verified`. Anything that fails stays `draft`.
 - Don't reproduce well-known problem statements verbatim. Prefer parameterized variants so each batch can get different numbers.
 
@@ -114,7 +175,7 @@ Rules:
 - Faint dynamic watermark (candidate email/ID + time) over the test UI to deter photographing and leaking questions.
 
 **Code execution**
-- Judge0 (open source), running outside the web app on its own VM/container, or a hosted Judge0 plan. Candidate code must never run inside the Next.js / serverless runtime. Propose hosting in Phase 0.
+- Judge0 (open source), running outside the web app on its own VM/container, or a hosted Judge0 plan. Candidate code must never run inside the web app or the Supabase edge-function runtime. Hosting decided: one DigitalOcean Bangalore server for the pilot (AUDIT.md section 8).
 - Queue and batch submissions, per-org concurrency limits, hard timeouts.
 
 **Grading**
@@ -131,12 +192,12 @@ Rules:
 ## 6. AI interview engine (voice-to-voice)
 
 **Voice pipeline (fix or rebuild based on the Phase 0 diagnosis)**
-- Streaming speech-to-text that handles Indian English accents well; streaming text-to-speech; Claude as the interviewer brain. Model IDs live in config per feature: a fast model for live turns, a stronger model for final evaluation.
+- Streaming speech-to-text that handles Indian English accents well; streaming text-to-speech; the LLM from the AI gateway as the interviewer brain (Gemini by default). Model IDs and provider live in config per feature: a fast model for live turns, a stronger model for final evaluation.
 - Latency target: about 1.5 s or less from the candidate finishing speaking to the interviewer's audio starting. Measure and report p50 and p95.
 - Voice-activity-based turn detection and barge-in (the candidate can interrupt; the interviewer stops talking).
 - If voice fails mid-interview, fall back to text mode without losing interview state.
 - Record candidate audio (plus webcam video if the policy requires it) and interviewer audio; keep a timestamped transcript of both sides.
-- If real-time streaming needs a persistent process, put it outside serverless functions and propose options (a WebRTC voice-agent framework or a managed realtime provider) with cost per interview-minute in Phase 0.
+- Real-time streaming runs in a persistent process outside the edge functions: **LiveKit Agents** (decided), built after the college pilot, after a Deepgram vs Sarvam bake-off on Indian-English clips (Svarah + real student recordings). Until then the current browser-speech flow is used, labelled beta, with turn-latency logging.
 
 **Templates and adaptive flow**
 - Template: skills matrix (must-have / nice-to-have with weights), seniority, duration, sections (intro, technical, problem solving, behavioral, code walkthrough, candidate questions, close), language (English first), persona (name, voice).
@@ -184,7 +245,7 @@ Rules:
 
 **During the session: signals** (each becomes a `proctoring_event` with type, severity, confidence, timestamps and evidence)
 - **Browser:** tab hidden (Page Visibility API), window blur, fullscreen exit, screen share stopped, extra display connected, copy/paste/cut attempts, right-click, devtools heuristics, page reload, a second tab or session of the same attempt.
-- **Screen ("tab monitoring"):** periodic frame snapshot (default every 30 s, configurable) plus an immediate snapshot on every focus or visibility event, so the reviewer sees exactly what the candidate switched to. Optional: send only flagged frames to a vision model to label "AI chat / search engine / messaging app / other editor visible".
+- **Screen ("tab monitoring"):** periodic screen **and webcam** snapshots (default every 30 s, configurable; no continuous video for colleges, startups may enable video later) plus an immediate snapshot on every focus or visibility event, so the reviewer sees exactly what the candidate switched to. Optional: send only flagged frames to a vision model to label "AI chat / search engine / messaging app / other editor visible".
 - **Camera (eye contact and presence):** in-browser ML (MediaPipe Tasks Vision or equivalent) at 2–5 fps, in a Web Worker where feasible, otherwise throttled on the main thread. Detect: no face, multiple faces, face mismatch versus the baseline (periodic), head turned away beyond a threshold for more than N seconds, calibrated gaze off-screen beyond a threshold, repetitive reading-pattern eye movement, phone/device in view (object detector "cell phone" class), camera covered or frozen, virtual camera (device-label heuristics).
 - **Audio (sounds):** voice-activity detection on the mic: speech during silent sections (coding test), multiple speakers or background voices, whispering, sustained noise. During the interview, exclude the windows when the AI interviewer is speaking and keep echo cancellation on, so the interviewer's own voice isn't flagged.
 - **Interview:** prompt-injection attempts; long-latency-then-fluent answer pattern.
@@ -212,7 +273,7 @@ Rules:
 
 ## 8. AI gateway: caching, dedupe, cost
 
-All B2B LLM calls go through one server-side gateway: model routing, retries, timeouts, zod output validation, logging.
+All B2B LLM calls go through one server-side gateway: **provider-agnostic, with the provider and model set per feature in config** (Gemini by default), retries, timeouts, zod output validation, logging.
 
 - **Exact-match cache** for deterministic features (resume analysis, JD → skills matrix, question generation, MCQ explanations). Key = sha256(feature + prompt_version + model + normalized input).
   - Duplicates are served from cache: a student re-submitting the same resume, or many students triggering the same generation, gets the cached response.
@@ -220,7 +281,7 @@ All B2B LLM calls go through one server-side gateway: model routing, retries, ti
   - Bumping a prompt version invalidates its old entries automatically.
   - Never cache live interview turns or the evaluation of a specific interview or attempt.
 - **Single-flight dedupe:** identical concurrent requests (e.g. 200 students in a lab hitting the same generation at once) make one LLM call; the rest wait for that result (unique key row with a pending status, or an advisory lock).
-- **Prompt caching:** use Anthropic prompt caching for long static system prompts and rubrics.
+- **Context caching:** use the provider's context caching for long static system prompts and rubrics (Gemini explicit/implicit context caching; the equivalent prompt caching if another provider is added for a feature).
 - **Usage and cost log** per call: org, feature, model, input/output tokens, cache hit, latency, cost in ₹. This feeds the super admin dashboard: cost per org, cost per student/candidate, cache hit rate, ₹ saved.
 - **Quotas:** per-org and per-student limits (e.g. practice interviews per month), enforced in the gateway. Unlimited practice interviews are the biggest cost risk.
 
@@ -231,7 +292,7 @@ All B2B LLM calls go through one server-side gateway: model routing, retries, ti
 **Super admin: college onboarding and tracking**
 - Create a college: name, logo, address, contact, plan (per-student / lump-sum / one-time), seat limit, validity dates, enabled modules (coding, interview, resume), quotas, proctoring defaults, retention days, results-release default.
 - Invite the TPO admin(s) by email.
-- Track per college, as totals and over time: seats used, students registered and activated, drives created, attempts started and completed, interview minutes, resume optimizations, AI cost, cache savings. Alerts near seat or quota limits.
+- Track per college, as totals and over time: pooled practice credits used and remaining, seats used, students registered and activated, drives created, attempts started and completed, interview minutes, resume optimizations, AI cost, cache savings. Alerts near seat or quota limits.
 
 **TPO admin**
 - **Students:** CSV/XLSX import with column mapping and a validation preview (name, email, roll no, department, batch/graduation year, section, CGPA, active backlogs, 10th %, 12th %, phone, DOB). Dedupe on (org, roll no) and (org, email): show the duplicates and let the TPO merge or skip. Manual add/edit, bulk activation emails (queued, respecting email-provider rate limits), deactivate.
@@ -277,18 +338,18 @@ All B2B LLM calls go through one server-side gateway: model routing, retries, ti
 Order matters, so there is exactly one source of design truth:
 
 1. **Design DNA (`design-dna`).** Run its Analyze phase on 2–3 reference URLs or screenshots that I provide. Ask me for them; if I say "you pick", propose 3 references that suit a premium, trustworthy assessment product and wait for my pick. Save the output as `design/dna/hiresume-b2b.dna.json` and commit it.
-2. **genjutsu `/genjutsu:paint`.** Build the B2B visual universe and design system **from that DNA JSON**: give it the JSON as the brief, so `MASTER.md` and the tokens match the DNA instead of inventing a second direction. When it asks how to preview, choose live preview (throwaway route in the repo). I approve at its gates.
+2. **genjutsu `paint`.** Build the B2B visual universe and design system **from that DNA JSON**: give it the JSON as the brief, so `MASTER.md` and the tokens match the DNA instead of inventing a second direction. When it asks how to preview, choose live preview (throwaway route in the repo). I approve at its gates.
 3. **Motion Design (`motion-design`).** Pick a motion personality per surface from the skill's archetypes and turn it into motion tokens in code (durations, easings, stagger):
    - Dashboards (super admin, TPO, company): calm, trustworthy, fast (roughly 150–300 ms), purposeful.
    - Landing pages: premium, expressive scroll storytelling.
    - Candidate test and interview flow: minimal and calming. Motion only for state feedback: recording, connection, timer, warnings. Warnings must be clear, never alarming.
    - Use its patterns for loading / success / error / warning states and multi-element choreography (e.g. dashboard entrance: headline stats, then charts, then tables).
 4. **GSAP (`gsap-core`, `gsap-timeline`, `gsap-scrolltrigger`, `gsap-plugins`, `gsap-utils`, `gsap-react`, `gsap-performance`).** In React always use `useGSAP` with a scoped container and cleanup, per `gsap-react`. Use `gsap.matchMedia()` to honor `prefers-reduced-motion`. ScrollTrigger only on marketing pages. Animate transforms and opacity, per `gsap-performance`. GSAP and all its plugins are free to use.
-5. **Three.js (`threejs-*` skills).** Use React Three Fiber in React components and follow the threejs skills for materials, shaders, loaders and post-processing. Only two places: the marketing hero visual and the interviewer avatar. Dynamic import with `ssr: false`, cap the device pixel ratio, render on demand and pause when offscreen or the tab is hidden, dispose geometries/materials/textures on unmount, always ship a static/2D fallback.
-6. **genjutsu `/genjutsu:cast`.** For targeted polish later, e.g. "make the drive cards feel tactile", "animate the integrity timeline".
+5. **Three.js (`threejs-*` skills).** Use React Three Fiber in React components and follow the threejs skills for materials, shaders, loaders and post-processing. Only two places: the marketing hero visual and the interviewer avatar. Load with `React.lazy` + dynamic `import()` and keep them out of the build-time pre-render (client-only), cap the device pixel ratio, render on demand and pause when offscreen or the tab is hidden, dispose geometries/materials/textures on unmount, always ship a static/2D fallback.
+6. **genjutsu `cast`.** For targeted polish later, e.g. "make the drive cards feel tactile", "animate the integrity timeline".
 
 Hard rules:
-- B2B tokens and styles are scoped to B2B route-group layouts. B2C must stay pixel-identical; prove it with screenshot tests of key B2C pages before and after.
+- B2B tokens and styles are scoped to the B2B layout components of the React Router tree. B2C must stay pixel-identical; prove it with screenshot tests of key B2C pages before and after.
 - No Three.js or heavy animation inside proctored sessions, except the interviewer avatar, which has quality tiers picked automatically from the system check (CPU cores, memory, measured FPS) and drops a tier if FPS falls:
   - (a) R3F audio-reactive orb on capable devices,
   - (b) Canvas 2D / CSS orb,
@@ -307,7 +368,7 @@ Hard rules:
 - Dashboards: server-side filtering and pagination; p95 under 500 ms for analytics queries on the demo dataset (add indexes / materialized views as needed).
 
 **Hosting**
-- Anything long-running (realtime voice, Judge0, background workers) runs outside serverless functions. Propose the setup with monthly cost in Phase 0.
+- Anything long-running (realtime voice, Judge0, background workers) runs outside the edge functions: one DigitalOcean Bangalore server for the pilot (decided; AUDIT.md section 8).
 - Background jobs (evaluations, Judge0 results, media processing, retention deletion, analytics refresh): propose the mechanism in Phase 0.
 
 **Security**
@@ -321,9 +382,9 @@ Hard rules:
 **Privacy (India: DPDP Act 2023 + DPDP Rules 2025)**
 - The Rules were notified in November 2025. The main obligations (notice, consent, security safeguards, breach reporting, children's data) apply 18 months after notification, around May 2027. Build for them now:
   - Itemized consent per purpose, never bundled. Store consent records. On withdrawal: stop processing and delete, unless a legal obligation requires keeping the data.
-  - Per-org retention; automatic deletion of recordings and snapshots after N days (ask me for the default).
+  - Per-org retention; automatic deletion of recordings and snapshots after 90 days by default (configurable per org). Scores and reports stay for the contract period.
   - Breach-response runbook.
-  - Children: collect DOB. Under-18 users need verifiable parental consent, and the Act restricts tracking and behavioral monitoring of children. Block proctored sessions for under-18 students until we decide a compliant flow, and flag this in Phase 0 (I'll take legal advice).
+  - Children: collect DOB. Under-18 users need verifiable parental consent, and the Act restricts tracking and behavioral monitoring of children. Under-18 students are **not activated in V1**: DOB is checked at import, and under-18 rows are held back (I'll take legal advice before any compliant flow).
   - Never collect Aadhaar numbers. Minimize biometric data.
   - If startup-portal candidates are outside India, other laws (e.g. GDPR) may apply; flag before any global launch.
 
@@ -344,7 +405,7 @@ Hard rules:
 
 ### Phase 0 — Audit and plan (read-only, no code changes)
 Produce `docs/b2b/AUDIT.md` and create `docs/b2b/PROGRESS.md`:
-- Stack map: Next.js version and router, Supabase usage (auth, DB, storage, edge functions), where and how the Claude API is called (models, prompts), Razorpay, hosting/deploy, env var names (names only), test setup, lint/format.
+- Stack map: framework and router, Supabase usage (auth, DB, storage, edge functions), where and how the LLM is called (models, prompts), Razorpay, hosting/deploy, env var names (names only), test setup, lint/format.
 - B2C feature inventory with routes and key files.
 - Every B2B-related file, route, table, migration and branch already in the repo, each marked done / half-done / broken / unused.
 - **Voice diagnosis:** reproduce the broken voice-to-voice flow, find the root cause, propose the fix. Specifically check whether it depends on long-lived WebSocket/streaming connections inside serverless functions (serverless platforms time out and can't host WebSocket servers); if so, propose an architecture with a persistent realtime component.
@@ -354,20 +415,26 @@ Produce `docs/b2b/AUDIT.md` and create `docs/b2b/PROGRESS.md`:
 - **Cost model:** estimated ₹ per student (college) and per candidate (startup) for one coding test, one 20-minute AI voice interview, one resume optimization, and proctoring evidence storage. Show assumptions. I need this to quote per-student pricing to colleges.
 - Questions for me, including Section 14.
 
-Then STOP.
+Then STOP. (Done 2026-10-18; decisions recorded in the Decisions log.)
+
+> **Order of work after Phase 0 (decided 2026-10-20):** Phase 1 → Phase 2 time-boxed (tokens + app shells only) →
+> Phase 3 → Phase 4-lite (system check, consent, entire-screen share + snapshots, basic camera checks: no face,
+> multiple faces) → Phase 6 core (student import, drives, TPO analytics) → **pilot with one college** (current voice
+> flow, labelled beta). After the first college signs: the rest of Phase 4 (gaze, audio), Phase 5 (voice upgrade),
+> Phase 7 (startup portal), Phase 8 (marketing pages), then Phase 9.
 
 ### Phase 1 — Foundations
 - Tenancy schema, memberships, roles, RLS on every new table, platform admins, audit logs, invites, consents.
 - AI gateway: exact-match cache, single-flight dedupe, cost log, quotas.
 - Super admin portal v1 (plain UI is fine; it gets reskinned in Phase 2): create/suspend orgs, plans, quotas, feature flags, invite org admins, usage page.
-- Feature flags and B2B route groups/layouts.
+- Feature flags and the B2B route tree/layouts (React Router).
 - Test baseline: B2C Playwright smoke tests + screenshot baseline; RLS isolation tests.
 - Seed script: a demo college (~300 students across 4 departments with realistic scores and flags) and a demo startup (1 role, 20 candidates), for sales demos.
 
 **Acceptance:** super admin creates a college and invites a TPO, who logs in and sees only their org. An automated test proves cross-tenant reads and writes fail. B2C tests and screenshots unchanged.
 
-### Phase 2 — Design system and app shells
-- Design DNA → DNA JSON → `/genjutsu:paint` → `MASTER.md` + scoped tokens; motion tokens.
+### Phase 2 — Design system and app shells (time-boxed)
+- **Time-boxed for the pilot: tokens + app shells only.** Design DNA → DNA JSON → `paint` → `MASTER.md` + scoped tokens; motion tokens.
 - Core components: data table with filters, filter bar, chart and stat cards, empty/loading/error states, modals, toasts, stepper, timeline.
 - Shells for super admin, TPO, student and company, rendered with seed data.
 
@@ -378,27 +445,27 @@ Then STOP.
 
 **Acceptance:** a TPO builds a test from the bank; 50 simulated candidates take it concurrently without errors; refreshing mid-test resumes with the correct remaining time; a seeded plagiarism pair is detected.
 
-### Phase 4 — Full proctoring
+### Phase 4 — Full proctoring (pilot: system check, consent, entire-screen share + snapshots, no-face / multiple-faces only)
 - System check, consent, identity baseline, gaze calibration, entire-screen share enforcement, single-display check, camera and audio ML, policies (Standard / Strict / Maximum with pause/resume), evidence capture and upload, integrity score, review UI, retention job.
 
 **Acceptance:** each signal type fires correctly in a documented manual test script; Maximum policy pauses when screen share stops and resumes after the fix; CPU stays within budget on a throttled low-end profile; the integrity report shows evidence for every flag.
 
-### Phase 5 — AI voice interview
+### Phase 5 — AI voice interview (after the first college signs)
 - Voice fix/rebuild per the Phase 0 decision, templates, adaptive state machine, code walkthrough, avatar tiers, recording + transcript, evaluation with quote verification, AI-answer signals, injection defense, text fallback.
 
 **Acceptance:** 3 full mock interviews end-to-end with a latency report (p50/p95); an injection attempt is ignored and logged; every evaluation quote is verified; the avatar falls back correctly on a throttled CPU.
 
-### Phase 6 — College portal
+### Phase 6 — College portal (pilot: student import, drives, TPO analytics)
 - Student import with dedupe, drives with eligibility filters, student dashboard, practice zone with quotas, resume optimizer integration (cached), live drive monitor, analytics with saved views, exports, Student 360, results release, super admin college usage tracking.
 
 **Acceptance:** full demo-college walkthrough: import a CSV containing duplicates → create a drive for CSE 2027 with CGPA ≥ 7 and zero backlogs → students attempt it → TPO filters by department + integrity band and exports XLSX. A duplicate resume submission is served from cache, visible in the usage log.
 
-### Phase 7 — Startup portal
+### Phase 7 — Startup portal (after the first college signs)
 - Roles from JD, skills matrix, invites and public apply link with resume screen, candidate flow, pipeline, reports (recording, transcript, integrity, code replay), compare, expiring share links, team roles, credits, notifications.
 
 **Acceptance:** demo-startup walkthrough: create a role from a JD → invite 5 candidates → complete 2 sessions → compare them and share a report link that expires.
 
-### Phase 8 — B2B marketing pages
+### Phase 8 — B2B marketing pages (after the first college signs; pre-rendered at build time)
 - Landing pages for colleges and for startups with full motion (GSAP scroll story, R3F hero, small Lottie details), demo-request form → leads list in super admin, SEO basics (metadata, OG images, sitemap, structured data), `hiresume.in` everywhere.
 
 **Acceptance:** Lighthouse performance ≥ 90 on mobile for both pages with 3D lazy-loaded; the reduced-motion version works.
@@ -414,7 +481,7 @@ Then STOP.
 
 ---
 
-## 14. Open decisions (ask me during Phase 0)
+## 14. Open decisions (answered 2026-10-20: see the Decisions log)
 
 1. Hosting for realtime voice, Judge0 and workers (a VM/container I manage vs managed services), with monthly cost.
 2. Voice stack: speech-to-text, text-to-speech, realtime framework, with cost per interview-minute and latency.
