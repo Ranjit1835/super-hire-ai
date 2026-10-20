@@ -16,6 +16,10 @@ export const FEATURES: Record<string, FeatureConfig> = {
   "resume.analyze":       { provider: "gemini", model: FAST, promptVersion: "resume-analyze-v1", cache: "org", ttlSeconds: 30 * 86400, maxTokens: 12000, temperature: 0.2, reasoningEffort: "low", timeoutMs: 60_000, quotaKey: "resume.analyze" },
   "proctor.frame_label":  { provider: "gemini", model: FAST, promptVersion: "frame-label-v1", cache: "none", ttlSeconds: null, maxTokens: 800, temperature: 0, reasoningEffort: "low", timeoutMs: 20_000 },
   "interview.turn":       { provider: "gemini", model: FAST, promptVersion: "interview-turn-v1", cache: "none", ttlSeconds: null, maxTokens: 4096, temperature: 0.4, reasoningEffort: "low", timeoutMs: 25_000 },
+  // Interview V1 (track C): fast model + low effort for live turns; the evaluator runs with high reasoning effort
+  // (the "stronger" setting until a stronger model is chosen: set B2B_AI_CONFIG {"interview.v1.evaluate":{"model":…}}).
+  "interview.v1.turn":    { provider: "gemini", model: FAST, promptVersion: "interview-v1-2026-10", cache: "none", ttlSeconds: null, maxTokens: 2048, temperature: 0.4, reasoningEffort: "low", timeoutMs: 15_000 },
+  "interview.v1.evaluate": { provider: "gemini", model: FAST, promptVersion: "interview-v1-eval-2026-10", cache: "none", ttlSeconds: null, maxTokens: 16000, temperature: 0.2, reasoningEffort: "high", timeoutMs: 120_000 },
   "interview.evaluate":   { provider: "gemini", model: FAST, promptVersion: "evaluator-2026-09-v1", cache: "none", ttlSeconds: null, maxTokens: 12000, temperature: 0.2, reasoningEffort: "medium", timeoutMs: 60_000 },
 };
 

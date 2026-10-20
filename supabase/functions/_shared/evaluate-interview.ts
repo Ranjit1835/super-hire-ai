@@ -10,6 +10,8 @@ import {
   retryMessage, validateEvaluation, type TranscriptEntry,
 } from "./evaluator.ts";
 import { callTool, evaluatorModel, type LlmUsage } from "./b2b-llm.ts";
+import { evaluateV1 } from "./interview-v1/evaluate.ts";
+import { ai } from "./ai-gateway/index.ts";
 
 export type EvaluationOutcome =
   | { status: "completed"; evaluation_id: string }
@@ -23,6 +25,18 @@ interface TurnRow {
 }
 
 export async function evaluateInterview(admin: SupabaseClient, interviewId: string): Promise<EvaluationOutcome> {
+  // Drive / job-role interviews (V1, track C) have their own blind, rubric-anchored evaluator.
+  const { data: kindRow } = await admin.from("b2b_interviews").select("kind").eq("id", interviewId).maybeSingle();
+  if (kindRow && (kindRow.kind === "drive" || kindRow.kind === "job_role")) {
+    return evaluateV1({
+      rpc: async (fn, args) => {
+        const { data, error } = await admin.rpc(fn, args);
+        if (error) throw new Error(`${fn}: ${error.message}`);
+        return data;
+      },
+      ai: (req) => ai(req, admin),
+    }, interviewId);
+  }
   const { data: claim, error: claimErr } = await admin.rpc("b2b_claim_evaluation", {
     _interview_id: interviewId, _version: EVALUATOR_PROMPT_VERSION,
   });
