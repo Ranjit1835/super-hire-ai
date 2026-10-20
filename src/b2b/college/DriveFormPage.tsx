@@ -112,7 +112,8 @@ export function DriveForm({ orgId, drive }: { orgId: string; drive: DriveRecord 
           <NativeSelect id="d-assess" value={assessmentId} onChange={(e) => setAssessmentId(e.target.value)}>
             <option value="">No test</option>
             {assessments.data?.map((a) => <option key={a.id} value={a.id}>{a.title}{a.status === "draft" ? " (draft)" : ""}</option>)}
-          </NativeSelect></div>
+          </NativeSelect>
+          <Link to={`/assess/tests/${orgId}/new`} className="text-xs underline">Build a new test</Link></div>
         <div className="space-y-1"><Label htmlFor="d-module">AI interview</Label>
           <NativeSelect id="d-module" value={moduleId} onChange={(e) => setModuleId(e.target.value)}>
             <option value="">No interview</option>

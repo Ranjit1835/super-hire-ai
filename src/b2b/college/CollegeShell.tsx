@@ -7,6 +7,8 @@ import { useCollegeAccess, useMyColleges, useOrg } from "./queries";
 export const collegeTabs = (orgId: string) => [
   { to: `/c/${orgId}/students`, label: "Students" },
   { to: `/c/${orgId}/drives`, label: "Drives" },
+  { to: `/assess/tests/${orgId}`, label: "Tests" },
+  { to: `/assess/bank/${orgId}`, label: "Question bank" },
   { to: `/c/${orgId}/analytics`, label: "Analytics" },
   { to: `/c/${orgId}/settings`, label: "Credits & team" },
 ];
