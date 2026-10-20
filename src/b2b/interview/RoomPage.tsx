@@ -93,7 +93,7 @@ export function Room({ interviewId }: { interviewId: string }) {
         <div className="container max-w-4xl px-4 h-14 flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="font-semibold truncate">{room.title}</h1>
-            <p className="text-xs text-muted-foreground">AI interview · voice <Badge variant="secondary" className="ml-1">beta</Badge></p>
+            <div className="text-xs text-muted-foreground">AI interview · voice <Badge variant="secondary" className="ml-1">beta</Badge></div>
           </div>
           {!done && <span className="tabular-nums text-sm" aria-label="Time left">{clock(s.remainingMs)}</span>}
           {!done && s.phase !== "ready" && (
