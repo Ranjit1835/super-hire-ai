@@ -35,7 +35,7 @@ export default function StartPage() {
       .then((st) => {
         setSessionId(st.attemptId, st.sessionId);
         try { sessionStorage.setItem(ctxKey(context, id), st.attemptId); } catch { /* storage blocked */ }
-        navigate(`/assess/a/${st.attemptId}`, { replace: true });
+        navigate(`/assess/a/${st.attemptId}?back=${encodeURIComponent(backPath(context as Context, id))}`, { replace: true });
       })
       .catch((e: unknown) => setError({
         message: e instanceof Error ? e.message : "Couldn't start the test.",
@@ -55,4 +55,11 @@ export default function StartPage() {
     );
   }
   return <Loading />;
+}
+
+/** Where "Done" goes after the test: the drive's steps, the candidate's steps, or the practice zone. */
+export function backPath(context: Context, id: string): string {
+  if (context === "drive") return `/learn/v1/drives/${id}`;
+  if (context === "job_role") return "/t";
+  return "/learn/v1";
 }

@@ -1,7 +1,7 @@
 // /assess/a/:attemptId — loads the attempt (claiming this tab's single session), wraps the runner in
 // proctoring, and shows "Submitted" (with scores only where results are visible) once it ends.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useB2BTheme, Loading } from "../layout/V1Shell";
 import { ApiError, assessApi } from "../lib/api";
@@ -77,6 +77,9 @@ export default function RunnerPage() {
 
 export function Submitted({ state }: { state: AttemptState | null }) {
   const r = state?.result;
+  const [params] = useSearchParams();
+  const back = params.get("back") ?? "";
+  const doneTo = back.startsWith("/") && !back.startsWith("//") ? back : "/";
   return (
     <Centered>
       <p className="text-2xl font-semibold">Submitted</p>
@@ -94,7 +97,7 @@ export function Submitted({ state }: { state: AttemptState | null }) {
       ) : (
         <p className="text-sm text-muted-foreground mt-4">Results will be shared by the organiser.</p>
       )}
-      <Link to="/" className="inline-block mt-6 text-sm underline">Done</Link>
+      <Link to={doneTo} className="inline-block mt-6 text-sm underline">Done</Link>
     </Centered>
   );
 }
