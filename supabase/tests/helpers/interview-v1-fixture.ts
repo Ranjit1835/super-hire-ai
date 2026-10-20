@@ -1,5 +1,5 @@
 // Shared fixture for track C (interview V1) DB and handler tests: two colleges, one company, a drive with an
-// interview module, a job role with a skills matrix, and the people around them. Applies docs/b2b/tracks/c-interview.sql.
+// interview module, a job role with a skills matrix, and the people around them. Applies supabase/migrations/20261021000009_b2b_v1_interview.sql.
 import type { PGlite } from "@electric-sql/pglite";
 import { createTestDb, createUser, asService } from "./pgdb";
 
@@ -30,7 +30,7 @@ export function namedCall(db: PGlite) {
 }
 
 export async function buildFixture(): Promise<Fixture> {
-  const db = await createTestDb({ extraSql: ["docs/b2b/tracks/c-interview.sql"] });
+  const db = await createTestDb();
   const one = async <T = Record<string, unknown>>(sql: string, params: unknown[] = []) => (await db.query<T>(sql, params)).rows[0];
   const id = async (sql: string, params: unknown[] = []) => (await one<{ id: string }>(sql, params)).id;
   const u: Record<string, string> = {};

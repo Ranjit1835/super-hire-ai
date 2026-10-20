@@ -135,7 +135,9 @@ const pilot = handle("B2B-INTERVIEW", async (req, body) => {
     const { data, error } = await admin
       .from("b2b_interviews")
       .select("id, org_id, user_id, module_id, module_spec, state, status, end_reason, started_at, deadline_at")
-      .eq("user_id", user.id).eq("status", "in_progress").maybeSingle();
+      .eq("user_id", user.id).eq("status", "in_progress")
+      .in("kind", ["practice", "public_test"]) // V1 drive and job-role interviews are served by v1.ts
+      .maybeSingle();
     if (error) throw error;
     if (!data) return json({ interview: null });
     const iv = data as InterviewRow;

@@ -1,5 +1,5 @@
 // b2b-company — company admin, recruiters, hiring managers (contract: _shared/contracts/company.ts; logic: ./handlers.ts).
-// Every action re-authorises in SQL (docs/b2b/tracks/e-startup.sql); this layer validates input, makes tokens,
+// Every action re-authorises in SQL (supabase/migrations/20261021000010_b2b_v1_startup.sql); this layer validates input, makes tokens,
 // calls the AI gateway and sends email.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, appBaseUrl, randomToken, serviceClient, sha256Hex } from "../_shared/b2b-http.ts";

@@ -1,6 +1,6 @@
 // b2b-interview V1 actions (contract: _shared/contracts/interview.ts) with the database, the AI gateway and the
 // network injected, so they run in Node tests against PGlite with a fake ai() (supabase/tests/rls/interview-v1-handlers.test.ts).
-// Authorization lives in the SQL functions (docs/b2b/tracks/c-interview.sql): every call passes the actor.
+// Authorization lives in the SQL functions (supabase/migrations/20261021000009_b2b_v1_interview.sql): every call passes the actor.
 import type { GatewayRequest, GatewayResult } from "../_shared/ai-gateway/core.ts";
 import type { RoomState } from "../_shared/contracts/interview.ts";
 import { sanitizeAnswerMeta } from "../_shared/interview-meta.ts";

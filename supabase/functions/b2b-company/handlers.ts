@@ -1,6 +1,6 @@
 // b2b-company logic with the database, the AI gateway and email injected (index.ts wires them for Deno), so it
 // is unit-tested in Node with fakes (supabase/tests/unit/b2b-company-handlers.test.ts).
-// Authorisation lives in the SQL functions (docs/b2b/tracks/e-startup.sql): every call passes the actor.
+// Authorisation lives in the SQL functions (supabase/migrations/20261021000010_b2b_v1_startup.sql): every call passes the actor.
 import { SkillsMatrix, type CandidateReport, type PipelineFilters, type PipelineRow } from "../_shared/contracts/company.ts";
 import type { GatewayRequest, GatewayResult } from "../_shared/ai-gateway/core.ts";
 import { matchFromRaw, pipelineExportRows, PIPELINE_EXPORT_COLUMNS, shapeReport } from "../_shared/company-logic.ts";

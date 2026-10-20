@@ -1,5 +1,5 @@
 // @vitest-environment node
-// b2b-interview V1 handlers on the real SQL (PGlite + docs/b2b/tracks/c-interview.sql) with a fake AI gateway:
+// b2b-interview V1 handlers on the real SQL (PGlite + supabase/migrations/20261021000009_b2b_v1_interview.sql) with a fake AI gateway:
 // authorisation of startContext / room / turn, idempotent resume, the adaptive turn loop, injection logging,
 // the code walkthrough data, finish → evaluation (blind, verified quotes, dimension scores), results visibility,
 // and the Gemini Live token endpoint. No network, no model.

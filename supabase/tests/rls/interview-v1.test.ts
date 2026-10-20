@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Track C (interview V1) SQL: context authorisation (drive window, assignment, candidate link, other orgs),
 // idempotent create, owner-only load / turns / finish, staff-only notes, walkthrough source without hidden tests,
-// dimension scores and the evaluator-version split of the sweep. Runs on docs/b2b/tracks/c-interview.sql.
+// dimension scores and the evaluator-version split of the sweep. Runs on supabase/migrations/20261021000009_b2b_v1_interview.sql.
 import { describe, it, expect, beforeAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { asUser } from "../helpers/pgdb";

@@ -2,7 +2,7 @@
 // Track E (startup portal): invites (dedupe, credits), candidate token linking + second-session refusal,
 // consent, completion + idempotent credit charge, pipeline filters, decisions, reports, share links,
 // browser-write guards, and cross-org / role isolation for every new function.
-// Runs against the real migrations plus docs/b2b/tracks/e-startup.sql.
+// Runs against the real migrations plus supabase/migrations/20261021000010_b2b_v1_startup.sql.
 import { describe, it, expect, beforeAll } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createHash, randomUUID } from "node:crypto";
@@ -53,7 +53,7 @@ const matrix = { must_have: [{ skill: "Python", weight: 5 }], nice_to_have: [], 
 const noInterview = { enabled: false, duration_min: 20, sections: ["intro"], difficulty: "medium", code_walkthrough: false };
 
 beforeAll(async () => {
-  db = await createTestDb({ extraSql: ["docs/b2b/tracks/e-startup.sql"] });
+  db = await createTestDb();
   u.super = await createUser(db, { superAdmin: true });
   for (const k of ["adminA", "recA", "hmA", "hmA2", "adminB", "recB", "outsider"]) u[k] = await createUser(db);
   o.A = await id("INSERT INTO organizations (name, slug, type, credits_balance) VALUES ('Startup A', 'startup-a', 'company', 3) RETURNING id");

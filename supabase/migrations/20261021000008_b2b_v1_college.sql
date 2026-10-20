@@ -411,7 +411,12 @@ RETURNS TABLE (
            s.batch_year, s.section, s.cgpa, s.active_backlogs, s.status AS student_status,
            CASE
              WHEN da.status IN ('completed', 'absent') THEN da.status
-             WHEN a.status IN ('submitted', 'expired', 'terminated') THEN 'completed'
+             -- the test alone completes a drive only when the drive has no interview (or the interview is done)
+             WHEN a.status IN ('submitted', 'expired', 'terminated')
+                  AND (d.interview_module_id IS NULL OR EXISTS (
+                    SELECT 1 FROM public.b2b_interviews i WHERE i.kind = 'drive' AND i.context_id = d.id
+                      AND i.student_id = s.id AND i.status::text IN ('completed', 'abandoned'))) THEN 'completed'
+             WHEN a.status IN ('submitted', 'expired', 'terminated') THEN 'in_progress'
              WHEN a.status = 'in_progress' OR da.status = 'in_progress' THEN 'in_progress'
              WHEN d.window_end IS NOT NULL AND d.window_end < now() THEN 'absent'
              ELSE 'assigned'

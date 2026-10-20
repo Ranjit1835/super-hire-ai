@@ -452,3 +452,31 @@ GRANT EXECUTE ON FUNCTION
   public.b2b_interviews_needing_evaluation(TEXT, UUID, INTEGER)
 TO service_role;
 GRANT EXECUTE ON FUNCTION public.b2b_my_context_attempt(TEXT, UUID) TO authenticated, service_role;
+
+
+-- =============================================
+-- Drive completion (added by the lead when merging): finishing the interview completes the student's drive
+-- assignment once the drive's test (if any) is also finished. The analytics status covers the other order.
+-- =============================================
+CREATE OR REPLACE FUNCTION public._b2b_iv_complete_drive_assignment()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NEW.kind = 'drive' AND NEW.student_id IS NOT NULL AND NEW.status::text IN ('completed', 'abandoned')
+     AND OLD.status IS DISTINCT FROM NEW.status THEN
+    UPDATE public.drive_assignments da
+       SET status = 'completed', completed_at = COALESCE(da.completed_at, now()), interview_id = NEW.id
+      FROM public.drives d
+     WHERE da.drive_id = NEW.context_id AND da.student_id = NEW.student_id AND d.id = da.drive_id
+       AND da.status IN ('assigned', 'in_progress')
+       AND (d.assessment_id IS NULL OR EXISTS (
+         SELECT 1 FROM public.attempts a WHERE a.context_type = 'drive' AND a.context_id = d.id
+           AND a.subject_user_id = NEW.user_id AND a.status IN ('submitted', 'expired', 'terminated')));
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public._b2b_iv_complete_drive_assignment() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_b2b_iv_complete_drive_assignment ON public.b2b_interviews;
+CREATE TRIGGER trg_b2b_iv_complete_drive_assignment
+  AFTER UPDATE OF status ON public.b2b_interviews
+  FOR EACH ROW EXECUTE FUNCTION public._b2b_iv_complete_drive_assignment();
