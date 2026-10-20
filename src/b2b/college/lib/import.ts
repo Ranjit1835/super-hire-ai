@@ -26,7 +26,7 @@ export const FIELDS: { key: ImportField; label: string; required?: boolean }[] =
 
 /** Lower-case, "%" → "pct", every other separator → one space. */
 export function normHeader(h: string): string {
-  return h.replace(/^﻿/, "").toLowerCase().replace(/%/g, " pct ").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  return h.replace(/^\uFEFF/, "").toLowerCase().replace(/%/g, " pct ").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 }
 
 const ALIASES: Record<ImportField, string[]> = {

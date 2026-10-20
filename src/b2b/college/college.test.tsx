@@ -8,7 +8,7 @@ const api = vi.hoisted(() => ({ collegeApi: vi.fn() }));
 const db = vi.hoisted(() => {
   const single = vi.fn().mockResolvedValue({ data: { id: "d-new" }, error: null });
   const select = vi.fn(() => ({ single }));
-  const insert = vi.fn(() => ({ select }));
+  const insert = vi.fn((_row: Record<string, unknown>) => ({ select }));
   const eq = vi.fn(() => ({ select }));
   const update = vi.fn(() => ({ eq }));
   return { insert, update, single, from: vi.fn(() => ({ insert, update })) };

@@ -9,6 +9,8 @@ import { b2bDb } from "@/features/b2b/lib/db";
 import { Loading } from "../layout/V1Shell";
 import { collegeApi, ApiError } from "../lib/api";
 import type { ProctoringPolicyV1, ResultsReleaseV1 } from "../types";
+import type { ContractOutput } from "../../../supabase/functions/_shared/contracts/common";
+import type { collegeContract } from "../../../supabase/functions/_shared/contracts/college";
 import { CheckChip, CollegeShell, NativeSelect, toggle } from "./CollegeShell";
 import { emptyEligibility, fromEligibility, toEligibility, type EligibilityForm } from "./lib/filters";
 import { friendly, useAssessments, useDrive, useInterviewModules, useStudentFacets, type DriveRecord } from "./queries";
@@ -54,7 +56,7 @@ export function DriveForm({ orgId, drive }: { orgId: string; drive: DriveRecord 
   const [end, setEnd] = useState(toLocal(drive?.window_end ?? null));
   const [policy, setPolicy] = useState<ProctoringPolicyV1>(drive?.proctoring_policy ?? "standard");
   const [release, setRelease] = useState<ResultsReleaseV1>(drive?.results_release ?? "manual");
-  const [preview, setPreview] = useState<{ count: number; sample: { id: string; full_name: string; roll_no: string }[] } | null>(null);
+  const [preview, setPreview] = useState<ContractOutput<typeof collegeContract, "previewEligibility"> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
