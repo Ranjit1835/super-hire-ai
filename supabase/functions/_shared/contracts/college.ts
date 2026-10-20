@@ -4,6 +4,8 @@
 import { z } from "./zod.ts";
 import { Email, IntegrityBand, NonEmpty, Ok, Page, Uuid } from "./common.ts";
 
+const InviteLink = z.object({ studentId: Uuid, link: z.string().url() });
+
 export const StudentRow = z.object({
   row: z.number().int().min(1),
   roll_no: NonEmpty(60),
@@ -46,6 +48,7 @@ export const AnalyticsFilters = z.object({
   status: z.array(z.enum(["assigned", "in_progress", "completed", "absent"])).optional(),
   search: z.string().max(100).optional(),
 });
+export type AnalyticsFilters = z.infer<typeof AnalyticsFilters>;
 
 const DuplicateRow = z.object({ row: z.number(), reason: z.enum(["roll_no", "email", "both", "in_file"]), existingStudentId: Uuid.nullable() });
 
@@ -63,12 +66,24 @@ export const collegeContract = {
       created: z.number(), merged: z.number(), skipped: z.number(), heldMinors: z.number(),
       duplicates: z.array(DuplicateRow),
       errors: z.array(z.object({ row: z.number(), message: z.string() })),
-      invites: z.array(z.object({ studentId: Uuid, link: z.string().url() })).optional(),
+      /** sendInvites on commit: activation links for the new (and merged, not yet active) students. */
+      invites: z.array(InviteLink).optional(),
+      emailed: z.number().optional(),
     }),
   },
   inviteStudents: {
     input: z.object({ orgId: Uuid, studentIds: z.array(Uuid).min(1).max(5000) }),
-    output: z.object({ queued: z.number(), links: z.array(z.object({ studentId: Uuid, link: z.string().url() })) }),
+    /** queued = emails accepted by the provider; links are always returned (for WhatsApp / CSV when email is off). */
+    output: z.object({
+      queued: z.number(), links: z.array(InviteLink),
+      skipped: z.array(z.object({ studentId: Uuid, reason: z.string() })).default([]),
+      emailConfigured: z.boolean().default(false),
+    }),
+  },
+  /** TPO admin invites another TPO admin or a trainer (b2b_invite_staff). */
+  inviteStaff: {
+    input: z.object({ orgId: Uuid, email: Email, fullName: z.string().trim().max(200).optional(), role: z.enum(["org_admin", "trainer"]) }),
+    output: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean() }),
   },
   previewEligibility: {
     input: z.object({ orgId: Uuid, eligibility: Eligibility }),
@@ -88,8 +103,10 @@ export const collegeContract = {
     output: z.object({
       total: z.number(),
       rows: z.array(z.object({
-        student_id: Uuid, full_name: z.string(), roll_no: z.string(), department: z.string().nullable(),
+        student_id: Uuid, drive_id: Uuid, drive_name: z.string(), full_name: z.string(), roll_no: z.string(),
+        email: z.string(), department: z.string().nullable(),
         batch_year: z.number().nullable(), section: z.string().nullable(), cgpa: z.number().nullable(),
+        active_backlogs: z.number().nullable(),
         status: z.string(), coding: z.number().nullable(), mcq: z.number().nullable(), interview: z.number().nullable(),
         overall: z.number().nullable(), integrity_band: IntegrityBand.nullable(), integrity_score: z.number().nullable(),
       })),
