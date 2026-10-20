@@ -13,7 +13,7 @@
 -- =============================================
 -- 1. Practice zone flag
 -- =============================================
-ALTER TABLE public.assessments ADD COLUMN practice_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.assessments ADD COLUMN IF NOT EXISTS practice_enabled BOOLEAN NOT NULL DEFAULT false;  -- also added by 20261021000006
 CREATE INDEX idx_assessments_practice ON public.assessments(org_id) WHERE practice_enabled AND status = 'ready';
 
 -- =============================================

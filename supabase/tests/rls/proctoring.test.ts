@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Track B — proctoring V1 write paths (docs/b2b/tracks/b-proctoring.sql) on the real migrations:
+// Track B — proctoring V1 write paths (supabase/migrations/20261021000007_b2b_v1_proctoring.sql) on the real migrations:
 // subjects log only to their own live session, inserts are idempotent, Strict / Maximum policies act,
 // review and the human decision are staff-only (hiring managers only for assigned roles), other orgs see nothing.
 import { describe, it, expect, beforeAll } from "vitest";
@@ -32,7 +32,7 @@ const log = (actor: string, session: string, events: J[]) =>
   rpc("b2b_proctor_log_events", [actor, session, JSON.stringify(events)]);
 
 beforeAll(async () => {
-  db = await createTestDb({ extraSql: ["docs/b2b/tracks/b-proctoring.sql"] });
+  db = await createTestDb();
   for (const k of ["adminA", "trainerA", "studentA", "studentA2", "adminB", "recruiterC", "hmC", "hmC2", "candC", "candC2", "super"]) {
     u[k] = await createUser(db, { superAdmin: k === "super" });
   }

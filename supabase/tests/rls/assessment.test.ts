@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Track A: question bank, runner and grading SQL (docs/b2b/tracks/a-assessment.sql) on embedded Postgres.
+// Track A: question bank, runner and grading SQL (supabase/migrations/20261021000006_b2b_v1_assessment.sql) on embedded Postgres.
 import { describe, it, expect, beforeAll } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { randomUUID } from "node:crypto";
@@ -38,7 +38,7 @@ const mcqSql = `INSERT INTO questions (org_id, type, title, statement, difficult
           '[{"id":"a","text":"A"},{"id":"b","text":"B"},{"id":"c","text":"C"},{"id":"d","text":"D"}]', $6, $7, 4, 'verified') RETURNING id`;
 
 beforeAll(async () => {
-  db = await createTestDb({ extraSql: ["docs/b2b/tracks/a-assessment.sql"] });
+  db = await createTestDb();
   u.super = await createUser(db, { superAdmin: true });
   for (const k of ["adminA", "trainerA", "studentA", "studentA2", "studentA3", "adminB", "studentB", "recruiterC", "candC", "candC2", "b2c"]) {
     u[k] = await createUser(db);

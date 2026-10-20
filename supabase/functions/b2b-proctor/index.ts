@@ -1,7 +1,7 @@
 // b2b-proctor — proctoring V1 (contract: _shared/contracts/proctor.ts).
 // Subject actions (preflight, start, events, snapshotUploadUrl, end) accept anonymous sessions (candidates);
 // review actions (timeline, reviewEvent, decide) are staff only. Every write goes through a SQL function
-// (docs/b2b/tracks/b-proctoring.sql) that re-checks the actor. Flags are evidence for human review.
+// (supabase/migrations/20261021000007_b2b_v1_proctoring.sql) that re-checks the actor. Flags are evidence for human review.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, serviceClient } from "../_shared/b2b-http.ts";
 import { serveContract } from "../_shared/contract-handler.ts";

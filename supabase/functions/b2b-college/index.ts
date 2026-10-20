@@ -1,5 +1,5 @@
 // b2b-college — TPO admins and trainers (contract: _shared/contracts/college.ts).
-// Every action re-authorises in SQL (the functions in docs/b2b/tracks/d-college.sql take the actor and check
+// Every action re-authorises in SQL (the functions in supabase/migrations/20261021000008_b2b_v1_college.sql take the actor and check
 // org_admin / trainer membership themselves); this layer validates input, makes tokens and sends email.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, appBaseUrl, randomToken, serviceClient, sha256Hex } from "../_shared/b2b-http.ts";

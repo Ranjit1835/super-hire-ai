@@ -1,6 +1,6 @@
 // b2b-assess logic, with the database, Judge0 and the AI gateway injected (index.ts wires them for Deno),
 // so it is unit-tested in Node with fakes (supabase/tests/unit/b2b-assess-handlers.test.ts).
-// Authorization lives in the SQL functions (docs/b2b/tracks/a-assessment.sql): every call passes the actor.
+// Authorization lives in the SQL functions (supabase/migrations/20261021000006_b2b_v1_assessment.sql): every call passes the actor.
 import {
   GeneratedMcq, GeneratedQuestion, type AttemptState, type JudgeResult, type RunnerQuestion,
 } from "../_shared/contracts/assess.ts";

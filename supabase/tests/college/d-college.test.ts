@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Track D (college portal): import dedupe, held minors, invites, eligibility, assignment, results release,
 // analytics, and cross-org isolation for every new function. Runs against the real migrations plus
-// docs/b2b/tracks/d-college.sql.
+// supabase/migrations/20261021000008_b2b_v1_college.sql.
 import { describe, it, expect, beforeAll } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createHash, randomUUID } from "node:crypto";
@@ -36,7 +36,7 @@ const importRows = (actor: string, org: string, rows: unknown[], onDup: "merge" 
 const studentCount = async (org: string) => Number((await one<{ n: string }>("SELECT count(*) AS n FROM students WHERE org_id = $1", [org])).n);
 
 beforeAll(async () => {
-  db = await createTestDb({ extraSql: ["docs/b2b/tracks/d-college.sql"] });
+  db = await createTestDb();
   u.super = await createUser(db, { superAdmin: true });
   for (const k of ["adminA", "trainerA", "adminB", "outsider", "stuA1", "stuB1", "stuA2"]) u[k] = await createUser(db);
   o.A = await id("INSERT INTO organizations (name, slug, type, credits_balance) VALUES ('College A', 'college-a', 'college', 40) RETURNING id");
