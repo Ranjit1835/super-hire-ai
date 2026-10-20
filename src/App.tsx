@@ -48,7 +48,8 @@ const Pricing = preloadable(() => import("./pages/Pricing"));
 const About = preloadable(() => import("./pages/About"));
 const Blog = preloadable(() => import("./pages/Blog"));
 const BlogPost = preloadable(() => import("./pages/BlogPost"));
-const SuperAdminOrgs = lazy(() => import("./features/b2b/pages/SuperAdminOrgs"));
+const AdminOrgsPage = lazy(() => import("./b2b/admin/AdminOrgsPage"));
+const AdminUsagePage = lazy(() => import("./b2b/admin/AdminUsagePage"));
 const SuperAdminCosts = lazy(() => import("./features/b2b/pages/SuperAdminCosts"));
 const SuperAdminEnquiries = lazy(() => import("./features/b2b/pages/SuperAdminEnquiries"));
 const OrgLeads = lazy(() => import("./features/b2b/pages/OrgLeads"));
@@ -118,7 +119,8 @@ function AppRoutes() {
       {/* B2B: institutions. Only registered when VITE_B2B_ENABLED=true (off in production). */}
       {B2B_ENABLED && (
         <>
-          <Route path="/admin/orgs" element={<ProtectedRoute><SuperAdminOrgs /></ProtectedRoute>} />
+          <Route path="/admin/orgs" element={<ProtectedRoute><AdminOrgsPage /></ProtectedRoute>} />
+          <Route path="/admin/usage" element={<ProtectedRoute><AdminUsagePage /></ProtectedRoute>} />
           <Route path="/admin/costs" element={<ProtectedRoute><SuperAdminCosts /></ProtectedRoute>} />
           <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
           <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>

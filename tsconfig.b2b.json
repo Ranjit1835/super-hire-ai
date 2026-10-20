@@ -1,0 +1,19 @@
+{
+  // Strict TypeScript for new B2B V1 code only (Decisions log 2026-10-20). B2C and the pilot keep
+  // tsconfig.app.json. Checked by `npm run typecheck:b2b` and in CI.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src/b2b",
+    "src/vite-env.d.ts",
+    "supabase/functions/_shared/contracts",
+    "supabase/functions/_shared/ai-gateway/core.ts",
+    "supabase/functions/_shared/ai-gateway/config.ts"
+  ]
+}
