@@ -9,6 +9,64 @@
 Newest first. Where a decision conflicts with older text below, the decision wins; the sections below have been
 edited to match. Evidence and numbers: `docs/b2b/AUDIT.md`.
 
+### 2026-10-20 (later): FAST-TRACK, both portals in V1
+
+**Goal:** colleges **and** startups as fast as possible. For V1, speed beats polish. This entry overrides the
+"college pilot first" plan below.
+
+**Process**
+- **No "go" between phases.** When a phase's checks pass, add a short summary to `PROGRESS.md` and continue. Stop only
+  for: production migrations or deploys, paid services, a scope change, or a decision only the owner can make.
+- **PRs:** `fix/b2b-lockdown` (#1) and `chore/b2b-followups` (#2) to `main`. Phase 1 is based on `chore/b2b-followups`;
+  **one PR per milestone** after that.
+- **CI approved** (AUDIT.md section 13). Branch protection on `main`: require a PR and passing checks, **no required
+  approvals** (solo).
+- **Local Supabase** for development. Production migrations are **batched**: the owner approves them once per milestone.
+- **Quality gates stay:** RLS isolation tests, B2C smoke + screenshot tests, B2B flag off in production, no direct
+  production writes.
+- **Parallel tracks after Phase 1:** up to 3 at a time, run by subagents in separate git worktrees; the lead merges
+  them. **Tracks don't create migration files**: they list schema changes, and the lead adds migrations on the
+  integration branch, in order.
+- **UI:** reuse the existing shadcn/ui + Tailwind components with a **scoped B2B theme**. Design DNA, `paint` and all
+  motion work (GSAP, Three.js avatar, Lottie) come **after V1 works end-to-end**.
+
+**Phase 1 — foundations + contracts** (first, not parallel): org types `college` and `company`; roles as text + CHECK;
+memberships, invites, audit log, consents, credits. AI gateway: cache, single-flight dedupe, cost log, quotas. Super
+admin v1: create college and company orgs, plans and credits, invite org admins, usage page. **Every V1 B2B table** plus
+TypeScript types and API contracts (stubs), so the tracks can build in parallel. B2C smoke + screenshot baseline; RLS
+isolation tests.
+
+**V1 tracks (after Phase 1)**
+- **A. Assessment engine:** question bank (global + org), AI generation with sandbox verification, Judge0, runner
+  (Monaco, autosave, server timer, randomization, single session), grading, MCQ (aptitude + CS). Edit history logged from
+  day one (replay UI later). Judge0 in local Docker for development; if it can't run on the owner's machine, the owner
+  creates the DigitalOcean Bangalore server.
+- **B. Proctoring V1:** system check, consent, entire-screen share enforcement, single-display check, screen + webcam
+  snapshots, browser events, MediaPipe face checks (no face, multiple faces, looking away via head pose), speech
+  detected during the coding test (VAD), Standard / Strict / Maximum policies, integrity score with a review timeline.
+- **C. Interview V1:** the pilot's adaptive interview and evaluator with the beta voice flow, plus a code walkthrough of
+  the candidate's coding submission. **Time-boxed spike in parallel:** Gemini Live API with ephemeral tokens (browser
+  connects directly, no voice server); measure latency, Indian-English handling, session-length limits and cost per
+  20-minute interview. If it clearly beats the beta flow at an acceptable cost, use it for the startup portal in V1;
+  otherwise LiveKit stays the plan.
+- **D. College portal:** student import with dedupe, drives with eligibility filters, student dashboard, TPO analytics
+  with filters, CSV/XLSX export, results release, pooled credits.
+- **E. Startup portal:** role from JD → skills matrix, invites (email + CSV), candidate token flow (coding + AI
+  interview), candidate report (scores, code, transcript, integrity timeline), pipeline table, expiring share links,
+  credits.
+
+**After V1 (fast-follow):** gaze calibration, phone detection, multi-speaker audio, face match, plagiarism, live drive
+monitor, code replay UI, kanban, candidate compare, PDF exports, marketing pages, design and motion pass.
+
+**V1 is done when both walkthroughs pass end-to-end on local Supabase:**
+- *College:* super admin creates a college → TPO imports a CSV with duplicates → creates a drive (coding + MCQ + AI
+  interview) for CSE 2027, CGPA ≥ 7, zero backlogs → 5 test students complete it with proctoring → TPO filters by
+  department + integrity band and exports XLSX.
+- *Startup:* super admin creates a company → recruiter creates a role from a JD → invites 3 candidates → 2 complete
+  coding + interview → recruiter opens the reports and shares one via an expiring link.
+
+Then one production release (batched migrations + functions) for the owner's approval.
+
 ### 2026-10-20 (after the Phase 0 review)
 
 **Stack and process**
@@ -57,7 +115,7 @@ edited to match. Evidence and numbers: `docs/b2b/AUDIT.md`.
 8. **Department coordinator role:** later.
 9. **Under-18:** not activated in V1. Check DOB at import.
 
-**Re-sequenced plan (college pilot first)** — see Section 13:
+**Re-sequenced plan (college pilot first)** — *superseded by the fast-track entry above*:
 Phase 1 → Phase 2 (time-boxed: tokens + app shells only) → Phase 3 → Phase 4-lite (system check, consent,
 entire-screen share + snapshots, basic camera checks: no face, multiple faces) → Phase 6 core (student import,
 drives, TPO analytics) → pilot with one college. Gaze/audio proctoring, the voice upgrade, the startup portal and the
@@ -69,7 +127,7 @@ marketing pages come after the first college signs.
 
 You are the lead engineer turning Hiresume (hiresume.in) into a B2B platform with two new portals, **Colleges** and **Startups**, while the existing **B2C product keeps working exactly as it does today**.
 
-1. **Phase-gated.** Do only the current phase (Section 13). Start with Phase 0, which is a read-only audit. At the end of every phase, stop and report: what was built, step-by-step manual test instructions, automated test results, preview routes or screenshots, and open questions. Wait for my "go" before starting the next phase.
+1. **Fast-track (since 2026-10-20).** Work through Section 13 without waiting for a "go" between phases. When a phase's checks pass, add a short summary to `PROGRESS.md` (what was built, manual test steps, test results, open questions) and continue. **Stop only for:** production migrations or deploys, paid services, a scope change, or a decision only I can make. One PR per milestone.
 2. **Keep a progress file.** Maintain `docs/b2b/PROGRESS.md` with: done / in progress / next / decisions made / blockers / how to run locally. Read it at the start of every session and update it at the end. I had a long gap last time and lost track of where things stood; this file must make any future gap painless.
 3. **B2C is frozen.** Do not change B2C routes, pages, styles, prompts, DB tables or behavior. If a shared module must change, first add tests that lock the current B2C behavior, then change it. Ask me before altering any existing table.
 4. **Ask before:** adding a paid service or new infrastructure, changing auth, deleting files or data, or running an irreversible migration. **Never write to the production database directly**: every change is a migration file the owner reviews and applies.
@@ -417,11 +475,21 @@ Produce `docs/b2b/AUDIT.md` and create `docs/b2b/PROGRESS.md`:
 
 Then STOP. (Done 2026-10-18; decisions recorded in the Decisions log.)
 
-> **Order of work after Phase 0 (decided 2026-10-20):** Phase 1 → Phase 2 time-boxed (tokens + app shells only) →
-> Phase 3 → Phase 4-lite (system check, consent, entire-screen share + snapshots, basic camera checks: no face,
-> multiple faces) → Phase 6 core (student import, drives, TPO analytics) → **pilot with one college** (current voice
-> flow, labelled beta). After the first college signs: the rest of Phase 4 (gaze, audio), Phase 5 (voice upgrade),
-> Phase 7 (startup portal), Phase 8 (marketing pages), then Phase 9.
+> **Order of work (fast-track, 2026-10-20; replaces the college-pilot-first order):**
+> 1. **Phase 1 — foundations + contracts** (alone): tenancy (college + company, roles as text + CHECK), memberships,
+>    invites, audit log, consents, credits; AI gateway (cache, single-flight, cost log, quotas); super admin v1; every
+>    V1 B2B table + TS types + API contract stubs; B2C smoke + screenshot baseline; RLS isolation tests.
+> 2. **V1 tracks, up to 3 in parallel** (subagents in worktrees; the lead adds all migrations): **A** assessment engine
+>    (Phase 3 scope + MCQ), **B** proctoring V1 (Phase 4 minus gaze calibration, phone detection, multi-speaker audio,
+>    face match), **C** interview V1 (pilot engine + beta voice + code walkthrough; Gemini Live spike), **D** college
+>    portal (Phase 6 core), **E** startup portal (Phase 7 minus kanban, compare, PDF).
+> 3. **V1 done** = the college and startup walkthroughs (Decisions log) pass end-to-end on local Supabase → one
+>    batched production release for my approval.
+> 4. **Fast-follow:** gaze calibration, phone detection, multi-speaker audio, face match, plagiarism, live drive monitor,
+>    code replay UI, kanban, compare, PDF exports, Phase 8 marketing pages, Phase 2 design/motion pass, Phase 5 voice
+>    upgrade (LiveKit unless the Gemini Live spike wins), Phase 9 hardening.
+>
+> Phase 2 in V1 is only a scoped B2B theme on the existing shadcn/ui + Tailwind components.
 
 ### Phase 1 — Foundations
 - Tenancy schema, memberships, roles, RLS on every new table, platform admins, audit logs, invites, consents.
@@ -433,7 +501,7 @@ Then STOP. (Done 2026-10-18; decisions recorded in the Decisions log.)
 
 **Acceptance:** super admin creates a college and invites a TPO, who logs in and sees only their org. An automated test proves cross-tenant reads and writes fail. B2C tests and screenshots unchanged.
 
-### Phase 2 — Design system and app shells (time-boxed)
+### Phase 2 — Design system and app shells (V1: scoped B2B theme on shadcn/ui only; the rest is fast-follow)
 - **Time-boxed for the pilot: tokens + app shells only.** Design DNA → DNA JSON → `paint` → `MASTER.md` + scoped tokens; motion tokens.
 - Core components: data table with filters, filter bar, chart and stat cards, empty/loading/error states, modals, toasts, stepper, timeline.
 - Shells for super admin, TPO, student and company, rendered with seed data.
@@ -445,27 +513,27 @@ Then STOP. (Done 2026-10-18; decisions recorded in the Decisions log.)
 
 **Acceptance:** a TPO builds a test from the bank; 50 simulated candidates take it concurrently without errors; refreshing mid-test resumes with the correct remaining time; a seeded plagiarism pair is detected.
 
-### Phase 4 — Full proctoring (pilot: system check, consent, entire-screen share + snapshots, no-face / multiple-faces only)
+### Phase 4 — Full proctoring (V1 = track B; gaze calibration, phone detection, multi-speaker audio, face match are fast-follow)
 - System check, consent, identity baseline, gaze calibration, entire-screen share enforcement, single-display check, camera and audio ML, policies (Standard / Strict / Maximum with pause/resume), evidence capture and upload, integrity score, review UI, retention job.
 
 **Acceptance:** each signal type fires correctly in a documented manual test script; Maximum policy pauses when screen share stops and resumes after the fix; CPU stays within budget on a throttled low-end profile; the integrity report shows evidence for every flag.
 
-### Phase 5 — AI voice interview (after the first college signs)
+### Phase 5 — AI voice interview (V1 = track C on the beta voice flow + Gemini Live spike; the upgrade is fast-follow)
 - Voice fix/rebuild per the Phase 0 decision, templates, adaptive state machine, code walkthrough, avatar tiers, recording + transcript, evaluation with quote verification, AI-answer signals, injection defense, text fallback.
 
 **Acceptance:** 3 full mock interviews end-to-end with a latency report (p50/p95); an injection attempt is ignored and logged; every evaluation quote is verified; the avatar falls back correctly on a throttled CPU.
 
-### Phase 6 — College portal (pilot: student import, drives, TPO analytics)
+### Phase 6 — College portal (V1 = track D; live drive monitor is fast-follow)
 - Student import with dedupe, drives with eligibility filters, student dashboard, practice zone with quotas, resume optimizer integration (cached), live drive monitor, analytics with saved views, exports, Student 360, results release, super admin college usage tracking.
 
 **Acceptance:** full demo-college walkthrough: import a CSV containing duplicates → create a drive for CSE 2027 with CGPA ≥ 7 and zero backlogs → students attempt it → TPO filters by department + integrity band and exports XLSX. A duplicate resume submission is served from cache, visible in the usage log.
 
-### Phase 7 — Startup portal (after the first college signs)
+### Phase 7 — Startup portal (V1 = track E; kanban, compare, PDF are fast-follow)
 - Roles from JD, skills matrix, invites and public apply link with resume screen, candidate flow, pipeline, reports (recording, transcript, integrity, code replay), compare, expiring share links, team roles, credits, notifications.
 
 **Acceptance:** demo-startup walkthrough: create a role from a JD → invite 5 candidates → complete 2 sessions → compare them and share a report link that expires.
 
-### Phase 8 — B2B marketing pages (after the first college signs; pre-rendered at build time)
+### Phase 8 — B2B marketing pages (fast-follow; pre-rendered at build time)
 - Landing pages for colleges and for startups with full motion (GSAP scroll story, R3F hero, small Lottie details), demo-request form → leads list in super admin, SEO basics (metadata, OG images, sitemap, structured data), `hiresume.in` everywhere.
 
 **Acceptance:** Lighthouse performance ≥ 90 on mobile for both pages with 3D lazy-loaded; the reduced-motion version works.
