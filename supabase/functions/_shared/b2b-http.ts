@@ -33,7 +33,21 @@ export function serviceClient(): SupabaseClient {
   });
 }
 
-/** Resolve the caller from their JWT, or throw 401. */
+const envTrue = (name: string) => (Deno.env.get(name) ?? "").trim().toLowerCase() === "true";
+
+/**
+ * Server-side B2B switch. Off unless the B2B_ENABLED secret is exactly "true", so a deploy that lacks
+ * the secret can't serve B2B (or spend on the model) whatever the frontend flag says.
+ */
+export const b2bEnabled = () => envTrue("B2B_ENABLED");
+
+/** The anonymous public test (/test/{slug}) has its own switch, also off by default (CAPTCHA pending). */
+export const publicTestEnabled = () => b2bEnabled() && envTrue("B2B_PUBLIC_TEST_ENABLED");
+
+/**
+ * Resolve the caller from their JWT, or throw 401. Anonymous sessions exist only for the public test,
+ * so they are refused while that is switched off.
+ */
 export async function requireUser(req: Request): Promise<User> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) throw new HttpError(401, "UNAUTHENTICATED", "Please sign in.");
@@ -43,6 +57,7 @@ export async function requireUser(req: Request): Promise<User> {
   });
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new HttpError(401, "UNAUTHENTICATED", "Please sign in again.");
+  if (data.user.is_anonymous && !publicTestEnabled()) throw new HttpError(403, "FORBIDDEN", "Please sign in.");
   return data.user;
 }
 
@@ -53,6 +68,7 @@ export function handle(
 ): (req: Request) => Promise<Response> {
   return async (req) => {
     if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+    if (!b2bEnabled()) return json({ error: "Not available", code: "B2B_DISABLED" }, 404);
     if (req.method !== "POST") return json({ error: "Method not allowed", code: "METHOD" }, 405);
     let body: Record<string, unknown>;
     try {

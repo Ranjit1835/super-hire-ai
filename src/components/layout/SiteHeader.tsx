@@ -12,6 +12,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsSuperAdmin, useMyMemberships } from "@/features/b2b/hooks/useB2B";
 import { authUrlFor } from "@/lib/safe-redirect";
+import { B2B_ENABLED } from "@/lib/config";
 import { ACCOUNT_NAV, APP_NAV, PUBLIC_NAV, type NavLinkItem } from "./site-nav";
 
 export const HEADER_HEIGHT_CLASS = "h-16";
@@ -27,9 +28,10 @@ function useWorkspaceLinks(): { href: string; label: string; icon: typeof Buildi
   const links = [];
   const staff = memberships.data?.find((m) => m.role !== "student");
   const student = memberships.data?.find((m) => m.role === "student");
-  if (staff) links.push({ href: `/org/${staff.org_id}`, label: "Institution dashboard", icon: Building2 });
-  else if (student) links.push({ href: "/learn", label: "My interview practice", icon: Building2 });
-  if (isSuper.data) links.push({ href: "/admin/orgs", label: "Super admin", icon: Shield });
+  if (B2B_ENABLED && staff) links.push({ href: `/org/${staff.org_id}`, label: "Institution dashboard", icon: Building2 });
+  else if (B2B_ENABLED && student) links.push({ href: "/learn", label: "My interview practice", icon: Building2 });
+  // With B2B switched off the only admin page is the institution-enquiries inbox (fed by the B2C college page).
+  if (isSuper.data) links.push({ href: B2B_ENABLED ? "/admin/orgs" : "/admin/enquiries", label: "Super admin", icon: Shield });
   return links;
 }
 
