@@ -97,6 +97,27 @@ Up to 3 at a time, subagents in separate worktrees; tracks list schema changes, 
 
 Planned order: A + B + D first (college walkthrough), then C + E (startup walkthrough).
 
+## V1 tracks A, B, D — merged (2026-10-20)
+
+Branch `feat/b2b-v1-tracks` (from `feat/b2b-v1-phase1`): tracks merged in order A → B → D; their SQL is now migrations
+`20261021000006_b2b_v1_assessment`, `…07_b2b_v1_proctoring`, `…08_b2b_v1_college` (not applied to prod).
+- **A, assessment:** Judge0 client (503 `JUDGE0_NOT_CONFIGURED` until the server exists), `b2b-assess`, question bank
+  `/assess/bank/:orgId` (+ `global`), test builder `/assess/tests/:orgId`, runner `/assess/start`, `/assess/a/:attemptId`.
+  Cron: deadline sweep every minute; grading call every 2 min only when submissions are queued (reuses Vault secrets).
+- **B, proctoring:** `b2b-proctor`, system check `/proctor/check`, `ProctoredSession`, review `/proctor/review/:id`,
+  private `b2b-evidence` bucket (guarded block; untested on PGlite). Real-browser checks still to do (MediaPipe,
+  `getDisplayMedia` monitor surface, `screen.isExtended`, fullscreen, VAD, snapshots).
+- **D, college:** `b2b-college`, `/c/:orgId/*` (students + import, drives, analytics + exports, credits & team),
+  `/learn/v1`. College tabs now link to Tests and Question bank.
+
+Checks on the merged branch: DB/unit 321 pass / 3 skipped; B2B UI 113 pass; strict tsc 0; quality no new errors
+(132 lint / 25 tsc baseline); deno check passes for b2b-assess/proctor/college/admin.
+
+Known gaps: builder allows saving a test whose pool rules can't be filled; analytics speed unmeasured at scale;
+the bank's "Portal" tab points at the college portal (company portal comes with Track E).
+
+Next: tracks C (interview V1 + Gemini Live spike) and E (startup portal).
+
 ## Decisions made
 See the **Decisions log** at the top of the build prompt. Phase 1 implementation choices:
 - Roles: `org_admin` serves as both TPO admin and company admin (label by org type); no separate enum values.
