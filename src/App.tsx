@@ -12,6 +12,7 @@ import { AppHeader, AppFooter } from "./components/layout/AppChrome";
 import { StudioFAB } from "./components/StudioFAB";
 import { StudioOnboardingTooltip } from "./components/StudioOnboardingTooltip";
 import { B2B_ENABLED } from "./lib/config";
+import { routeElements, v1Routes } from "./b2b/routes";
 
 /**
  * lazy() for pre-rendered public pages. Once preload() has resolved the chunk, the page renders
@@ -121,6 +122,7 @@ function AppRoutes() {
         <>
           <Route path="/admin/orgs" element={<ProtectedRoute><AdminOrgsPage /></ProtectedRoute>} />
           <Route path="/admin/usage" element={<ProtectedRoute><AdminUsagePage /></ProtectedRoute>} />
+          {routeElements(v1Routes)}
           <Route path="/admin/costs" element={<ProtectedRoute><SuperAdminCosts /></ProtectedRoute>} />
           <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
           <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
