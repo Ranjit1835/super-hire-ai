@@ -18,8 +18,8 @@ import { friendly, orgOf, setQuestionStatus, useBank, useCanEdit } from "./queri
 
 export function assessTabs(orgParam: string): ShellTab[] {
   if (orgParam === "global") return [{ to: "/assess/bank/global", label: "Global question bank" }];
-  // Company orgs get their own portal link once Track E lands; /c/:orgId is the college portal.
-  return [{ to: `/c/${orgParam}`, label: "Portal" }, { to: `/assess/tests/${orgParam}`, label: "Tests" }, { to: `/assess/bank/${orgParam}`, label: "Question bank" }];
+  // /portal/:orgId sends company orgs to /co/:orgId and colleges to /c/:orgId (track E).
+  return [{ to: `/portal/${orgParam}`, label: "Portal" }, { to: `/assess/tests/${orgParam}`, label: "Tests" }, { to: `/assess/bank/${orgParam}`, label: "Question bank" }];
 }
 
 const STATUS_LABEL: Record<QuestionRow["status"], string> = { draft: "Draft", verified: "Verified", retired: "Retired" };
