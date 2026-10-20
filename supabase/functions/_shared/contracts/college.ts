@@ -112,6 +112,7 @@ export const collegeContract = {
       })),
       summary: z.object({
         funnel: z.object({ invited: z.number(), activated: z.number(), started: z.number(), completed: z.number() }),
+        byStatus: z.object({ assigned: z.number(), in_progress: z.number(), completed: z.number(), absent: z.number() }),
         byDepartment: z.array(z.object({ department: z.string(), students: z.number(), avg: z.number().nullable() })),
         dimensions: z.array(z.object({ dimension: z.string(), avg: z.number().nullable() })),
       }),

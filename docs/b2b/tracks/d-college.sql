@@ -451,7 +451,7 @@ $$;
 
 -- _filters (contract AnalyticsFilters): driveId, from, to, departments, batchYears, sections, cgpa [min,max],
 -- maxBacklogs, integrityBands, scoreRange [min,max] (overall), status, search.
--- Returns { total, rows (one page), summary: { funnel, byDepartment, dimensions } }.
+-- Returns { total, rows (one page), summary: { funnel, byStatus, byDepartment, dimensions } }.
 CREATE OR REPLACE FUNCTION public.b2b_college_analytics(
   _actor UUID, _org_id UUID, _filters JSONB, _page INTEGER, _page_size INTEGER, _sort_by TEXT, _sort_dir TEXT
 ) RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
@@ -525,6 +525,11 @@ BEGIN
           'activated', count(*) FILTER (WHERE b.student_status = 'active'),
           'started', count(*) FILTER (WHERE b.status IN ('in_progress', 'completed')),
           'completed', count(*) FILTER (WHERE b.status = 'completed')) FROM base b),
+      'byStatus', (SELECT jsonb_build_object(
+          'assigned', count(*) FILTER (WHERE b.status = 'assigned'),
+          'in_progress', count(*) FILTER (WHERE b.status = 'in_progress'),
+          'completed', count(*) FILTER (WHERE b.status = 'completed'),
+          'absent', count(*) FILTER (WHERE b.status = 'absent')) FROM base b),
       'byDepartment', COALESCE((SELECT jsonb_agg(jsonb_build_object('department', g.department, 'students', g.n, 'avg', g.avg)
                                                  ORDER BY g.department)
           FROM (SELECT COALESCE(min(btrim(b.department)), 'Not set') AS department, count(*) AS n, round(avg(b.overall), 1) AS avg
@@ -552,6 +557,7 @@ RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
       'drive_id', d.id, 'org_id', d.org_id, 'org_name', o.name, 'name', d.name, 'description', d.description,
       'window_start', d.window_start, 'window_end', d.window_end, 'proctoring_policy', d.proctoring_policy,
+      'results_release', d.results_release,
       'has_assessment', d.assessment_id IS NOT NULL, 'has_interview', d.interview_module_id IS NOT NULL,
       'resume_task', d.resume_task,
       'status', r.status,

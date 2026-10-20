@@ -256,7 +256,7 @@ describe("drives: eligibility, assignment, release", () => {
     const before = await seen();
     expect(before.attempts).toBe(0);
     expect(before.mine).toHaveLength(1);
-    expect(before.mine[0]).toMatchObject({ drive_id: drive, status: "completed", results_visible: false, results: null });
+    expect(before.mine[0]).toMatchObject({ drive_id: drive, results_release: "manual", status: "completed", results_visible: false, results: null });
 
     expect(await svcErr("b2b_release_results", [u.trainerA, drive], ["uuid", "uuid"])).toMatch(/FORBIDDEN/);
     expect(await svcErr("b2b_release_results", [u.adminB, drive], ["uuid", "uuid"])).toMatch(/FORBIDDEN/);
@@ -289,7 +289,7 @@ describe("drives: eligibility, assignment, release", () => {
 describe("analytics", () => {
   let drive: string;
   const call = (actor: string, filters: unknown, page = 1, pageSize = 50, by: string | null = null, dir: string | null = null) =>
-    svc<{ total: number; rows: J[]; summary: { funnel: J; byDepartment: J[]; dimensions: J[] } }>(
+    svc<{ total: number; rows: J[]; summary: { funnel: J; byStatus: J; byDepartment: J[]; dimensions: J[] } }>(
       "b2b_college_analytics", [actor, o.A, JSON.stringify(filters), page, pageSize, by, dir],
       ["uuid", "uuid", "jsonb", "int", "int", "text", "text"]);
 
@@ -328,6 +328,7 @@ describe("analytics", () => {
     expect(r.rows[1]).toMatchObject({ status: "in_progress", overall: null });
     expect(r.rows[2]).toMatchObject({ interview: 75, overall: 75, integrity_band: "high", status: "assigned" });
     expect(r.summary.funnel).toEqual({ invited: 1, activated: 1, started: 2, completed: 1 });
+    expect(r.summary.byStatus).toEqual({ assigned: 1, in_progress: 1, completed: 1, absent: 0 });
     expect(r.summary.byDepartment).toEqual([{ department: "CSE", students: 3, avg: 77.5 }]);
     expect(r.summary.dimensions).toEqual([{ dimension: "coding", avg: 60 }, { dimension: "communication", avg: 80 }]);
   });
