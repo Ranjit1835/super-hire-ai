@@ -17,6 +17,7 @@ import { ScreenShareStep, enterFullscreen, shareEntireScreen } from "./ScreenSha
 import { ProctorMonitor, PROBLEM_COPY, type Policy, type Problem } from "./monitor";
 import { loadLandmarker } from "./detector";
 import { requestCameraMic, stopStream } from "./systemCheck";
+import type { SendResult } from "./queue";
 
 export interface ProctorSignal {
   type: z.infer<typeof EventType>;
@@ -93,7 +94,8 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
     setStage("preflight");
     setError(null);
     try {
-      const p = await proctorApi("preflight", target);
+      // Cast: under the non-strict app tsconfig zod infers all-optional fields.
+      const p = (await proctorApi("preflight", target)) as Preflight;
       setPre(p);
       if (p.policy === "off") { setStage("off"); cb.current.onReady?.(null); }
       else setStage("check");
@@ -142,7 +144,7 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
       const m = new ProctorMonitor({
         sessionId: r.sessionId, policy: r.policy as Policy, kind, tier: c.tier, snapshotIntervalS: r.snapshotIntervalS,
         camera: c.stream, mic: kind === "assessment" ? c.stream : null, screen: screenStream,
-        sendEvents: (events) => proctorApi("events", { sessionId: r.sessionId, events: events as never }),
+        sendEvents: async (events) => (await proctorApi("events", { sessionId: r.sessionId, events: events as never })) as SendResult,
         uploadUrl: async (snapKind, contentType) => {
           const u = await proctorApi("snapshotUploadUrl", { sessionId: r.sessionId, kind: snapKind, contentType });
           return { path: u.path, token: u.token };
