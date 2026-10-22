@@ -49,7 +49,7 @@ async function loadPreview(tokenHash: string) {
   if (error) throw error;
   if (!data) throw new HttpError(404, "INVALID", ACCEPT_ERRORS.INVALID[1]);
   return data as {
-    invite_id: string; status: string; full_name: string; email: string; roll_no: string; batch: string | null;
+    invite_id: string; status: string; role: string | null; full_name: string; email: string; roll_no: string; batch: string | null;
     org: { id: string; name: string; type: string; logo_url: string | null; is_demo: boolean };
   };
 }
@@ -160,6 +160,7 @@ serve(handle("B2B-INVITES", async (req, body) => {
     const { data: hasAccount } = await admin.rpc("b2b_email_has_account", { _email: p.email });
     return json({
       status: p.status,
+      role: p.role ?? "student",
       full_name: p.full_name,
       email: p.email,
       roll_no: p.roll_no,

@@ -29,3 +29,6 @@ dist-ssr
 /playwright-report/
 /e2e/**/*-win32.png
 /e2e/**/*-darwin.png
+
+# Local edge-function secrets (Gemini key, salts) — never commit
+supabase/functions/.env

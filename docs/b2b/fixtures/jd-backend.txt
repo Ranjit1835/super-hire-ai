@@ -1,0 +1,21 @@
+Backend Engineer (2–4 years) — Bengaluru, hybrid
+
+We're a 40-person fintech startup building payment reconciliation for Indian SMBs. You'll own services that ingest bank statements and UPI settlement files, match transactions, and expose results through REST APIs.
+
+What you'll do
+- Design and build Python (FastAPI) or Node.js (Express) services backed by PostgreSQL.
+- Write efficient SQL: indexes, query plans, transactions and isolation levels.
+- Build idempotent background jobs and queues (Redis or SQS) that retry safely.
+- Write unit and integration tests; review code; keep CI green.
+- Debug production issues using logs and metrics.
+
+Must have
+- Strong data structures and algorithms (hash maps, sorting, two pointers, basic graphs).
+- 2+ years building REST APIs in Python or Node.js.
+- PostgreSQL: schema design, indexing, transactions.
+- Git and code review habits.
+
+Nice to have
+- Docker and AWS (ECS, SQS, S3).
+- Experience with payments, UPI or reconciliation.
+- System design for high-volume batch processing.

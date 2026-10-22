@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CenteredSpinner } from "../components/B2BShell";
 import { passwordProblems } from "../lib/status";
 import { ApiError, invitesApi, rememberPendingInvite, takePendingInvite, type InvitePreview } from "../lib/api";
+import { afterJoin } from "../lib/after-join";
 
 const PASSWORD_HINT = "8+ characters, 1 uppercase letter, 1 number";
 
@@ -47,7 +48,7 @@ export default function InviteAccept() {
     setJoined(true);
     await qc.invalidateQueries({ queryKey: ["b2b"] });
     takePendingInvite();
-    setTimeout(() => navigate("/learn", { replace: true }), 1200);
+    setTimeout(() => navigate(preview.data ? afterJoin(preview.data).to : "/learn", { replace: true }), 1200);
   };
 
   const acceptSignedIn = async () => {
@@ -106,13 +107,13 @@ export default function InviteAccept() {
         <div className="text-center py-6" role="status">
           <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
           <h1 className="text-xl font-semibold">You're in!</h1>
-          <p className="text-sm text-muted-foreground mt-1">Taking you to your interview practice…</p>
+          <p className="text-sm text-muted-foreground mt-1">Taking you to {afterJoin(p).label}…</p>
         </div>
       ) : dead ? (
         <>
           <h1 className="text-xl font-semibold">{dead.title}</h1>
           <p className="text-sm text-muted-foreground mt-2">{dead.body}</p>
-          {p.status === "accepted" && <Button className="mt-4" asChild><Link to="/learn">Continue</Link></Button>}
+          {p.status === "accepted" && <Button className="mt-4" asChild><Link to={afterJoin(p).to}>Continue</Link></Button>}
         </>
       ) : (
         <>

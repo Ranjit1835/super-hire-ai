@@ -53,6 +53,8 @@ export interface ImportResponse { results: ImportRowResult[]; invited: InvitedSt
 
 export interface InvitePreview {
   status: "pending" | "accepted" | "revoked" | "expired";
+  /** Invited role; older function versions omit it (treated as student). */
+  role?: string;
   full_name: string;
   email: string;
   roll_no: string;
