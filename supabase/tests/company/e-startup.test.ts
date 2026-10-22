@@ -208,8 +208,13 @@ describe("candidate token flow", () => {
   it("completion charges one session's credits exactly once, then claims one notice", async () => {
     const before = await balance(o.A);
     await db.query("UPDATE attempts SET status = 'submitted', submitted_at = now(), score = 8, max_score = 10 WHERE candidate_id = (SELECT candidate_id FROM role_candidates WHERE id = $1)", [rcAsha]);
+    // The attempt-end trigger (20261021000011) syncs at once: completed and charged before anyone opens the page.
+    const synced = await one<{ stage: string; completed_at: string | null }>("SELECT stage, completed_at FROM role_candidates WHERE id = $1", [rcAsha]);
+    expect(synced.stage).toBe("completed");
+    expect(synced.completed_at).not.toBeNull();
+    expect(await balance(o.A)).toBe(before - 1);
     const done = await state("tA1-new", ses1);
-    expect(done).toMatchObject({ completed: true, just_completed: true, credits_charged: true, stage: "completed", steps: { coding: "done", done: "done" } });
+    expect(done).toMatchObject({ completed: true, just_completed: false, credits_charged: true, stage: "completed", steps: { coding: "done", done: "done" } });
     const again = await state("tA1-new", ses1);
     expect(again).toMatchObject({ completed: true, just_completed: false });
     await pipeline(u.recA, r.A);   // staff refresh doesn't charge again either
