@@ -212,12 +212,60 @@ export function describeRule(p: PoolRule): string {
   return [String(p.count), p.difficulty || "any-difficulty", topics.length ? topics.join("/") : "any topic"].join(" ");
 }
 
-/** Verified questions a pool rule can draw from (same rule as the server: type, difficulty, topic overlap, language overlap). */
-export function poolMatches(bank: Pick<QuestionRow, "type" | "status" | "difficulty" | "topics" | "languages">[], type: "coding" | "mcq",
-                            rule: PoolRule, languages: string[]): number {
+type PoolQuestion = Pick<QuestionRow, "id" | "type" | "status" | "difficulty" | "topics" | "languages">;
+
+function poolOf<Q extends Omit<PoolQuestion, "id">>(bank: Q[], type: "coding" | "mcq", rule: PoolRule, languages: string[]): Q[] {
   const topics = splitTopics(rule.topics);
   return bank.filter((q) => q.status === "verified" && q.type === type
     && (!rule.difficulty || q.difficulty === rule.difficulty)
     && (topics.length === 0 || q.topics.some((t) => topics.includes(t.toLowerCase())))
-    && (type !== "coding" || q.languages.some((l) => languages.includes(l)))).length;
+    && (type !== "coding" || q.languages.some((l) => languages.includes(l))));
+}
+
+/** Verified questions a pool rule can draw from (same rule as the server: type, difficulty, topic overlap, language overlap). */
+export function poolMatches(bank: Omit<PoolQuestion, "id">[], type: "coding" | "mcq", rule: PoolRule, languages: string[]): number {
+  return poolOf(bank, type, rule, languages).length;
+}
+
+export interface DrawCheck {
+  /** Per section, per rule: questions the rule gets for every candidate, whatever earlier rules happened to draw. */
+  guaranteed: number[][];
+  /** Chosen question ids an earlier pool rule may take first (the server then skips them). */
+  fixedAtRisk: string[];
+  /** Any rule can come up short, or a chosen question can be lost. */
+  short: boolean;
+}
+
+/**
+ * Worst case of _b2b_build_question_set: sections in order, chosen questions first, then rules in order, and nothing
+ * is drawn twice. The server silently gives fewer questions when a pool runs dry, so overlapping rules (or a rule
+ * overlapping chosen questions) can short a candidate even when each rule alone has enough.
+ */
+export function checkDraw(bank: PoolQuestion[], sections: Pick<SectionForm, "type" | "pick" | "question_ids">[], languages: string[]): DrawCheck {
+  const byId = new Map(bank.map((q) => [q.id, q]));
+  const taken = new Set<string>();                       // chosen questions placed so far
+  const earlier: { pool: Set<string>; count: number }[] = [];
+  const guaranteed: number[][] = [];
+  const fixedAtRisk: string[] = [];
+  for (const s of sections) {
+    for (const id of s.question_ids) {
+      const q = byId.get(id);
+      if (!q || q.status !== "verified" || q.type !== s.type || taken.has(id)) continue;
+      if (earlier.some((r) => r.pool.has(id))) fixedAtRisk.push(id);
+      taken.add(id);
+    }
+    guaranteed.push(s.pick.map((rule) => {
+      const pool = new Set(poolOf(bank, s.type, rule, languages).map((q) => q.id).filter((id) => !taken.has(id)));
+      let lost = 0;
+      for (const r of earlier) {
+        let overlap = 0;
+        for (const id of r.pool) if (pool.has(id)) overlap++;
+        lost += Math.min(r.count, overlap);
+      }
+      earlier.push({ pool, count: rule.count });
+      return Math.max(0, pool.size - lost);
+    }));
+  }
+  const short = fixedAtRisk.length > 0 || guaranteed.some((g, si) => g.some((n, ri) => n < sections[si].pick[ri].count));
+  return { guaranteed, fixedAtRisk, short };
 }

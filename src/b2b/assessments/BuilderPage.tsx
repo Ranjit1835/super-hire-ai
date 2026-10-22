@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Empty, Loading, V1Shell } from "../layout/V1Shell";
 import { assessTabs } from "../bank/BankPage";
 import {
-  AssessmentForm, assessmentFromRow, assessmentRow, describeRule, emptyAssessment, firstError, LANGUAGE_LABEL, LANGUAGES,
+  AssessmentForm, assessmentFromRow, assessmentRow, checkDraw, describeRule, emptyAssessment, firstError, LANGUAGE_LABEL, LANGUAGES,
   poolMatches, type PoolRule, type QuestionRow, type SectionForm,
 } from "../bank/forms";
 import { friendly, saveAssessment, useAssessment, useBank, useCanEdit } from "../bank/queries";
@@ -46,10 +46,17 @@ export default function BuilderPage() {
   const setRule = (si: number, ri: number, patch: Partial<PoolRule>) =>
     setSection(si, { pick: f.sections[si].pick.map((r, j) => (j === ri ? { ...r, ...patch } : r)) });
 
+  const draw = useMemo(() => checkDraw(bank.data ?? [], f.sections, f.languages), [bank.data, f.sections, f.languages]);
+
   const submit = async () => {
     setError(null);
     const parsed = AssessmentForm.safeParse(f);
     if (!parsed.success) { setError(firstError(parsed.error)); return; }
+    // The server quietly hands out fewer questions when a pool runs dry; a test in use must never do that.
+    if (parsed.data.status === "ready" && draw.short) {
+      setError("Some candidates would get fewer questions than this test asks for (see the rules marked in red). Add questions to the bank, lower the counts, or save it as a draft.");
+      return;
+    }
     setBusy(true);
     try {
       await saveAssessment(assessmentId, assessmentRow(orgId, parsed.data));
@@ -150,6 +157,7 @@ export default function BuilderPage() {
           <h2 className="font-semibold">Sections</h2>
           {f.sections.map((s, si) => (
             <SectionEditor key={si} index={si} section={s} bank={bank.data ?? []} languages={f.languages}
+                           guaranteed={draw.guaranteed[si] ?? []} fixedAtRisk={draw.fixedAtRisk}
                            onChange={(patch) => setSection(si, patch)} onRule={(ri, patch) => setRule(si, ri, patch)}
                            onRemove={f.sections.length > 1 ? () => set("sections", f.sections.filter((_, j) => j !== si)) : undefined} />
           ))}
@@ -175,8 +183,8 @@ export default function BuilderPage() {
   );
 }
 
-function SectionEditor({ index, section, bank, languages, onChange, onRule, onRemove }: {
-  index: number; section: SectionForm; bank: QuestionRow[]; languages: string[];
+function SectionEditor({ index, section, bank, languages, guaranteed, fixedAtRisk, onChange, onRule, onRemove }: {
+  index: number; section: SectionForm; bank: QuestionRow[]; languages: string[]; guaranteed: number[]; fixedAtRisk: string[];
   onChange: (patch: Partial<SectionForm>) => void; onRule: (ri: number, patch: Partial<PoolRule>) => void; onRemove?: () => void;
 }) {
   const [search, setSearch] = useState("");
@@ -202,6 +210,7 @@ function SectionEditor({ index, section, bank, languages, onChange, onRule, onRe
         <p className="text-sm font-medium">Pool rules</p>
         {section.pick.map((r, ri) => {
           const available = poolMatches(bank, section.type, r, languages);
+          const sure = guaranteed[ri] ?? available;
           return (
             <div key={ri} className="flex flex-wrap items-center gap-2 text-sm">
               <Input aria-label={`Section ${n} rule ${ri + 1} count`} type="number" min={1} max={50} className="w-20" value={r.count}
@@ -215,8 +224,9 @@ function SectionEditor({ index, section, bank, languages, onChange, onRule, onRe
               </Select>
               <Input aria-label={`Section ${n} rule ${ri + 1} topics`} placeholder="topics, comma separated (blank = any)" className="flex-1 min-w-48"
                      value={r.topics} onChange={(e) => onRule(ri, { topics: e.target.value })} />
-              <span className={available < r.count ? "text-destructive text-xs" : "text-muted-foreground text-xs"}>
-                {describeRule(r)} · {available} verified in bank{available < r.count ? " (not enough)" : ""}
+              <span className={sure < r.count ? "text-destructive text-xs" : "text-muted-foreground text-xs"}>
+                {describeRule(r)} · {available} verified in bank{available < r.count ? " (not enough)"
+                  : sure < r.count ? ` (only ${sure} certain: earlier rules or chosen questions can use the rest)` : ""}
               </span>
               <Button type="button" variant="ghost" size="sm" onClick={() => onChange({ pick: section.pick.filter((_, j) => j !== ri) })}>Remove</Button>
             </div>
@@ -234,6 +244,8 @@ function SectionEditor({ index, section, bank, languages, onChange, onRule, onRe
               <label key={q.id} className="flex items-center gap-2 text-sm">
                 <Checkbox aria-label={`Include ${q.title}`} checked={section.question_ids.includes(q.id)} onCheckedChange={(c) => toggle(q.id, c === true)} />
                 <span>{q.title}</span>
+                {section.question_ids.includes(q.id) && fixedAtRisk.includes(q.id)
+                  && <span className="text-xs text-destructive">an earlier rule may draw this first</span>}
                 <span className="text-xs text-muted-foreground capitalize">{q.difficulty} · {q.topics.join(", ")}</span>
               </label>
             ))}

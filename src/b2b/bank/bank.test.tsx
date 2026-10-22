@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  assessmentFromRow, assessmentRow, CodingForm, codingPayload, describeRule, emptyAssessment, emptyCoding, McqForm, mcqPayload,
+  assessmentFromRow, assessmentRow, checkDraw, CodingForm, codingPayload, describeRule, emptyAssessment, emptyCoding, McqForm, mcqPayload,
   poolMatches, type AssessmentRow, type QuestionRow,
 } from "./forms";
 
@@ -105,6 +105,34 @@ describe("bank forms (pure)", () => {
     expect(poolMatches(bank, "coding", { difficulty: "easy", topics: "arrays", count: 1 }, ["python"])).toBe(1);
     expect(poolMatches(bank, "coding", { difficulty: "", topics: "", count: 1 }, ["python", "c"])).toBe(3);
     expect(poolMatches(bank, "mcq", { difficulty: "", topics: "", count: 1 }, ["python"])).toBe(0);
+  });
+
+  it("draw check: overlapping rules and chosen questions count against later rules, as the server draws them", () => {
+    const Q3 = "33333333-3333-4333-8333-333333333333";
+    const bank = [question({}), question({ id: Q2, topics: ["arrays", "strings"] }), question({ id: Q3, topics: ["strings"] })];
+    const any = { difficulty: "" as const, topics: "", count: 1 };
+    // Each rule alone has enough, but "any" may take the one arrays question the second rule needs.
+    let c = checkDraw(bank, [{ type: "coding", pick: [{ ...any, count: 2 }, { ...any, topics: "arrays", count: 2 }], question_ids: [] }], ["python"]);
+    expect(c.guaranteed).toEqual([[3, 0]]);
+    expect(c.short).toBe(true);
+    // Disjoint pools are independent, also across sections.
+    c = checkDraw(bank, [
+      { type: "coding", pick: [{ ...any, topics: "arrays", count: 2 }], question_ids: [] },
+      { type: "coding", pick: [{ ...any, topics: "strings", count: 1 }], question_ids: [] },
+    ], ["python"]);
+    expect(c.guaranteed).toEqual([[2], [1]]);
+    expect(c.short).toBe(false);
+    // A chosen question is placed before the section's rules, so it leaves the pool.
+    c = checkDraw(bank, [{ type: "coding", pick: [{ ...any, topics: "strings", count: 2 }], question_ids: [Q3] }], ["python"]);
+    expect(c.guaranteed).toEqual([[1]]);
+    expect(c.short).toBe(true);
+    // A question chosen in a later section can be drawn first by an earlier section's rule.
+    c = checkDraw(bank, [
+      { type: "coding", pick: [any], question_ids: [] },
+      { type: "coding", pick: [], question_ids: [Q1] },
+    ], ["python"]);
+    expect(c.fixedAtRisk).toEqual([Q1]);
+    expect(c.short).toBe(true);
   });
 });
 
@@ -209,7 +237,21 @@ describe("test builder", () => {
     expect(fns.saveAssessment).not.toHaveBeenCalled();
   });
 
+  it("won't save a ready test when a candidate could get fewer questions", async () => {
+    state.bank = [question({}), question({ id: Q2, title: "Two sum", topics: ["strings"] })];
+    state.assessment = { ...assessmentRow(ORG, { ...emptyAssessment(), title: "Campus round 1", status: "ready",
+      sections: [{ type: "coding", title: "Coding", question_ids: [],
+        pick: [{ difficulty: "", topics: "", count: 1 }, { difficulty: "", topics: "arrays", count: 1 }] }] }),
+      id: Q2, created_at: "", updated_at: "" };
+    renderAt(`/assess/tests/${ORG}/${Q2}`);
+    expect(await screen.findByText(/1 any-difficulty arrays · 1 verified in bank \(only 0 certain/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save test" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("fewer questions than this test asks for");
+    expect(fns.saveAssessment).not.toHaveBeenCalled();
+  });
+
   it("loads an existing test for editing and updates it", async () => {
+    state.bank = [question({})];
     state.assessment = { ...assessmentRow(ORG, { ...emptyAssessment(), title: "Existing test", duration_min: 90 }), id: Q2,
       created_at: "", updated_at: "", status: "ready" };
     fns.saveAssessment.mockResolvedValue(Q2);
