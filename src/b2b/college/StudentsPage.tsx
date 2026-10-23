@@ -232,7 +232,7 @@ function StudentDialog({ orgId, student, onClose, onSaved }: {
 
   return (
     <Dialog open={student !== null} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{existing ? `Edit ${existing.full_name}` : "Add a student"}</DialogTitle>
           <DialogDescription>Students under 18 are kept on hold and not invited.</DialogDescription>

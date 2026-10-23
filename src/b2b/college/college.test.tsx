@@ -28,6 +28,7 @@ vi.mock("./queries", async (orig) => ({
 import { ImportWizard } from "./ImportPage";
 import { DriveForm } from "./DriveFormPage";
 import { DriveView } from "./DriveDetailPage";
+import { driveStatusLabel } from "./DrivesPage";
 import { Analytics } from "./AnalyticsPage";
 import type { DriveRecord } from "./queries";
 
@@ -109,6 +110,12 @@ describe("import wizard", () => {
     expect(api.collegeApi.mock.calls[1][1]).toMatchObject({ mode: "commit", onDuplicate: "merge", sendInvites: true });
     expect(screen.getByText(/1 activation links created/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download links (CSV)" })).toBeInTheDocument();
+    // A small batch (or a resend) can be copied link by link.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    fireEvent.click(screen.getByRole("button", { name: /Copy link for/ }));
+    expect(writeText).toHaveBeenCalledWith("https://hiresume.in/invite/t1");
+    expect(screen.getByRole("button", { name: /Copy link for/ })).toHaveTextContent("Copied");
   });
 
   it("asks for a column when a required field isn't detected", async () => {
@@ -229,3 +236,16 @@ describe("analytics", () => {
     expect(screen.getByText("Invited").nextSibling).toHaveTextContent("2");
   });
 });
+
+describe("drive status label", () => {
+  it("follows the window once a drive is scheduled", () => {
+    const now = Date.parse("2026-10-23T15:00:00Z");
+    const d = { status: "scheduled", window_start: "2026-10-23T14:30:00Z", window_end: "2026-10-24T16:30:00Z" };
+    expect(driveStatusLabel(d, now)).toBe("Open");
+    expect(driveStatusLabel({ ...d, window_start: "2026-10-23T16:00:00Z" }, now)).toBe("Scheduled");
+    expect(driveStatusLabel({ ...d, window_end: "2026-10-23T14:59:00Z" }, now)).toBe("Closed");
+    expect(driveStatusLabel({ ...d, status: "draft" }, now)).toBe("Draft");
+    expect(driveStatusLabel({ ...d, status: "closed" }, now)).toBe("Closed");
+  });
+});
+

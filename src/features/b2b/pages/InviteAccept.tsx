@@ -97,6 +97,7 @@ export default function InviteAccept() {
   }
 
   const p = preview.data;
+  const staffRole = staffRoleLabel(p);
   const dead = DEAD_LINK[p.status];
   const pwProblems = passwordProblems(password);
   const canRegister = consent && pwProblems.length === 0 && password === confirm && !busy;
@@ -119,11 +120,17 @@ export default function InviteAccept() {
         <>
           <h1 className="text-xl font-semibold">Hi {p.full_name.split(" ")[0]}, join {p.org.name}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            AI voice mock interviews set up by your institution{p.batch ? ` for ${p.batch}` : ""}.
+            {staffRole
+              ? `You've been invited as ${staffRole} of ${p.org.name} on HiResume.`
+              : p.org.type === "college"
+                ? "Placement tests, AI interviews and practice set up by your placement office."
+                : `AI voice mock interviews set up by your institution${p.batch ? ` for ${p.batch}` : ""}.`}
           </p>
           <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-sm mt-4 rounded-lg bg-white/5 p-3">
             <dt className="text-muted-foreground">Name</dt><dd>{p.full_name}</dd>
-            <dt className="text-muted-foreground">Roll no</dt><dd className="tabular-nums">{p.roll_no}</dd>
+            {staffRole
+              ? <><dt className="text-muted-foreground">Role</dt><dd>{staffRole[0].toUpperCase() + staffRole.slice(1)}</dd></>
+              : p.roll_no && <><dt className="text-muted-foreground">Roll no</dt><dd className="tabular-nums">{p.roll_no}</dd></>}
             <dt className="text-muted-foreground">Email</dt><dd className="break-all">{p.email}</dd>
           </dl>
 
@@ -206,4 +213,17 @@ function Frame({ org, children }: { org?: InvitePreview["org"]; children: React.
       </div>
     </div>
   );
+}
+
+const STAFF_LABEL: Record<string, [college: string, company: string]> = {
+  org_admin: ["TPO admin", "company admin"],
+  trainer: ["trainer", "trainer"],
+  recruiter: ["recruiter", "recruiter"],
+  hiring_manager: ["hiring manager", "hiring manager"],
+};
+
+/** "TPO admin", "recruiter"…; null for students and candidates. */
+function staffRoleLabel(p: { role?: string | null; org: { type: string } }): string | null {
+  const l = p.role ? STAFF_LABEL[p.role] : undefined;
+  return l ? l[p.org.type === "company" ? 1 : 0] : null;
 }

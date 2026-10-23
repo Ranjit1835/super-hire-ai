@@ -67,7 +67,7 @@ export function InviteDialog({ open, onOpenChange, jobRoleId, roleTitle, onDone 
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Invite candidates</DialogTitle>
           <DialogDescription>To {roleTitle}. Each candidate gets a personal link; no password needed. Credits are used only when a candidate finishes.</DialogDescription>

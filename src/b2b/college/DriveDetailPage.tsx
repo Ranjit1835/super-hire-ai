@@ -14,7 +14,7 @@ import { collegeApi, ApiError } from "../lib/api";
 import { CollegeShell } from "./CollegeShell";
 import { describeEligibility } from "./lib/filters";
 import { BAND_LABEL, STATUS_LABEL } from "../../../supabase/functions/_shared/college-table";
-import { DRIVE_STATUS, RELEASE_TEXT } from "./DrivesPage";
+import { driveStatusLabel, RELEASE_TEXT } from "./DrivesPage";
 import { fmtDateTime, friendly, useDrive, type DriveRecord } from "./queries";
 
 const PAGE = 50;
@@ -76,7 +76,7 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">{drive.name}</h2>
-            <Badge variant="outline">{DRIVE_STATUS[drive.status] ?? drive.status}</Badge>
+            <Badge variant="outline">{driveStatusLabel(drive)}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">{parts.join(" + ") || "Nothing to do yet"} · {describeEligibility(drive.eligibility)}</p>
           <p className="text-sm text-muted-foreground">{fmtDateTime(drive.window_start)} – {fmtDateTime(drive.window_end)} · Results: {drive.results_released_at ? `released ${fmtDateTime(drive.results_released_at)}` : RELEASE_TEXT[drive.results_release]}</p>
