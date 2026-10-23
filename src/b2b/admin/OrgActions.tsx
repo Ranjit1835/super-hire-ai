@@ -37,7 +37,7 @@ export function InviteStaffDialog({ org, onClose, onInvited }: {
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Invite staff to {org.name}</DialogTitle>
           <DialogDescription>The link works only for this email address and expires in 14 days.</DialogDescription>
@@ -84,7 +84,7 @@ export function CreditsDialog({ org, onClose, onChanged }: { org: OrgRow | null;
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Credits — {org.name}</DialogTitle>
           <DialogDescription>Balance: <b>{num(org.credits_balance)}</b> credits. 1 credit = one 20-minute practice interview.</DialogDescription>

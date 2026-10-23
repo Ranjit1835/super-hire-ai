@@ -60,7 +60,7 @@ export function CreateOrgDialog({ open, onOpenChange, plans, onCreated }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New organisation</DialogTitle>
           <DialogDescription>A college (TPO and students) or a company (recruiters and candidates).</DialogDescription>

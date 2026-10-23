@@ -1,8 +1,8 @@
 // @vitest-environment node
 // No dead internal links: every path the app links or navigates to (header, footer, pages, blog
-// articles, config objects) must match a route in src/App.tsx.
+// articles, config objects) must match a route in src/App.tsx or a B2B V1 area's routes.tsx.
 import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { FEATURES, FOOTER_COLUMNS, PUBLIC_NAV, APP_NAV, ACCOUNT_NAV } from "./site-nav";
 import { PRERENDER_ROUTES } from "@/seo/routes";
@@ -19,14 +19,23 @@ function routePatterns(): RegExp[] {
   for (const m of app.matchAll(/<Route\s+(index\s+)?(?:path="([^"]+)")?/g)) {
     const [, index, path] = m;
     if (path === "*") continue;
-    const full = index ? nestedParent : path.startsWith("/") ? path : `${nestedParent}/${path}`;
-    const re = full
-      .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-      .replace(/\/\*$/, "(?:/.*)?")
-      .replace(/:[A-Za-z]+/g, "[^/]+");
-    patterns.push(new RegExp(`^${re}/?$`));
+    patterns.push(toPattern(index ? nestedParent : path.startsWith("/") ? path : `${nestedParent}/${path}`));
+  }
+  // B2B V1 routes live in one routes.tsx per area (src/b2b/<area>/routes.tsx) as absolute `path: "..."` objects.
+  for (const area of readdirSync("src/b2b")) {
+    const file = join("src/b2b", area, "routes.tsx");
+    if (!existsSync(file)) continue;
+    for (const m of readFileSync(file, "utf8").matchAll(/\bpath:\s*"(\/[^"]*)"/g)) patterns.push(toPattern(m[1]));
   }
   return patterns;
+}
+
+function toPattern(full: string): RegExp {
+  const re = full
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\/\*$/, "(?:/.*)?")
+    .replace(/:[A-Za-z]+/g, "[^/]+");
+  return new RegExp(`^${re}/?$`);
 }
 
 function sourceFiles(dir: string): string[] {

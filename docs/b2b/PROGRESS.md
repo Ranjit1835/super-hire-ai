@@ -3,12 +3,13 @@
 > Read this first at the start of every session; update it at the end.
 > Spec + **Decisions log**: `docs/b2b/hiresume-b2b-build-prompt.md` · Evidence and numbers: `docs/b2b/AUDIT.md`
 
-_Last updated: 2026-10-21_
+_Last updated: 2026-10-22_
 
 ## Where things stand
 
-**Fast-track mode (Decisions log 2026-10-20).** Phase 1 (foundations + contracts) is done on
-`feat/b2b-v1-phase1` → PR #3. Next: V1 tracks A–E (up to 3 in parallel), then the two end-to-end walkthroughs.
+**Fast-track mode (Decisions log 2026-10-20).** Phase 1 and all V1 tracks (A–E) are built: PR #3 (Phase 1) and
+PR #4 (tracks, on top of #3). **Now blocked on Docker** for the local walkthroughs (`docs/b2b/TESTING.md`); after
+those, one batched production release for your approval.
 
 ## PRs
 | PR | Branch | Base | What |
@@ -16,8 +17,10 @@ _Last updated: 2026-10-21_
 | #1 | `fix/b2b-lockdown` | main | B2B off by default; no model calls without membership; evaluation retry cap |
 | #2 | `chore/b2b-followups` | main (stacked on #1) | Real cost rates, voice latency logging, decisions, fast-track spec |
 | #3 | `feat/b2b-v1-phase1` | `chore/b2b-followups` (stacked) | Phase 1: V1 schema, AI gateway, contracts, super admin v1, e2e + CI |
+| #4 | `feat/b2b-v1-tracks` | `feat/b2b-v1-phase1` (stacked) | V1 tracks A–E + local testing kit |
 
-Merge in order #1 → #2 → #3. Merging to `main` deploys the website (Vercel) immediately; edge functions deploy
+Merge in order #1 → #2 → #3. **Hold #4 out of `main` until the batched release:** a push to `main` deploys edge
+functions (`deploy-functions.yml`), and track C's `b2b-evaluate` needs migration 0009, so migrations must go first. Merging to `main` deploys the website (Vercel) immediately; edge functions deploy
 from `main` once the `SUPABASE_ACCESS_TOKEN` secret exists. **B2B stays off in production either way** (frontend
 flag unset, `B2B_ENABLED` secret unset). Production migrations are batched and applied only by you (see below).
 
@@ -96,6 +99,63 @@ Up to 3 at a time, subagents in separate worktrees; tracks list schema changes, 
 - **E** startup portal
 
 Planned order: A + B + D first (college walkthrough), then C + E (startup walkthrough).
+
+## V1 tracks A, B, D — merged (2026-10-20)
+
+Branch `feat/b2b-v1-tracks` (from `feat/b2b-v1-phase1`): tracks merged in order A → B → D; their SQL is now migrations
+`20261021000006_b2b_v1_assessment`, `…07_b2b_v1_proctoring`, `…08_b2b_v1_college` (not applied to prod).
+- **A, assessment:** Judge0 client (503 `JUDGE0_NOT_CONFIGURED` until the server exists), `b2b-assess`, question bank
+  `/assess/bank/:orgId` (+ `global`), test builder `/assess/tests/:orgId`, runner `/assess/start`, `/assess/a/:attemptId`.
+  Cron: deadline sweep every minute; grading call every 2 min only when submissions are queued (reuses Vault secrets).
+- **B, proctoring:** `b2b-proctor`, system check `/proctor/check`, `ProctoredSession`, review `/proctor/review/:id`,
+  private `b2b-evidence` bucket (guarded block; untested on PGlite). Real-browser checks still to do (MediaPipe,
+  `getDisplayMedia` monitor surface, `screen.isExtended`, fullscreen, VAD, snapshots).
+- **D, college:** `b2b-college`, `/c/:orgId/*` (students + import, drives, analytics + exports, credits & team),
+  `/learn/v1`. College tabs now link to Tests and Question bank.
+
+Checks on the merged branch: DB/unit 321 pass / 3 skipped; B2B UI 113 pass; strict tsc 0; quality no new errors
+(132 lint / 25 tsc baseline); deno check passes for b2b-assess/proctor/college/admin.
+
+Known gaps: ~~builder allows saving a test whose pool rules can't be filled~~ (fixed 2026-10-22); analytics speed unmeasured at scale;
+the bank's "Portal" tab points at the college portal (company portal comes with Track E).
+
+Next: tracks C (interview V1 + Gemini Live spike) and E (startup portal).
+
+## V1 tracks C, E — merged (2026-10-21)
+
+Same branch `feat/b2b-v1-tracks`; migrations `20261021000009_b2b_v1_interview`, `…10_b2b_v1_startup` (not applied).
+- **C, interview:** `_shared/interview-v1/` (template, section state machine with follow-ups, coverage and time-boxes,
+  code walkthrough, injection detector, blind scrub, verified quotes, answer signals, latency p50/p95, evaluator with
+  1–5 anchors and band); V1 actions in `b2b-interview/v1.ts`; room `/interview/v1/start`, `/interview/v1/i/:id`
+  (**voice only**, audio re-check + resume); dev page `/interview/v1/live-spike` + `docs/b2b/gemini-live-spike.md`
+  (owner runs it; nothing measured yet). b2b-evaluate no longer shows unreleased drive results.
+- **E, startup:** `b2b-company`, `b2b-candidate`, `/co/:orgId/*` (roles from JD + skills matrix, pipeline, report,
+  credits & team), `/t/:token` (+ `/t` resumes the last link), `/share/:token`, `/portal/:orgId` (routes to `/c` or
+  `/co`). `job_roles.interview_config` drives C's interview. Credits charged once per completed candidate.
+- **Lead fixes on merge:** a drive assignment completes only when both test and interview are done (trigger +
+  analytics status); pilot `current` ignores V1 interviews; runner "Done" returns to the drive / candidate steps /
+  practice zone; the internal-links test now reads B2B route files (all B2B links resolve).
+
+Checks: Vitest 760 pass / 3 skipped (whole suite); strict tsc 0; quality no new errors (132 / 25); deno check passes
+for all 9 B2B functions.
+
+Known gaps: nothing run in a real browser or against local Supabase yet (needs Docker); Judge0 server not created;
+Gemini Live untested; ~~job-role completion synced only on touch~~ (trigger, migration 0011); candidate system check is self-reported.
+
+Next: local Supabase (Docker) → college + startup walkthroughs end to end → one batched production release for approval.
+
+## 2026-10-22
+- **Migration `20261021000011_b2b_v1_completion_sync`:** job-role candidates are synced (credits, notification) by a
+  trigger the moment their test or interview ends, no longer only when someone opens the row.
+- **Local testing kit:** `scripts/b2b-local-setup.mjs` (env files, demo accounts, super admin, seeded bank; local only),
+  `docs/b2b/TESTING.md` (setup + both walkthroughs), fixtures in `docs/b2b/fixtures`. Anonymous sign-ins on in local
+  config. Accepted invites now land in the right portal (staff → `/c` or `/co`, college students → `/learn/v1`).
+- **Test builder draw check:** the server quietly gives fewer questions when a pool runs dry, and rules draw in order
+  without repeats, so overlapping rules (or a rule overlapping chosen questions, also across sections) could short a
+  candidate even when each rule alone had enough. The builder now shows the worst-case count per rule and refuses to
+  save a test as **Ready** if any rule can come up short; drafts still save with the warning (`checkDraw` in
+  `src/b2b/bank/forms.ts`).
+- Docker still not installed (checked 2026-10-22: no Docker Desktop; WSL component not enabled).
 
 ## Decisions made
 See the **Decisions log** at the top of the build prompt. Phase 1 implementation choices:

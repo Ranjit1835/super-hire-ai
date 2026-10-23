@@ -21,6 +21,12 @@ Each track works in its own git worktree and branch, based on `feat/b2b-v1-phase
 | `/learn/v1` and `/learn/v1/drives/:driveId` | D | Student dashboard and a drive's steps (system check → coding/MCQ → interview → done) |
 | `/proctor/review/:sessionId` | B | Staff review timeline for one proctoring session |
 | `/proctor/check` | B | Stand-alone system check page (students can run it any time) |
+| `/interview/v1/start?context=drive\|job_role&id=<driveId\|jobRoleId>[&attempt=<attemptId>]` | C | Creates or resumes the interview (`startContext`), then redirects to the room |
+| `/interview/v1/i/:interviewId` | C | Interview room (wrapped in `<ProctoredSession kind="interview">`); D's `/learn/v1/drives/:driveId/interview` placeholder redirects here via the start URL |
+| `/interview/v1/live-spike` | C | Dev-only Gemini Live spike page (latency measurements) |
+| `/co/:orgId/*` | E | Startup portal (roles, pipeline table, candidate reports, credits & team) |
+| `/t/:token` | E | Candidate token flow (resolve → consent → system check → coding via A → interview via C → done) |
+| `/share/:token` | E | Expiring, view-only candidate report for outside hiring managers |
 
 **Proctoring interface**: `src/b2b/proctor/index.tsx` exports `ProctoredSession` and `useProctor()`. Track A wraps the
 runner in it and reports editor signals (`paste_attempt`, `large_paste`, `typing_burst`) through `useProctor().report`,

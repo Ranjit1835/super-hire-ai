@@ -251,6 +251,16 @@ describe("invite acceptance", () => {
     expect(link.getAttribute("href")).toBe("/auth?redirect=%2Finvite%2Ftok123");
   });
 
+  it("staff invites show the role, not student wording or a roll number", async () => {
+    auth.user = { id: "u7", email: "kiran@x.in" };
+    api.invitesApi.preview.mockResolvedValue({ ...preview, role: "org_admin", roll_no: "" });
+    renderApp("/invite/tok123");
+    expect(await screen.findByText("You've been invited as TPO admin of SVR Engineering College on HiResume.")).toBeInTheDocument();
+    expect(screen.getByText("Role").nextSibling).toHaveTextContent("TPO admin");
+    expect(screen.queryByText("Roll no")).not.toBeInTheDocument();
+    expect(screen.queryByText(/mock interviews/)).not.toBeInTheDocument();
+  });
+
   it("explains expired links", async () => {
     api.invitesApi.preview.mockResolvedValue({ ...preview, status: "expired" });
     renderApp("/invite/tok123");

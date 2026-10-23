@@ -27,6 +27,7 @@ export const GeneratedMcq = z.object({
   answer: z.array(z.string().max(4)).min(1),
   explanation: z.string().max(2000),
 });
+export type GeneratedMcq = z.infer<typeof GeneratedMcq>;
 
 /** What the runner shows: never answers, hidden tests or reference solutions. */
 export const RunnerQuestion = z.object({
@@ -36,6 +37,8 @@ export const RunnerQuestion = z.object({
   statement: z.string(),
   difficulty: Difficulty,
   points: z.number(),
+  section: z.string().optional(),       // section title
+  constraints: z.string().nullable().optional(),
   languages: z.array(Language).optional(),
   starter_code: z.record(z.string(), z.string()).optional(),
   samples: z.array(z.object({ input: z.string(), output: z.string() })).optional(),
@@ -44,6 +47,8 @@ export const RunnerQuestion = z.object({
   saved: z.object({ language: z.string().nullable(), code: z.string().nullable(), mcq_choice: z.array(z.string()).nullable(), seq: z.number() }).nullable(),
 });
 
+export type RunnerQuestion = z.infer<typeof RunnerQuestion>;
+
 export const AttemptState = z.object({
   attemptId: Uuid,
   status: z.enum(["not_started", "in_progress", "submitted", "expired", "terminated"]),
@@ -51,7 +56,12 @@ export const AttemptState = z.object({
   server_now: z.string(),
   paused: z.boolean(),
   sessionId: Uuid,                      // this tab's single-session token
-  questions: z.array(RunnerQuestion),
+  title: z.string().optional(),
+  watermark: z.string().optional(),     // subject email/id, drawn faintly over the runner
+  questions: z.array(RunnerQuestion),   // empty once the attempt has ended
+  /** Only when the subject may see results (practice; drives once released). */
+  result: z.object({ score: z.number().nullable(), max_score: z.number().nullable(), grading: z.enum(["pending", "complete"]),
+                     section_scores: z.array(z.object({ title: z.string(), type: z.string(), score: z.number(), max_score: z.number() })) }).nullable().optional(),
   proctoring: z.object({ policy: z.string(), sessionId: Uuid.nullable() }),
 });
 export type AttemptState = z.infer<typeof AttemptState>;
@@ -63,7 +73,11 @@ export const JudgeResult = z.object({
   tests: z.array(z.object({ sample: z.boolean(), passed: z.boolean(), time_ms: z.number().nullable(), status: z.string(),
                             stdout: z.string().optional(), expected: z.string().optional() })),   // stdout/expected for samples only
   passed: z.number(), total: z.number(),
+  /** The run with the subject's own input (run action only). */
+  custom: z.object({ stdout: z.string(), stderr: z.string(), status: z.string(), time_ms: z.number().nullable() }).optional(),
 });
+
+export type JudgeResult = z.infer<typeof JudgeResult>;
 
 export const assessContract = {
   // ── Bank (staff) ──
@@ -78,7 +92,8 @@ export const assessContract = {
   },
   // ── Runner (subject) ──
   start: {
-    input: z.object({ context: ContextType, contextId: Uuid.nullable(), assessmentId: Uuid.optional() }),
+    // practice: assessmentId (contextId null); drive / job_role: contextId. sessionId: this tab's token, if it has one.
+    input: z.object({ context: ContextType, contextId: Uuid.nullable(), assessmentId: Uuid.optional(), sessionId: Uuid.optional() }),
     output: AttemptState,
   },
   state: { input: z.object({ attemptId: Uuid, sessionId: Uuid.optional() }), output: AttemptState },
@@ -98,7 +113,8 @@ export const assessContract = {
                       code: z.string().max(100000).optional(), mcq_choice: z.array(z.string()).optional() }),
     output: z.object({ submissionId: Uuid, status: z.enum(["queued", "done"]) }),   // no score shown here
   },
-  finish: { input: z.object({ attemptId: Uuid, sessionId: Uuid }), output: Ok },
+  // reason "violations": the strict proctoring policy hit its limit (ProctoredSession onAutoSubmit).
+  finish: { input: z.object({ attemptId: Uuid, sessionId: Uuid, reason: z.enum(["submitted", "violations"]).optional() }), output: Ok },
   heartbeat: {
     input: z.object({ attemptId: Uuid, sessionId: Uuid }),
     output: z.object({ ok: z.boolean(), deadline_at: z.string().nullable(), server_now: z.string(), paused: z.boolean(),

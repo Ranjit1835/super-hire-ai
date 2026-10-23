@@ -95,3 +95,15 @@ verify_jwt = false
 
 [functions.b2b-proctor]
 verify_jwt = false
+
+# Local development only: CLI 2.105 enables vector buckets by default and local storage refuses them
+# ("Vector service not configured"), which aborts `supabase start`. Unused here.
+[storage.vector]
+enabled = false
+
+# Local development only (`supabase start`); production auth settings live in the dashboard.
+# Anonymous sign-ins: the startup portal's candidate link flow (/t/:token) signs candidates in anonymously.
+[auth]
+site_url = "http://localhost:8080"
+additional_redirect_urls = ["http://localhost:8080/**", "http://127.0.0.1:8080/**"]
+enable_anonymous_sign_ins = true

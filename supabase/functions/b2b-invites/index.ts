@@ -15,7 +15,7 @@ import {
 } from "../_shared/b2b-http.ts";
 import { validateRosterRows } from "../_shared/invite-csv.ts";
 import { sendInviteEmails, type InviteEmail } from "../_shared/invite-email.ts";
-import { B2B_CONSENT_VERSION, b2bConsentText } from "../_shared/b2b-consent.ts";
+import { inviteConsent } from "../_shared/b2b-consent.ts";
 
 type ImportResult = { row: number; status: "invited" | "skipped" | "error"; reason?: string; invite_id?: string };
 
@@ -49,16 +49,17 @@ async function loadPreview(tokenHash: string) {
   if (error) throw error;
   if (!data) throw new HttpError(404, "INVALID", ACCEPT_ERRORS.INVALID[1]);
   return data as {
-    invite_id: string; status: string; full_name: string; email: string; roll_no: string; batch: string | null;
+    invite_id: string; status: string; role: string | null; full_name: string; email: string; roll_no: string; batch: string | null;
     org: { id: string; name: string; type: string; logo_url: string | null; is_demo: boolean };
   };
 }
 
-async function acceptAs(tokenHash: string, userId: string, orgName: string) {
+async function acceptAs(tokenHash: string, userId: string, p: { role: string | null; org: { name: string; type: string } }) {
   const admin = serviceClient();
+  const consent = inviteConsent(p.role, p.org);
   const { data, error } = await admin.rpc("b2b_accept_invite", {
     _token_hash: tokenHash, _user_id: userId,
-    _consent_version: B2B_CONSENT_VERSION, _consent_text: b2bConsentText(orgName),
+    _consent_version: consent.version, _consent_text: consent.text,
   });
   if (error) throw error;
   const r = data as { ok: boolean; reason?: string; org_id?: string };
@@ -160,13 +161,14 @@ serve(handle("B2B-INVITES", async (req, body) => {
     const { data: hasAccount } = await admin.rpc("b2b_email_has_account", { _email: p.email });
     return json({
       status: p.status,
+      role: p.role ?? "student",
       full_name: p.full_name,
       email: p.email,
       roll_no: p.roll_no,
       batch: p.batch,
       org: p.org,
       has_account: !!hasAccount,
-      consent: { version: B2B_CONSENT_VERSION, text: b2bConsentText(p.org.name) },
+      consent: inviteConsent(p.role, p.org),
     });
   }
 
@@ -194,7 +196,7 @@ serve(handle("B2B-INVITES", async (req, body) => {
       throw createErr ?? new Error("createUser returned no user");
     }
     try {
-      const r = await acceptAs(tokenHash, created.user.id, p.org.name);
+      const r = await acceptAs(tokenHash, created.user.id, p);
       console.log(`[B2B-INVITES] register+accept org=${r.org_id} user=${created.user.id}`);
       return json({ ok: true, org_id: r.org_id, email: p.email });
     } catch (e) {
@@ -206,7 +208,7 @@ serve(handle("B2B-INVITES", async (req, body) => {
   if (action === "accept") {
     const user = await requireUser(req);
     const p = await loadPreview(tokenHash);
-    const r = await acceptAs(tokenHash, user.id, p.org.name);
+    const r = await acceptAs(tokenHash, user.id, p);
     console.log(`[B2B-INVITES] accept org=${r.org_id} user=${user.id}`);
     return json({ ok: true, org_id: r.org_id });
   }
