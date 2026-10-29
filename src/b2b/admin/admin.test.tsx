@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   invites: [] as unknown[],
   usage: [] as unknown[],
   alerts: [] as unknown[],
+  costBy: [] as string[],
 }));
 const api = vi.hoisted(() => ({ adminApi: vi.fn() }));
 
@@ -24,6 +25,11 @@ vi.mock("./queries", async (orig) => ({
   useLedger: () => ({ data: [], refetch: vi.fn() }),
   useOrgUsage: () => ({ data: state.usage, isLoading: false, error: null }),
   useOrgAlerts: () => ({ data: state.alerts, isLoading: false, error: null }),
+  useCostBreakdown: (by: string) => {
+    state.costBy.push(by);
+    return { data: [{ key: "k", label: by === "student" ? "Asha" : "Alpha College", org_name: by === "student" ? "Alpha College" : null,
+      calls: 3, input_tokens: 3000, output_tokens: 600, cached_input_tokens: 400, cache_hits: 0, stt_seconds: 0, tts_chars: 0, cost_inr: 8 }], isLoading: false, error: null };
+  },
   adjustCredits: vi.fn().mockResolvedValue(10),
 }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), adminApi: api.adminApi }));
@@ -159,5 +165,17 @@ describe("super admin: usage", () => {
     expect(screen.getByText("210 / 300")).toBeInTheDocument();
     expect(screen.getAllByText("₹52.5").length).toBeGreaterThan(0);
     expect(screen.getAllByText("25%").length).toBeGreaterThan(0);
+  });
+});
+
+describe("super admin: AI cost breakdown (R6.1)", () => {
+  it("groups cost by college and switches to students", () => {
+    renderAt("/admin/usage");
+    const section = screen.getByRole("region", { name: "AI cost breakdown" });
+    expect(within(section).getByText("Alpha College")).toBeInTheDocument();
+    fireEvent.click(within(section).getByRole("tab", { name: "By student" }));
+    expect(within(section).getByText("Asha")).toBeInTheDocument();
+    expect(within(section).getByText(/· Alpha College/)).toBeInTheDocument();
+    expect(state.costBy).toContain("student");
   });
 });

@@ -44,6 +44,22 @@ export function alertText(a: OrgAlert): string {
   }
 }
 
+export type CostGroup = "org" | "student" | "feature" | "day";
+export interface CostRow {
+  key: string | null; label: string; org_name: string | null; calls: number; input_tokens: number; output_tokens: number;
+  cached_input_tokens: number; cache_hits: number; stt_seconds: number; tts_chars: number; cost_inr: number;
+}
+/** R6.1: AI cost grouped by college, student, feature or day (super_cost_breakdown, migration 0027). */
+export function useCostBreakdown(by: CostGroup, days: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ["b2b-v1", "cost-breakdown", by, days],
+    enabled,
+    queryFn: () => rows<CostRow[]>(b2bDb.rpc("super_cost_breakdown", {
+      _by: by, _from: new Date(Date.now() - days * 86_400_000).toISOString(), _to: new Date().toISOString(),
+    })),
+  });
+}
+
 export function useOrgs(enabled: boolean) {
   return useQuery({
     queryKey: ["b2b-v1", "orgs"],
