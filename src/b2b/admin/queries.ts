@@ -24,7 +24,8 @@ export function useOrgs(enabled: boolean) {
   return useQuery({
     queryKey: ["b2b-v1", "orgs"],
     enabled,
-    queryFn: () => rows<OrgRow[]>(b2bDb.from("organizations").select("*").order("created_at", { ascending: false })),
+    // super_orgs(): full rows incl. plan_id, which signed-in users can't select directly (R3.1, migration 0016).
+    queryFn: () => rows<OrgRow[]>(b2bDb.rpc("super_orgs")),
   });
 }
 

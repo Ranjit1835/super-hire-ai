@@ -18,7 +18,8 @@ export interface Organization {
   type: OrgType;
   logo_url: string | null;
   is_demo: boolean;
-  plan_id: string;
+  /** Super admins only (super_orgs()); absent for everyone else (R3.1). */
+  plan_id?: string;
   plan_starts_at: string;
   plan_ends_at: string | null;
   created_at: string;
@@ -67,7 +68,8 @@ export interface InterviewQuota {
 
 export interface OrgUsageSummary {
   org_id: string;
-  plan: Plan;
+  /** Limits and features. id/name (the tier) are present for super admins only (R3.1). */
+  plan: Omit<Plan, "id" | "name"> & Partial<Pick<Plan, "id" | "name">>;
   plan_starts_at: string;
   plan_ends_at: string | null;
   students: number;

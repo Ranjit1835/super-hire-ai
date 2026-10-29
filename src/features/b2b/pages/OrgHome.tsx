@@ -38,7 +38,7 @@ export default function OrgOverview() {
   return (
     <>
       <p className="text-sm text-muted-foreground mb-4">
-        {s.plan.name} plan · {formatDate(s.plan_starts_at)} – {formatDate(s.plan_ends_at)}
+        {s.plan.name ? `${s.plan.name} plan · ` : "Access "}{formatDate(s.plan_starts_at)} – {formatDate(s.plan_ends_at)}
       </p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard
