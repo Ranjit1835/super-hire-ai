@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Upload } from "lucide-react";
+import { Check, Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Chip } from "../ui/broadcast";
 import { collegeApi, ApiError } from "../lib/api";
 import { CollegeShell, NativeSelect } from "./CollegeShell";
 import { FIELDS, MAX_IMPORT_ROWS, buildRows, detectMapping, missingRequired, readTable, type ImportField, type Mapping, type RowError, type StudentRowInput } from "./lib/import";
@@ -14,11 +15,38 @@ import type { collegeContract } from "../../../supabase/functions/_shared/contra
 
 type ImportOut = ContractOutput<typeof collegeContract, "importStudents">;
 type Step = "upload" | "map" | "preview" | "done";
+const STEPS: { key: Step; label: string }[] = [
+  { key: "upload", label: "Upload" }, { key: "map", label: "Map columns" },
+  { key: "preview", label: "Check rows" }, { key: "done", label: "Done" },
+];
 
 const DUP_TEXT: Record<string, string> = {
   roll_no: "Same roll no as an existing student", email: "Same email as an existing student",
   both: "Already in your list (same roll no and email)", in_file: "Repeats an earlier row in this file",
 };
+
+/** The wizard's step state, drawn as a broadcast sequence: done steps settle gold, the live one reads orange. */
+function StepRail({ step }: { step: Step }) {
+  const i = STEPS.findIndex((s) => s.key === step);
+  return (
+    <ol className="flex items-stretch gap-6 overflow-x-auto hr-rule-b" aria-label="Import steps">
+      {STEPS.map((s, idx) => {
+        const state = idx < i ? "done" : idx === i ? "current" : "upcoming";
+        return (
+          <li key={s.key} className={cn("flex items-center gap-2 pb-3 shrink-0 whitespace-nowrap",
+            state === "current" && "shadow-[inset_0_-2px_0_var(--hr-orange)]")} aria-current={state === "current" ? "step" : undefined}>
+            <span className={cn("grid place-items-center h-5 w-5 shrink-0 border text-[10px] font-bold",
+              state === "done" ? "border-[var(--hr-gold)] text-[var(--hr-gold)]"
+                : state === "current" ? "border-[var(--hr-orange)] text-[var(--hr-orange)]" : "border-[var(--hr-rule)] text-[var(--hr-muted)]")}>
+              {state === "done" ? <Check className="h-3 w-3" /> : idx + 1}
+            </span>
+            <span className={cn("hr-label", state === "current" && "text-foreground", state === "done" && "text-[var(--hr-gold)]")}>{s.label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export default function ImportPage() {
   return <CollegeShell>{({ orgId, isAdmin }) => (isAdmin ? <ImportWizard orgId={orgId} /> : (
@@ -26,25 +54,35 @@ export default function ImportPage() {
   ))}</CollegeShell>;
 }
 
-export function ImportWizard({ orgId }: { orgId: string }) {
+/** Gallery/demo only: seeds the wizard's local step state so a mid-wizard screen can be captured without a real
+ *  file upload. Production (`ImportPage`) never passes this. */
+export interface ImportWizardInitial {
+  step?: Step; fileName?: string; table?: string[][]; mapping?: Mapping;
+  built?: { rows: StudentRowInput[]; errors: RowError[] }; preview?: ImportOut | null;
+}
+
+export function ImportWizard({ orgId, initial }: { orgId: string; initial?: ImportWizardInitial }) {
   const qc = useQueryClient();
-  const [step, setStep] = useState<Step>("upload");
-  const [fileName, setFileName] = useState("");
-  const [table, setTable] = useState<string[][]>([]);
-  const [mapping, setMapping] = useState<Mapping>({});
-  const [built, setBuilt] = useState<{ rows: StudentRowInput[]; errors: RowError[] }>({ rows: [], errors: [] });
-  const [preview, setPreview] = useState<ImportOut | null>(null);
+  const [step, setStep] = useState<Step>(initial?.step ?? "upload");
+  const [fileName, setFileName] = useState(initial?.fileName ?? "");
+  const [table, setTable] = useState<string[][]>(initial?.table ?? []);
+  const [mapping, setMapping] = useState<Mapping>(initial?.mapping ?? {});
+  const [built, setBuilt] = useState<{ rows: StudentRowInput[]; errors: RowError[] }>(initial?.built ?? { rows: [], errors: [] });
+  const [preview, setPreview] = useState<ImportOut | null>(initial?.preview ?? null);
   const [onDuplicate, setOnDuplicate] = useState<"skip" | "merge">("skip");
   const [sendInvites, setSendInvites] = useState(true);
   const [result, setResult] = useState<ImportOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pickedName, setPickedName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const headers = table[0] ?? [];
   const missing = useMemo(() => missingRequired(mapping), [mapping]);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
+    setPickedName(file.name);
     setError(null);
     try {
       const t = await readTable(file);
@@ -96,23 +134,25 @@ export function ImportWizard({ orgId }: { orgId: string }) {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Import students</h2>
-        <Link to={`/c/${orgId}/students`} className="text-sm underline">Back to students</Link>
+        <h2 className="hr-display text-[22px]">Import students</h2>
+        <Link to={`/c/${orgId}/students`} className="text-sm text-[var(--hr-muted)] hover:text-foreground">Back to students</Link>
       </div>
-      {error && <p role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">{error}</p>}
+      <StepRail step={step} />
+      {error && <p role="alert" className="border border-[var(--hr-red)] bg-[var(--hr-red)]/10 text-[var(--hr-red-ink)] p-3 text-sm">{error}</p>}
 
       {step === "upload" && (
-        <div className="rounded-lg border border-dashed p-8 text-center space-y-3">
-          <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+        <div className="border border-dashed border-[var(--hr-rule)] p-8 text-center space-y-3">
+          <Upload className="mx-auto h-8 w-8 text-[var(--hr-muted)]" />
           <p className="text-sm">Upload your student list as <b>.xlsx</b> or <b>.csv</b>. The first row must be the column headings.</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[var(--hr-muted)]">
             Needed: roll no (or hall ticket no), name, email. Optional: phone, branch, batch / year of passing, section, CGPA,
             active backlogs, 10th %, 12th %, date of birth. Students under 18 are added but not activated.
           </p>
-          <label className="inline-block">
-            <span className="sr-only">Student file</span>
-            <input aria-label="Student file" type="file" accept=".csv,.xlsx,text/csv" onChange={(e) => void onFile(e.target.files?.[0])} />
-          </label>
+          <input ref={fileInputRef} id="college-import-file" className="sr-only" aria-label="Student file" type="file" accept=".csv,.xlsx,text/csv" onChange={(e) => void onFile(e.target.files?.[0])} />
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Choose CSV or XLSX file</Button>
+            {pickedName && <span className="hr-data text-sm text-[var(--hr-muted)]">{pickedName}</span>}
+          </div>
         </div>
       )}
 
@@ -124,7 +164,7 @@ export function ImportWizard({ orgId }: { orgId: string }) {
           <div className="grid sm:grid-cols-2 gap-3">
             {FIELDS.map((f) => (
               <label key={f.key} className="text-sm space-y-1">
-                <span>{f.label}{f.required && <span className="text-destructive"> *</span>}</span>
+                <span className="hr-label !text-foreground !normal-case !tracking-normal !text-[13px] !font-normal">{f.label}{f.required && <span className="text-[var(--hr-red-ink)]"> *</span>}</span>
                 <NativeSelect aria-label={f.label} value={mapping[f.key] ?? ""}
                   onChange={(e) => setMapping((m) => {
                     const next: Mapping = { ...m };
@@ -139,7 +179,7 @@ export function ImportWizard({ orgId }: { orgId: string }) {
             ))}
           </div>
           {missing.length > 0 && (
-            <p className="text-sm text-destructive">Choose a column for: {missing.map((m) => FIELDS.find((f) => f.key === m)?.label).join(", ")}.</p>
+            <p className="text-sm text-[var(--hr-red-ink)]">Choose a column for: {missing.map((m) => FIELDS.find((f) => f.key === m)?.label).join(", ")}.</p>
           )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setStep("upload")}>Choose another file</Button>
@@ -151,16 +191,16 @@ export function ImportWizard({ orgId }: { orgId: string }) {
       {step === "preview" && preview && (
         <div className="space-y-5">
           <div className="flex flex-wrap gap-2 text-sm">
-            <Badge variant="outline">{preview.created} new</Badge>
-            <Badge variant="outline">{existingDups.length} already in your list</Badge>
-            <Badge variant="outline">{inFileDups.length} repeated in the file</Badge>
-            <Badge variant="outline">{preview.heldMinors} under 18 (held)</Badge>
-            <Badge variant={allErrors.length ? "destructive" : "outline"}>{allErrors.length} with errors</Badge>
+            <Chip>{preview.created} new</Chip>
+            <Chip tone={existingDups.length ? "plain" : "muted"}>{existingDups.length} already in your list</Chip>
+            <Chip tone={inFileDups.length ? "plain" : "muted"}>{inFileDups.length} repeated in the file</Chip>
+            <Chip tone={preview.heldMinors ? "red" : "muted"}>{preview.heldMinors} under 18 (held)</Chip>
+            <Chip tone={allErrors.length ? "red" : "muted"}>{allErrors.length} with errors</Chip>
           </div>
 
           {existingDups.length > 0 && (
             <section className="space-y-2">
-              <h3 className="font-medium">Students already in your list</h3>
+              <h3 className="hr-display text-base">Students already in your list</h3>
               <fieldset className="flex flex-wrap gap-4 text-sm">
                 <legend className="sr-only">What to do with students already in your list</legend>
                 <label className="flex items-center gap-2"><input type="radio" name="dup" checked={onDuplicate === "skip"} onChange={() => setOnDuplicate("skip")} /> Skip them (keep what's stored)</label>
@@ -171,20 +211,20 @@ export function ImportWizard({ orgId }: { orgId: string }) {
           )}
           {inFileDups.length > 0 && (
             <section className="space-y-2">
-              <h3 className="font-medium">Repeated rows in this file (skipped; the first one is used)</h3>
+              <h3 className="hr-display text-base">Repeated rows in this file (skipped; the first one is used)</h3>
               <DupTable dups={inFileDups} rowByLine={rowByLine} />
             </section>
           )}
           {allErrors.length > 0 && (
             <section className="space-y-2">
-              <h3 className="font-medium">Rows with errors (not imported)</h3>
+              <h3 className="hr-display text-base">Rows with errors (not imported)</h3>
               <Table>
-                <TableHeader><TableRow><TableHead className="w-20">Row</TableHead><TableHead>Problem</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow className="hover:bg-transparent"><TableHead className="hr-label w-20">Row</TableHead><TableHead className="hr-label">Problem</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {allErrors.slice(0, 200).map((e) => <TableRow key={`${e.row}-${e.message}`}><TableCell>{e.row}</TableCell><TableCell>{e.message}</TableCell></TableRow>)}
+                  {allErrors.slice(0, 200).map((e) => <TableRow key={`${e.row}-${e.message}`}><TableCell className="hr-data text-xs">{e.row}</TableCell><TableCell>{e.message}</TableCell></TableRow>)}
                 </TableBody>
               </Table>
-              <p className="text-xs text-muted-foreground">Fix these in your sheet and import it again; rows already imported are recognised as duplicates.</p>
+              <p className="text-xs text-[var(--hr-muted)]">Fix these in your sheet and import it again; rows already imported are recognised as duplicates.</p>
             </section>
           )}
 
@@ -203,13 +243,13 @@ export function ImportWizard({ orgId }: { orgId: string }) {
 
       {step === "done" && result && (
         <div className="space-y-4" role="status">
-          <p className="font-medium">Import finished</p>
-          <ul className="text-sm list-disc pl-5">
-            <li>{result.created} added</li>
-            <li>{result.merged} updated</li>
-            <li>{result.skipped} skipped</li>
-            <li>{result.heldMinors} held because they are under 18</li>
-            {result.errors.length > 0 && <li>{result.errors.length} rows not imported because of errors</li>}
+          <p className="hr-display text-lg">Import finished</p>
+          <ul className="text-sm space-y-1">
+            <li><span className="hr-data">{result.created}</span> added</li>
+            <li><span className="hr-data">{result.merged}</span> updated</li>
+            <li><span className="hr-data">{result.skipped}</span> skipped</li>
+            <li><span className="hr-data">{result.heldMinors}</span> held because they are under 18</li>
+            {result.errors.length > 0 && <li className="text-[var(--hr-red-ink)]"><span className="hr-data">{result.errors.length}</span> rows not imported because of errors</li>}
           </ul>
           {result.invites && <InviteLinks links={result.invites} emailed={result.emailed ?? 0} />}
           <Button asChild><Link to={`/c/${orgId}/students`}>Go to students</Link></Button>
@@ -222,14 +262,14 @@ export function ImportWizard({ orgId }: { orgId: string }) {
 function DupTable({ dups, rowByLine }: { dups: ImportOut["duplicates"]; rowByLine: Map<number, StudentRowInput> }) {
   return (
     <Table>
-      <TableHeader><TableRow><TableHead className="w-20">Row</TableHead><TableHead>Roll no</TableHead><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Why</TableHead></TableRow></TableHeader>
+      <TableHeader><TableRow className="hover:bg-transparent"><TableHead className="hr-label w-20">Row</TableHead><TableHead className="hr-label">Roll no</TableHead><TableHead className="hr-label">Name</TableHead><TableHead className="hr-label">Email</TableHead><TableHead className="hr-label">Why</TableHead></TableRow></TableHeader>
       <TableBody>
         {dups.slice(0, 200).map((d) => {
           const r = rowByLine.get(d.row);
           return (
             <TableRow key={d.row}>
-              <TableCell>{d.row}</TableCell><TableCell>{r?.roll_no}</TableCell><TableCell>{r?.full_name}</TableCell>
-              <TableCell>{r?.email}</TableCell><TableCell>{DUP_TEXT[d.reason]}</TableCell>
+              <TableCell className="hr-data text-xs">{d.row}</TableCell><TableCell className="hr-data text-xs">{r?.roll_no}</TableCell><TableCell>{r?.full_name}</TableCell>
+              <TableCell className="text-xs">{r?.email}</TableCell><TableCell>{DUP_TEXT[d.reason]}</TableCell>
             </TableRow>
           );
         })}

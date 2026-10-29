@@ -1,4 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+// Face loops are observed, not run: each start records its frame callback and whether it was stopped.
+const loops = vi.hoisted(() => [] as { onFrame: (f: { t: number; faces: number; pose: [number, number] | null }) => void; stopped: boolean }[]);
+vi.mock("./detector", async (orig) => ({
+  ...(await orig<typeof import("./detector")>()),
+  startFaceLoop: (_det: unknown, _video: unknown, _fps: number, onFrame: (f: { t: number; faces: number; pose: [number, number] | null }) => void) => {
+    const loop = { onFrame, stopped: false };
+    loops.push(loop);
+    return () => { loop.stopped = true; };
+  },
+}));
 import { ProctorMonitor, type Policy } from "./monitor";
 import type { QueuedEvent, SendResult } from "./queue";
 
@@ -38,6 +48,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
   sent = [];
+  loops.length = 0;
   reply = { accepted: 1, violations: 0, action: "none" };
   fullscreen = document.body;
   Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => fullscreen });
@@ -171,5 +182,25 @@ describe("proctor monitor: policies", () => {
     document.dispatchEvent(new Event("copy"));
     await vi.advanceTimersByTimeAsync(6000);
     expect(types()).not.toContain("copy_attempt");
+  });
+});
+
+describe("proctor monitor: camera replacement", () => {
+  it("stops the old camera's face loop and ignores its frames once the camera is replaced", async () => {
+    const { m, camTrack } = setup("standard", { tier: "full", loadDetector: async () => ({ detectForVideo: () => ({ faceLandmarks: [], faceBlendshapes: [], facialTransformationMatrixes: [] }) }) });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(loops).toHaveLength(1);
+    camTrack.end();
+    m.replaceCamera(stream(new FakeTrack("", "Integrated Webcam")));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(loops).toHaveLength(2);
+    expect(loops[0].stopped).toBe(true);
+    expect(loops[1].stopped).toBe(false);
+    // A late frame from the old loop must not count as "no face" for 10+ seconds.
+    const t0 = Date.now();
+    for (let i = 0; i < 40; i++) { loops[0].onFrame({ t: t0 + i * 500, faces: 0, pose: null }); loops[1].onFrame({ t: t0 + i * 500, faces: 1, pose: [0, 0] }); }
+    await vi.advanceTimersByTimeAsync(20_000);
+    await m.stop();
+    expect(types()).not.toContain("no_face");
   });
 });

@@ -14,7 +14,7 @@ import { CenteredSpinner, EmptyState, StatCard } from "../components/B2BShell";
 import { EvaluationReport } from "../components/EvaluationReport";
 import { useOrgContext } from "../components/OrgContext";
 import { useOrgModules } from "../hooks/useB2B";
-import { b2bDb } from "../lib/db";
+import { b2bDb, selectAll } from "../lib/db";
 import { downloadCsv, toCsv } from "../lib/csv-export";
 import { formatDate, friendlyDbError } from "../lib/format";
 import { READINESS_LABEL, READINESS_STYLE } from "../lib/report-style";
@@ -48,11 +48,11 @@ export default function OrgLeads() {
   const leads = useQuery({
     queryKey: ["b2b", "leads", org.id],
     queryFn: async () => {
-      const { data, error } = await b2bDb.from("org_leads")
+      // Every lead (selectAll pages past PostgREST's 1000-row cap; .limit(2000) used to stop at 1000).
+      const data = await selectAll<Lead>((from, to) => b2bDb.from("org_leads")
         .select("id, full_name, phone, email, target_course, module_id, interview_id, status, overall_score, readiness_level, primary_gap, created_at")
-        .eq("org_id", org.id).order("created_at", { ascending: false }).limit(2000);
-      if (error) throw error;
-      return (data as Lead[]).map((l) => ({ ...l, overall_score: l.overall_score === null ? null : Number(l.overall_score) }));
+        .eq("org_id", org.id).order("created_at", { ascending: false }).order("id").range(from, to));
+      return data.map((l) => ({ ...l, overall_score: l.overall_score === null ? null : Number(l.overall_score) }));
     },
   });
   const [status, setStatus] = useState<string>(ALL);

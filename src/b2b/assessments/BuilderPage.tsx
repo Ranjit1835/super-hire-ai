@@ -1,6 +1,6 @@
 // /assess/tests/:orgId/new and /assess/tests/:orgId/:assessmentId — the test builder.
 // A test is sections (coding / MCQ); each section draws questions by pool rules ("2 easy arrays") and/or fixed picks.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { Empty, Loading, V1Shell } from "../layout/V1Shell";
+import { Chip } from "../ui/broadcast";
 import { assessTabs } from "../bank/BankPage";
 import {
   AssessmentForm, assessmentFromRow, assessmentRow, checkDraw, describeRule, emptyAssessment, firstError, LANGUAGE_LABEL, LANGUAGES,
-  poolMatches, type PoolRule, type QuestionRow, type SectionForm,
+  poolMatches, type PoolRule, type SectionForm,
 } from "../bank/forms";
-import { friendly, saveAssessment, useAssessment, useBank, useCanEdit } from "../bank/queries";
+import { friendly, saveAssessment, useAssessment, useCanEdit, useVerifiedPool, type PoolRow } from "../bank/queries";
 
 const POLICIES: { value: AssessmentForm["proctoring_policy"]; label: string; hint: string }[] = [
   { value: "off", label: "Off", hint: "No proctoring." },
@@ -31,11 +33,14 @@ export default function BuilderPage() {
   const qc = useQueryClient();
   const canEdit = useCanEdit(orgId);
   const existing = useAssessment(assessmentId);
-  const bank = useBank(orgId, canEdit.data === true);
+  const bank = useVerifiedPool(orgId, canEdit.data === true);
   const [f, setF] = useState<AssessmentForm>(emptyAssessment);
   const [loaded, setLoaded] = useState(!assessmentId);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<"title" | "duration_min" | null>(null);
   const [busy, setBusy] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const durationRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (assessmentId && existing.data && !loaded) { setF(assessmentFromRow(existing.data)); setLoaded(true); }
@@ -50,9 +55,20 @@ export default function BuilderPage() {
 
   const submit = async () => {
     setError(null);
+    setErrorField(null);
     const parsed = AssessmentForm.safeParse(f);
-    if (!parsed.success) { setError(firstError(parsed.error)); return; }
+    if (!parsed.success) {
+      setError(firstError(parsed.error));
+      const path = parsed.error.issues[0]?.path[0];
+      if (path === "title") { setErrorField("title"); titleRef.current?.focus(); }
+      else if (path === "duration_min") { setErrorField("duration_min"); durationRef.current?.focus(); }
+      return;
+    }
     // The server quietly hands out fewer questions when a pool runs dry; a test in use must never do that.
+    if (parsed.data.status === "ready" && !bank.data) {
+      setError(bank.error ? `Couldn't load the question bank to check this test: ${friendly(bank.error)}` : "Still loading the question bank. Try again in a moment.");
+      return;
+    }
     if (parsed.data.status === "ready" && draw.short) {
       setError("Some candidates would get fewer questions than this test asks for (see the rules marked in red). Add questions to the bank, lower the counts, or save it as a draft.");
       return;
@@ -75,18 +91,28 @@ export default function BuilderPage() {
   if (canEdit.data !== true) return <V1Shell title={title}><Empty title="You don't have access to these tests" /></V1Shell>;
   if (assessmentId && existing.error) return <V1Shell title={title}><Empty title="Couldn't load this test" body={friendly(existing.error)} /></V1Shell>;
 
+  const questionsPerCandidate = f.sections.reduce((n, s) => n + s.pick.reduce((m, r) => m + r.count, 0) + s.question_ids.length, 0);
+  const shortfalls = f.sections.flatMap((s, si) =>
+    s.pick.map((r, ri) => ({ si, ri, r, sure: draw.guaranteed[si]?.[ri] })).filter((x) => x.sure !== undefined && x.sure < x.r.count));
+
   return (
     <V1Shell title={title} tabs={assessTabs(orgId)}>
-      <div className="grid gap-6 max-w-3xl">
-        <section className="grid gap-3">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start max-w-[1200px]">
+      <div className="grid gap-6">
+        <section className="grid gap-3 hr-rule-b pb-6">
+          <h3 className="hr-display text-[15px]">Basics</h3>
           <div>
             <Label htmlFor="t-title">Title</Label>
-            <Input id="t-title" value={f.title} onChange={(e) => set("title", e.target.value)} />
+            <Input id="t-title" ref={titleRef} value={f.title} onChange={(e) => set("title", e.target.value)}
+                   aria-invalid={errorField === "title" ? "true" : undefined}
+                   aria-describedby={errorField === "title" ? "builder-error" : undefined} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <Label htmlFor="t-duration">Duration (minutes)</Label>
-              <Input id="t-duration" type="number" min={5} max={300} value={f.duration_min} onChange={(e) => set("duration_min", Number(e.target.value))} />
+              <Input id="t-duration" ref={durationRef} type="number" min={5} max={300} value={f.duration_min} onChange={(e) => set("duration_min", Number(e.target.value))}
+                     aria-invalid={errorField === "duration_min" ? "true" : undefined}
+                     aria-describedby={errorField === "duration_min" ? "builder-error" : undefined} />
             </div>
             <div>
               <Label htmlFor="t-late">Late join allowed (minutes, blank = any time in the window)</Label>
@@ -103,8 +129,12 @@ export default function BuilderPage() {
               </Select>
             </div>
           </div>
+        </section>
+
+        <section className="grid gap-3 hr-rule-b pb-6">
+          <h3 className="hr-display text-[15px]">Languages and rules</h3>
           <fieldset>
-            <legend className="text-sm font-medium mb-1">Languages</legend>
+            <legend className="hr-label mb-1.5">Languages</legend>
             <div className="flex flex-wrap gap-4">
               {LANGUAGES.map((l) => (
                 <label key={l} className="flex items-center gap-2 text-sm">
@@ -141,7 +171,7 @@ export default function BuilderPage() {
                 <SelectTrigger aria-label="Proctoring"><SelectValue /></SelectTrigger>
                 <SelectContent>{POLICIES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">{POLICIES.find((p) => p.value === f.proctoring_policy)?.hint}</p>
+              <p className="text-xs text-[var(--hr-muted)] mt-1">{POLICIES.find((p) => p.value === f.proctoring_policy)?.hint}</p>
             </div>
             {f.proctoring_policy === "strict" && (
               <div>
@@ -154,10 +184,11 @@ export default function BuilderPage() {
         </section>
 
         <section className="grid gap-4">
-          <h2 className="font-semibold">Sections</h2>
+          <h2 className="hr-display text-[18px]">Sections</h2>
           {f.sections.map((s, si) => (
             <SectionEditor key={si} index={si} section={s} bank={bank.data ?? []} languages={f.languages}
                            guaranteed={draw.guaranteed[si] ?? []} fixedAtRisk={draw.fixedAtRisk}
+                           unavailable={bank.data ? s.question_ids.filter((id) => draw.unavailable.includes(id)) : []}
                            onChange={(patch) => setSection(si, patch)} onRule={(ri, patch) => setRule(si, ri, patch)}
                            onRemove={f.sections.length > 1 ? () => set("sections", f.sections.filter((_, j) => j !== si)) : undefined} />
           ))}
@@ -173,18 +204,43 @@ export default function BuilderPage() {
           </div>
         </section>
 
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {error && <p role="alert" id="builder-error" className="text-sm text-destructive">{error}</p>}
         <div className="flex gap-2">
           <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Save test"}</Button>
           <Button variant="outline" asChild><Link to={`/assess/tests/${orgId}`}>Cancel</Link></Button>
         </div>
       </div>
+
+      <aside className="lg:sticky lg:top-20 bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] px-5 py-4 grid gap-3">
+        <h3 className="hr-label">Summary</h3>
+        <div>
+          <p className="hr-data text-2xl">{questionsPerCandidate}</p>
+          <p className="text-xs text-[var(--hr-muted)]">questions per candidate</p>
+        </div>
+        <div>
+          <p className="hr-data text-2xl">{f.duration_min}</p>
+          <p className="text-xs text-[var(--hr-muted)]">minutes</p>
+        </div>
+        {shortfalls.length > 0 && (
+          <div className="grid gap-1">
+            <p className="hr-label">Rule shortfalls</p>
+            {shortfalls.map(({ si, ri, r, sure }) => (
+              <p key={`${si}-${ri}`} className="text-xs text-[var(--hr-red-ink)]">
+                Section {si + 1}, rule {ri + 1}: {describeRule(r)} (only {sure} certain)
+              </p>
+            ))}
+          </div>
+        )}
+      </aside>
+      </div>
     </V1Shell>
   );
 }
 
-function SectionEditor({ index, section, bank, languages, guaranteed, fixedAtRisk, onChange, onRule, onRemove }: {
-  index: number; section: SectionForm; bank: QuestionRow[]; languages: string[]; guaranteed: number[]; fixedAtRisk: string[];
+function SectionEditor({ index, section, bank, languages, guaranteed, fixedAtRisk, unavailable, onChange, onRule, onRemove }: {
+  index: number; section: SectionForm; bank: PoolRow[]; languages: string[]; guaranteed: number[]; fixedAtRisk: string[];
+  /** This section's chosen ids the server can't serve any more (retired, back to draft, deleted). */
+  unavailable: string[];
   onChange: (patch: Partial<SectionForm>) => void; onRule: (ri: number, patch: Partial<PoolRule>) => void; onRemove?: () => void;
 }) {
   const [search, setSearch] = useState("");
@@ -198,55 +254,74 @@ function SectionEditor({ index, section, bank, languages, guaranteed, fixedAtRis
     onChange({ question_ids: on ? Array.from(new Set([...section.question_ids, id])) : section.question_ids.filter((x) => x !== id) });
 
   return (
-    <div className="rounded-lg border border-border p-4 grid gap-3" aria-label={`Section ${n}`} role="group">
-      <div className="flex items-end gap-3">
-        <div className="flex-1">
-          <Label htmlFor={`s${n}-title`}>Section {n} title ({section.type === "coding" ? "coding" : "MCQ"})</Label>
-          <Input id={`s${n}-title`} value={section.title} onChange={(e) => onChange({ title: e.target.value })} />
+    <div className="border border-[var(--hr-rule)] bg-[var(--hr-surface)] p-4 grid gap-4" aria-label={`Section ${n}`} role="group">
+      <div className="flex flex-wrap items-center justify-between gap-2 hr-rule-b pb-3">
+        <div className="flex items-center gap-2">
+          <span className="hr-label">Section {n}</span>
+          <Chip tone="orange">{section.type === "coding" ? "Coding" : "MCQ"}</Chip>
         </div>
         {onRemove && <Button type="button" variant="ghost" size="sm" onClick={onRemove}>Remove section</Button>}
       </div>
+      <div>
+        <Label htmlFor={`s${n}-title`}>Section {n} title ({section.type === "coding" ? "coding" : "MCQ"})</Label>
+        <Input id={`s${n}-title`} value={section.title} onChange={(e) => onChange({ title: e.target.value })} />
+      </div>
       <div className="grid gap-2">
-        <p className="text-sm font-medium">Pool rules</p>
-        {section.pick.map((r, ri) => {
-          const available = poolMatches(bank, section.type, r, languages);
-          const sure = guaranteed[ri] ?? available;
-          return (
-            <div key={ri} className="flex flex-wrap items-center gap-2 text-sm">
-              <Input aria-label={`Section ${n} rule ${ri + 1} count`} type="number" min={1} max={50} className="w-20" value={r.count}
-                     onChange={(e) => onRule(ri, { count: Number(e.target.value) })} />
-              <Select value={r.difficulty || "any"} onValueChange={(v) => onRule(ri, { difficulty: v === "any" ? "" : (v as PoolRule["difficulty"]) })}>
-                <SelectTrigger aria-label={`Section ${n} rule ${ri + 1} difficulty`} className="w-36"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any difficulty</SelectItem>
-                  {["easy", "medium", "hard"].map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Input aria-label={`Section ${n} rule ${ri + 1} topics`} placeholder="topics, comma separated (blank = any)" className="flex-1 min-w-48"
-                     value={r.topics} onChange={(e) => onRule(ri, { topics: e.target.value })} />
-              <span className={sure < r.count ? "text-destructive text-xs" : "text-muted-foreground text-xs"}>
-                {describeRule(r)} · {available} verified in bank{available < r.count ? " (not enough)"
-                  : sure < r.count ? ` (only ${sure} certain: earlier rules or chosen questions can use the rest)` : ""}
-              </span>
-              <Button type="button" variant="ghost" size="sm" onClick={() => onChange({ pick: section.pick.filter((_, j) => j !== ri) })}>Remove</Button>
-            </div>
-          );
-        })}
+        <p className="hr-label">Pool rules</p>
+        <div className="grid gap-0">
+          {section.pick.map((r, ri) => {
+            const available = poolMatches(bank, section.type, r, languages);
+            const sure = guaranteed[ri] ?? available;
+            const short = sure < r.count;
+            return (
+              <div key={ri} className={cn("grid grid-cols-[84px_140px_minmax(0,1fr)_auto] items-center gap-2 py-2.5", ri > 0 && "hr-rule-t")}>
+                <Input aria-label={`Section ${n} rule ${ri + 1} count`} type="number" min={1} max={50} value={r.count}
+                       onChange={(e) => onRule(ri, { count: Number(e.target.value) })} />
+                <Select value={r.difficulty || "any"} onValueChange={(v) => onRule(ri, { difficulty: v === "any" ? "" : (v as PoolRule["difficulty"]) })}>
+                  <SelectTrigger aria-label={`Section ${n} rule ${ri + 1} difficulty`}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any difficulty</SelectItem>
+                    {["easy", "medium", "hard"].map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Input aria-label={`Section ${n} rule ${ri + 1} topics`} placeholder="topics, comma separated (blank = any)"
+                       value={r.topics} onChange={(e) => onRule(ri, { topics: e.target.value })} />
+                <Button type="button" variant="ghost" size="sm" onClick={() => onChange({ pick: section.pick.filter((_, j) => j !== ri) })}>Remove</Button>
+                <p className={cn("col-span-4 text-xs -mt-1", short ? "text-[var(--hr-red-ink)]" : "text-[var(--hr-muted)]")}>
+                  {describeRule(r)} · {available} verified in bank{available < r.count ? " (not enough)"
+                    : sure < r.count ? ` (only ${sure} certain: earlier rules or chosen questions can use the rest)` : ""}
+                </p>
+              </div>
+            );
+          })}
+        </div>
         <Button type="button" variant="outline" size="sm" className="justify-self-start"
                 onClick={() => onChange({ pick: [...section.pick, { difficulty: "", topics: "", count: 1 }] })}>Add rule</Button>
       </div>
       <div className="grid gap-2">
-        <p className="text-sm font-medium">Always include these questions ({section.question_ids.length} chosen)</p>
+        <p className="hr-label">Always include these questions ({section.question_ids.length} chosen)</p>
+        {unavailable.length > 0 && (
+          <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-[var(--hr-red-ink)]">
+            <span>
+              {unavailable.length === 1 ? "1 chosen question is" : `${unavailable.length} chosen questions are`} no longer
+              verified (retired, sent back to draft or deleted), so candidates wouldn't get {unavailable.length === 1 ? "it" : "them"}.
+            </span>
+            <Button type="button" size="sm" variant="outline"
+                    onClick={() => onChange({ question_ids: section.question_ids.filter((id) => !unavailable.includes(id)) })}>
+              Remove {unavailable.length === 1 ? "it" : "them"}
+            </Button>
+          </div>
+        )}
         <Input aria-label={`Section ${n} search questions`} placeholder="Search verified questions" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <div className="max-h-48 overflow-y-auto rounded-md border border-border p-2 grid gap-1">
-          {pickable.length === 0 ? <p className="text-xs text-muted-foreground">No verified {section.type === "coding" ? "coding" : "MCQ"} questions match.</p>
+        <div className="max-h-48 overflow-y-auto border border-[var(--hr-rule)] p-2 grid gap-1">
+          {pickable.length === 0 ? <p className="text-xs text-[var(--hr-muted)]">No verified {section.type === "coding" ? "coding" : "MCQ"} questions match.</p>
             : pickable.map((q) => (
               <label key={q.id} className="flex items-center gap-2 text-sm">
                 <Checkbox aria-label={`Include ${q.title}`} checked={section.question_ids.includes(q.id)} onCheckedChange={(c) => toggle(q.id, c === true)} />
                 <span>{q.title}</span>
                 {section.question_ids.includes(q.id) && fixedAtRisk.includes(q.id)
-                  && <span className="text-xs text-destructive">an earlier rule may draw this first</span>}
-                <span className="text-xs text-muted-foreground capitalize">{q.difficulty} · {q.topics.join(", ")}</span>
+                  && <span className="text-xs text-[var(--hr-red-ink)]">an earlier rule may draw this first</span>}
+                <span className="text-xs text-[var(--hr-muted)] capitalize">{q.difficulty} · {q.topics.join(", ")}</span>
               </label>
             ))}
         </div>

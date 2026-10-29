@@ -32,3 +32,6 @@ dist-ssr
 
 # Local edge-function secrets (Gemini key, salts) — never commit
 supabase/functions/.env
+
+# bunshin redesign run (local only)
+.bunshin/

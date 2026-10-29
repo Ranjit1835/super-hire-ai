@@ -232,7 +232,9 @@ export interface DrawCheck {
   guaranteed: number[][];
   /** Chosen question ids an earlier pool rule may take first (the server then skips them). */
   fixedAtRisk: string[];
-  /** Any rule can come up short, or a chosen question can be lost. */
+  /** Chosen question ids that can't be served: retired, back to draft, deleted, or the wrong type for the section. */
+  unavailable: string[];
+  /** Any rule can come up short, or a chosen question can be lost or is unavailable. */
   short: boolean;
 }
 
@@ -247,10 +249,13 @@ export function checkDraw(bank: PoolQuestion[], sections: Pick<SectionForm, "typ
   const earlier: { pool: Set<string>; count: number }[] = [];
   const guaranteed: number[][] = [];
   const fixedAtRisk: string[] = [];
+  const unavailable: string[] = [];
   for (const s of sections) {
     for (const id of s.question_ids) {
       const q = byId.get(id);
-      if (!q || q.status !== "verified" || q.type !== s.type || taken.has(id)) continue;
+      // The server skips these when it draws, so every candidate would get one question fewer.
+      if (!q || q.status !== "verified" || q.type !== s.type) { unavailable.push(id); continue; }
+      if (taken.has(id)) continue;
       if (earlier.some((r) => r.pool.has(id))) fixedAtRisk.push(id);
       taken.add(id);
     }
@@ -266,6 +271,6 @@ export function checkDraw(bank: PoolQuestion[], sections: Pick<SectionForm, "typ
       return Math.max(0, pool.size - lost);
     }));
   }
-  const short = fixedAtRisk.length > 0 || guaranteed.some((g, si) => g.some((n, ri) => n < sections[si].pick[ri].count));
-  return { guaranteed, fixedAtRisk, short };
+  const short = fixedAtRisk.length > 0 || unavailable.length > 0 || guaranteed.some((g, si) => g.some((n, ri) => n < sections[si].pick[ri].count));
+  return { guaranteed, fixedAtRisk, unavailable, short };
 }

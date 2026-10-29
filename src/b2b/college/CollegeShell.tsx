@@ -1,7 +1,7 @@
 import type { ReactNode, SelectHTMLAttributes } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { V1Shell, Loading, Empty } from "../layout/V1Shell";
+import { V1Shell, Loading, Empty, CreditsTag } from "../layout/V1Shell";
 import { useCollegeAccess, useMyColleges, useOrg } from "./queries";
 
 export const collegeTabs = (orgId: string) => [
@@ -30,7 +30,8 @@ export function CollegeShell({ children, actions }: { children: (ctx: CollegeCtx
   }
   const name = org.data?.name ?? "College";
   return (
-    <V1Shell title={name} subtitle={access.data.isAdmin ? "TPO admin" : "Trainer"} tabs={collegeTabs(orgId)} actions={actions}>
+    <V1Shell title={name} subtitle={access.data.isAdmin ? "TPO admin" : "Trainer"} tabs={collegeTabs(orgId)} actions={actions}
+             aside={<CreditsTag value={org.data?.credits_balance} />}>
       {children({ orgId, isAdmin: access.data.isAdmin, orgName: name })}
     </V1Shell>
   );
@@ -57,21 +58,27 @@ export function CollegeRedirect() {
   );
 }
 
-/** Native select styled like the shadcn inputs (keyboard- and test-friendly). */
+/** Native select, broadcast-world: square corners, ground surface, keyboard- and test-friendly. */
 export function NativeSelect({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className={cn("h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring", className)}
+      className={cn(
+        "h-10 w-full border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
       {...props}
     />
   );
 }
 
+/** A filter toggle: square frame, orange when on. No rounded pill (hard edges only). */
 export function CheckChip({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm cursor-pointer",
-      checked ? "border-primary bg-primary/10" : "border-border")}>
-      <input type="checkbox" className="accent-current" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label className={cn(
+      "inline-flex items-center gap-1.5 min-h-9 border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-[var(--hr-orange)]",
+      checked ? "border-[var(--hr-orange)] text-[var(--hr-orange)] bg-[var(--hr-orange)]/10" : "border-[var(--hr-rule)] text-[var(--hr-muted)] hover:text-foreground")}>
+      <input type="checkbox" className="sr-only peer" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span aria-hidden className={cn("h-3 w-3 shrink-0 border", checked ? "border-[var(--hr-orange)] bg-[var(--hr-orange)]" : "border-[var(--hr-rule)]")} />
       {label}
     </label>
   );

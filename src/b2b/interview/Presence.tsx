@@ -1,13 +1,12 @@
-// A light, audio-reactive presence (no 3D): a circle that pulses while the interviewer speaks (browser TTS exposes
-// no amplitude, so a CSS pulse) and follows the microphone level while the candidate answers. Respects
-// prefers-reduced-motion. Cheap enough for a 4 GB laptop.
+// A still broadcast presence tag (no 3D, no perpetual motion): one hard-edged panel that reports the interviewer's
+// real state in words and a level bar driven by the actual microphone input while answering. State changes snap in
+// at most 160ms; nothing loops on its own, so it never fights for attention during a running interview.
 import { useEffect, useState } from "react";
 import { startMicLevel } from "@/lib/speech";
-import { cn } from "@/lib/utils";
 
 export type PresenceMode = "idle" | "speaking" | "listening" | "thinking";
 
-/** Microphone level 0–1 while `on`; 0 otherwise or when the mic can't be read (purely cosmetic). */
+/** Microphone level 0-1 while `on`; 0 otherwise or when the mic can't be read (purely cosmetic). */
 export function useMicLevel(on: boolean): number {
   const [level, setLevel] = useState(0);
   useEffect(() => {
@@ -22,18 +21,25 @@ export function useMicLevel(on: boolean): number {
   return level;
 }
 
+const LABEL: Record<PresenceMode, string> = {
+  idle: "Interviewer waiting", speaking: "Interviewer speaking", listening: "Listening to you", thinking: "Interviewer thinking",
+};
+const WORD: Record<PresenceMode, string> = { idle: "Waiting", speaking: "Speaking", listening: "Listening", thinking: "Thinking" };
+
 export function Presence({ mode, level = 0 }: { mode: PresenceMode; level?: number }) {
-  const scale = mode === "listening" ? 1 + Math.min(1, level) * 0.35 : 1;
-  const label = { idle: "Interviewer waiting", speaking: "Interviewer speaking", listening: "Listening to you", thinking: "Interviewer thinking" }[mode];
+  const pct = Math.round(Math.max(0, Math.min(1, level)) * 100);
   return (
-    <div className="flex flex-col items-center gap-2" role="img" aria-label={label} data-testid="presence" data-mode={mode}>
-      <div className="relative h-28 w-28">
-        <div className={cn("absolute inset-0 rounded-full bg-primary/15 motion-safe:transition-transform motion-safe:duration-100",
-          mode === "speaking" && "motion-safe:animate-pulse")} style={{ transform: `scale(${scale})` }} />
-        <div className={cn("absolute inset-4 rounded-full bg-primary/80",
-          mode === "thinking" && "motion-safe:animate-pulse opacity-70")} />
+    <div className="flex flex-col items-center gap-2.5" role="img" aria-label={LABEL[mode]} data-testid="presence" data-mode={mode}>
+      <div className="relative h-24 w-24 bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] flex items-end justify-center overflow-hidden">
+        <span
+          className="block w-full bg-[var(--hr-blue)] transition-[height,opacity] duration-150 ease-out"
+          style={{
+            height: mode === "speaking" ? "100%" : mode === "thinking" ? "45%" : mode === "listening" ? `${Math.max(6, pct)}%` : "4%",
+            opacity: mode === "idle" ? 0.35 : 1,
+          }}
+        />
       </div>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="hr-label text-[var(--hr-blue-ink)]">{WORD[mode]}</p>
     </div>
   );
 }

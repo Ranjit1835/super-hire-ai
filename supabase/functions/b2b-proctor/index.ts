@@ -37,11 +37,20 @@ async function call(fn: string, args: Record<string, unknown>): Promise<R> {
   return r;
 }
 
+// Every event of the session, in order. A single select stops at PostgREST's max_rows (1000) without an error, so a
+// long proctored session used to be scored on an arbitrary first 1000 events. Read in chunks until a short one.
+const EVENT_CHUNK = 1000;
 async function sessionEvents(sessionId: string): Promise<ScoreEvent[]> {
-  const { data, error } = await db().from("proctoring_events")
-    .select("type, severity, confidence, started_at, ended_at").eq("session_id", sessionId).limit(10000);
-  if (error) throw error;
-  return (data ?? []).map((e) => ({ ...e, confidence: Number(e.confidence) })) as ScoreEvent[];
+  const out: ScoreEvent[] = [];
+  for (let from = 0; ; from += EVENT_CHUNK) {
+    const { data, error } = await db().from("proctoring_events")
+      .select("type, severity, confidence, started_at, ended_at").eq("session_id", sessionId)
+      .order("started_at").order("id").range(from, from + EVENT_CHUNK - 1);
+    if (error) throw error;
+    const chunk = data ?? [];
+    for (const e of chunk) out.push({ ...e, confidence: Number(e.confidence) } as ScoreEvent);
+    if (chunk.length < EVENT_CHUNK) return out;
+  }
 }
 
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));

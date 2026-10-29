@@ -8,9 +8,10 @@ import { runnerRoutes } from "./runner/routes";
 import { proctorRoutes } from "./proctor/routes";
 import { interviewRoutes } from "./interview/routes";
 import { studentRoutes } from "./student/routes";
+import { galleryRoutes } from "./gallery/routes";
 
 export const v1Routes: RouteObject[] = [
-  ...collegeRoutes, ...companyRoutes, ...runnerRoutes, ...proctorRoutes, ...interviewRoutes, ...studentRoutes,
+  ...collegeRoutes, ...companyRoutes, ...runnerRoutes, ...proctorRoutes, ...interviewRoutes, ...studentRoutes, ...galleryRoutes,
 ];
 
 /** Turn route objects into <Route> elements for the app's <Routes>. */

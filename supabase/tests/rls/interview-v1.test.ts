@@ -149,12 +149,13 @@ describe("create, resume, load", () => {
     expect(again.interview_id).not.toBe(live.id);
   });
 
-  it("live spike check: own live interview, or staff without one", async () => {
+  it("live spike check: own live interview, or a super admin without one (migration 0015)", async () => {
     const live = await f.one<J>("SELECT id FROM b2b_interviews WHERE user_id = $1 AND status = 'in_progress'", [f.u.candC]);
     const ok = (actor: string, iv: unknown) => f.svc<boolean>("b2b_iv_live_allowed", { _actor: actor, _interview_id: iv });
     expect(await ok(f.u.candC, live.id)).toBe(true);
     expect(await ok(f.u.candC2, live.id)).toBe(false);
-    expect(await ok(f.u.recC, null)).toBe(true);
+    expect(await ok(f.u.recC, null)).toBe(false);    // org staff can't mint platform-key Live tokens
+    expect(await ok(f.u.tpoA, null)).toBe(false);
     expect(await ok(f.u.super, null)).toBe(true);
     expect(await ok(f.u.stuA, null)).toBe(false);
     expect(await ok(f.u.outsider, null)).toBe(false);

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
-import { V1Shell, Loading, Empty } from "../layout/V1Shell";
+import { V1Shell, Loading, Empty, CreditsTag } from "../layout/V1Shell";
 import { useCompanyAccess, useCompanyOrg, useMyCompanies, type CompanyRole } from "./queries";
 
 export const companyTabs = (orgId: string, editor: boolean) => [
@@ -30,7 +30,7 @@ export function CompanyShell({ children, actions }: { children: (ctx: CompanyCtx
   const a = access.data;
   return (
     <V1Shell title={name} subtitle={a.isSuper && !a.role ? "Super admin" : a.role ? ROLE_TEXT[a.role] : undefined}
-             tabs={companyTabs(orgId, a.isEditor)} actions={actions}>
+             tabs={companyTabs(orgId, a.isEditor)} actions={actions} aside={<CreditsTag value={org.data?.credits_balance} />}>
       {children({ orgId, orgName: name, isAdmin: a.isAdmin, isEditor: a.isEditor, role: a.role })}
     </V1Shell>
   );
@@ -45,10 +45,14 @@ export function CompanyRedirect() {
   return (
     <V1Shell title="Company portal">
       {list.length === 0 ? (
-        <Empty title="No company yet" body="This account isn't on a company team." />
+        <Empty stage title="No company yet" body="This account isn't on a company team." />
       ) : (
-        <ul className="space-y-2">
-          {list.map((o) => <li key={o.id}><a className="underline" href={`/co/${o.id}/roles`}>{o.name}</a></li>)}
+        <ul className="divide-y divide-[var(--hr-rule)]">
+          {list.map((o) => (
+            <li key={o.id}>
+              <a className="hr-display text-[15px] block py-3 hover:text-[var(--hr-orange)]" href={`/co/${o.id}/roles`}>{o.name}</a>
+            </li>
+          ))}
         </ul>
       )}
     </V1Shell>

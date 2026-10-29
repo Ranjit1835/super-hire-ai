@@ -100,15 +100,24 @@ export function useStudentFacets(orgId: string) {
   return useQuery({
     queryKey: ["b2b-college", "facets", orgId],
     staleTime: 60_000,
+    // Distinct values computed in the database (b2b_student_facets): reading rows would stop at 1000 students.
+    queryFn: () => rows<{ departments: string[]; batchYears: number[]; sections: string[] }>(
+      b2bDb.rpc("b2b_student_facets", { _org_id: orgId })),
+  });
+}
+
+export function useStudentStatusCounts(orgId: string) {
+  return useQuery({
+    queryKey: ["b2b-college", "student-status-counts", orgId],
     queryFn: async () => {
-      const data = await rows<{ department: string | null; batch_year: number | null; section: string | null }[]>(
-        b2bDb.from("students").select("department, batch_year, section").eq("org_id", orgId).limit(10000));
-      const uniq = <T,>(xs: (T | null)[]) => [...new Set(xs.filter((x): x is T => x !== null && x !== ""))];
-      return {
-        departments: uniq(data.map((d) => d.department)).sort(),
-        batchYears: uniq(data.map((d) => d.batch_year)).sort((a, b) => a - b),
-        sections: uniq(data.map((d) => d.section)).sort(),
-      };
+      // One head-only count per status: fetching rows would stop at PostgREST's max_rows (1000) and undercount.
+      const statuses = Object.keys(STATUS_TEXT) as StudentStatus[];
+      const totals = await Promise.all(statuses.map(async (s) => {
+        const { count, error } = await b2bDb.from("students").select("*", { count: "exact", head: true }).eq("org_id", orgId).eq("status", s);
+        if (error) throw new Error(error.message);
+        return count ?? 0;
+      }));
+      return Object.fromEntries(statuses.map((s, i) => [s, totals[i]])) as Record<StudentStatus, number>;
     },
   });
 }
@@ -183,7 +192,7 @@ export function friendly(e: unknown): string {
 }
 
 export const fmtDateTime = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+  iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "–";
 export const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "–";
 export const numOrNull = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? null : Number(v));

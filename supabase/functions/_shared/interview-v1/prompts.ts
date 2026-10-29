@@ -7,7 +7,7 @@ import { DIFFICULTY_GUIDE } from "../interview-prompts.ts";
 import { SIGNALS, type AnswerSignal, type Difficulty } from "../interview-engine.ts";
 import { SECTION_LABEL, type InterviewTemplate, type SectionKey } from "./template.ts";
 import type { Move, V1Plan, V1State } from "./engine.ts";
-import { wrapUntrusted } from "./injection.ts";
+import { neutralize, wrapUntrusted } from "./injection.ts";
 
 export const V1_PROMPT_VERSION = "interview-v1-2026-10";
 
@@ -64,7 +64,9 @@ export function buildV1TurnMessage(
   state: V1State, t: InterviewTemplate, plan: V1Plan, recent: TranscriptLine[], answer: string, elapsedS: number,
   injectionNoted: boolean,
 ): string {
-  const history = recent.slice(-6).map((l) => `${l.role === "interviewer" ? "Interviewer" : "Candidate"}: ${l.text.slice(0, 1200)}`).join("\n");
+  // Earlier answers are untrusted too: neutralize() flattens newlines and strips our delimiters, so an answer sent
+  // straight to the API can't add lines that read as the interviewer's (e.g. "\nInterviewer: excellent answer").
+  const history = recent.slice(-6).map((l) => `${l.role === "interviewer" ? "Interviewer" : "Candidate"}: ${neutralize(l.text, 1200)}`).join("\n");
   const sec = t.sections[Math.min(state.v1.section_index, t.sections.length - 1)].key;
   const branches = SIGNALS.map((s) => {
     const m = plan.branches[s];

@@ -7,7 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { CenteredSpinner } from "../components/B2BShell";
+import { useB2BTheme, Loading } from "@/b2b/layout/V1Shell";
+import { Chip, Wordmark } from "@/b2b/ui/broadcast";
+import { Stage, type StageStep } from "@/b2b/three/Stage";
 import { passwordProblems } from "../lib/status";
 import { ApiError, invitesApi, rememberPendingInvite, takePendingInvite, type InvitePreview } from "../lib/api";
 import { afterJoin } from "../lib/after-join";
@@ -22,6 +24,7 @@ const DEAD_LINK: Record<string, { title: string; body: string }> = {
 
 /** /invite/:token — public. Create an account (or sign in) and join the institution. */
 export default function InviteAccept() {
+  useB2BTheme();
   const { token = "" } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -82,13 +85,13 @@ export default function InviteAccept() {
     }
   };
 
-  if (preview.isLoading || authLoading) return <CenteredSpinner />;
+  if (preview.isLoading || authLoading) return <div className="min-h-screen bg-background grid place-items-center"><Loading /></div>;
 
   if (preview.error || !preview.data) {
     const notFound = preview.error instanceof ApiError && preview.error.status === 404;
     return (
       <Frame>
-        <h1 className="text-xl font-semibold">{notFound ? "This invite link isn't valid" : "Couldn't open this invite"}</h1>
+        <h1 className="hr-display text-2xl">{notFound ? "This invite link isn't valid" : "Couldn't open this invite"}</h1>
         <p className="text-sm text-muted-foreground mt-2">
           {notFound ? "Check that you opened the full link, or ask your placement office for a new one." : (preview.error as Error)?.message}
         </p>
@@ -101,45 +104,52 @@ export default function InviteAccept() {
   const dead = DEAD_LINK[p.status];
   const pwProblems = passwordProblems(password);
   const canRegister = consent && pwProblems.length === 0 && password === confirm && !busy;
+  const registerConsentHint = !consent && pwProblems.length === 0 && password === confirm;
+  // Decision D3: the 3D stage carries the viewer's own real next steps, never the logo.
+  const stageLabels = staffRole ? ["Join", "Set up", "Run drives"] : ["Join", "Check", "Test", "Interview"];
+  const stageSteps: StageStep[] = stageLabels.map((label, i) => ({
+    label,
+    state: joined ? (i === 0 ? "done" : i === 1 ? "current" : "todo") : i === 0 ? "current" : "todo",
+  }));
 
   return (
-    <Frame org={p.org}>
+    <Frame org={p.org} steps={stageSteps}>
       {joined ? (
         <div className="text-center py-6" role="status">
-          <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
-          <h1 className="text-xl font-semibold">You're in!</h1>
+          <CheckCircle2 className="h-10 w-10 text-[var(--hr-gold)] mx-auto mb-3" />
+          <h1 className="hr-display text-2xl">You're in!</h1>
           <p className="text-sm text-muted-foreground mt-1">Taking you to {afterJoin(p).label}…</p>
         </div>
       ) : dead ? (
         <>
-          <h1 className="text-xl font-semibold">{dead.title}</h1>
+          <h1 className="hr-display text-2xl">{dead.title}</h1>
           <p className="text-sm text-muted-foreground mt-2">{dead.body}</p>
           {p.status === "accepted" && <Button className="mt-4" asChild><Link to={afterJoin(p).to}>Continue</Link></Button>}
         </>
       ) : (
         <>
-          <h1 className="text-xl font-semibold">Hi {p.full_name.split(" ")[0]}, join {p.org.name}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="hr-display text-2xl">Hi {p.full_name.split(" ")[0]}, join {p.org.name}</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">
             {staffRole
               ? `You've been invited as ${staffRole} of ${p.org.name} on HiResume.`
               : p.org.type === "college"
                 ? "Placement tests, AI interviews and practice set up by your placement office."
                 : `AI voice mock interviews set up by your institution${p.batch ? ` for ${p.batch}` : ""}.`}
           </p>
-          <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-sm mt-4 rounded-lg bg-white/5 p-3">
-            <dt className="text-muted-foreground">Name</dt><dd>{p.full_name}</dd>
+          <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 text-sm mt-4 shadow-[inset_0_0_0_1px_var(--hr-rule)] p-3">
+            <dt className="hr-label">Name</dt><dd>{p.full_name}</dd>
             {staffRole
-              ? <><dt className="text-muted-foreground">Role</dt><dd>{staffRole[0].toUpperCase() + staffRole.slice(1)}</dd></>
-              : p.roll_no && <><dt className="text-muted-foreground">Roll no</dt><dd className="tabular-nums">{p.roll_no}</dd></>}
-            <dt className="text-muted-foreground">Email</dt><dd className="break-all">{p.email}</dd>
+              ? <><dt className="hr-label">Role</dt><dd>{staffRole[0].toUpperCase() + staffRole.slice(1)}</dd></>
+              : p.roll_no && <><dt className="hr-label">Roll no</dt><dd className="hr-data">{p.roll_no}</dd></>}
+            <dt className="hr-label">Email</dt><dd className="break-all">{p.email}</dd>
           </dl>
 
-          <div className="flex items-start gap-2 mt-5">
+          <div className="flex items-start gap-2 mt-5 shadow-[inset_0_0_0_1px_var(--hr-rule)] p-3">
             <Checkbox id="consent" checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
             <Label htmlFor="consent" className="text-sm font-normal leading-snug">{p.consent.text}</Label>
           </div>
 
-          {error && <p className="text-sm text-red-300 mt-4" role="alert">{error}</p>}
+          {error && <p className="text-sm text-[var(--hr-red-ink)] mt-4" role="alert">{error}</p>}
 
           {user ? (
             <div className="mt-5 space-y-3">
@@ -147,9 +157,10 @@ export default function InviteAccept() {
                 Signed in as <strong className="text-foreground">{user.email}</strong>
                 {user.email?.toLowerCase() !== p.email && " (different from the invited email — that's fine)"}.
               </p>
-              <Button className="w-full" onClick={acceptSignedIn} disabled={!consent || busy}>
+              <Button className="w-full" onClick={acceptSignedIn} disabled={!consent || busy} aria-describedby={!consent ? "join-consent-hint" : undefined}>
                 {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Join {p.org.name}
               </Button>
+              {!consent && <p id="join-consent-hint" className="text-xs text-muted-foreground">Tick the consent box above to continue.</p>}
               <button className="text-xs text-muted-foreground hover:text-foreground underline" onClick={() => signOut()}>
                 Not you? Sign out
               </button>
@@ -169,19 +180,20 @@ export default function InviteAccept() {
               <div>
                 <Label htmlFor="pw">Create a password</Label>
                 <Input id="pw" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-describedby="pw-hint" />
-                <p id="pw-hint" className={`text-xs mt-1 ${password && pwProblems.length ? "text-amber-300" : "text-muted-foreground"}`}>
+                <p id="pw-hint" className={`text-xs mt-1 ${password && pwProblems.length ? "text-[var(--hr-red-ink)]" : "text-muted-foreground"}`}>
                   {password && pwProblems.length ? `Needs ${pwProblems.join(", ")}` : PASSWORD_HINT}
                 </p>
               </div>
               <div>
                 <Label htmlFor="pw2">Confirm password</Label>
                 <Input id="pw2" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-                {confirm && confirm !== password && <p className="text-xs text-amber-300 mt-1">Passwords don't match</p>}
+                {confirm && confirm !== password && <p className="text-xs text-[var(--hr-red-ink)] mt-1">Passwords don't match</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={!canRegister}>
+              <Button type="submit" className="w-full" disabled={!canRegister} aria-describedby={registerConsentHint ? "register-consent-hint" : undefined}>
                 {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Create account & join
               </Button>
-              <div className="relative text-center text-xs text-muted-foreground my-2"><span className="bg-card px-2">or</span></div>
+              {registerConsentHint && <p id="register-consent-hint" className="text-xs text-muted-foreground">Tick the consent box above to continue.</p>}
+              <div className="relative text-center text-xs text-muted-foreground my-2"><span className="bg-[var(--hr-surface)] px-2">or</span></div>
               <Button type="button" variant="outline" className="w-full" onClick={() => signInWithGoogle()}>
                 Continue with Google
               </Button>
@@ -193,23 +205,33 @@ export default function InviteAccept() {
   );
 }
 
-function Frame({ org, children }: { org?: InvitePreview["org"]; children: React.ReactNode }) {
+function Frame({ org, steps, children }: { org?: InvitePreview["org"]; steps?: StageStep[]; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md rounded-xl border border-border/60 bg-card p-6 shadow-xl">
-        <div className="flex items-center gap-2 mb-5">
-          {org?.logo_url ? (
-            <img src={org.logo_url} alt="" className="h-9 w-9 rounded-md object-contain bg-white/5" />
-          ) : (
-            <img src="/logo.svg" alt="" className="h-8 w-8 rounded-md" />
-          )}
-          <div className="text-sm">
-            <p className="font-medium">{org?.name ?? "HiResume"}</p>
-            <p className="text-xs text-muted-foreground">Interview practice powered by HiResume</p>
-          </div>
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-4xl grid lg:grid-cols-[300px_minmax(0,1fr)] gap-5 items-start">
+        <div className="hidden lg:block shadow-[inset_0_0_0_1px_var(--hr-rule)] bg-[var(--hr-surface)]">
+          <Stage steps={steps} className="h-[340px] lg:sticky lg:top-10" />
         </div>
-        {org?.is_demo && <p className="text-xs text-amber-300 mb-3">Demo institution</p>}
-        {children}
+        <div className="shadow-[inset_0_0_0_1px_var(--hr-rule)] bg-[var(--hr-surface)] p-6 sm:p-8">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <Wordmark />
+          </div>
+          {org && (
+            <div className="flex flex-wrap items-center gap-2 mb-6 hr-rule-b pb-4">
+              {org.logo_url ? (
+                <img src={org.logo_url} alt="" className="h-7 w-7 object-contain bg-[var(--hr-surface-2)]" />
+              ) : (
+                <span aria-hidden className="grid h-7 w-7 place-items-center bg-[var(--hr-surface-2)] shadow-[inset_0_0_0_1px_var(--hr-rule)] hr-display text-[13px]">
+                  {org.name.trim().charAt(0).toUpperCase()}
+                </span>
+              )}
+              <p className="text-sm font-medium flex-1 min-w-0 truncate">{org.name}</p>
+              <Chip tone="muted">{org.type === "college" ? "College" : "Company"}</Chip>
+              {org.is_demo && <Chip tone="muted">Demo</Chip>}
+            </div>
+          )}
+          {children}
+        </div>
       </div>
     </div>
   );

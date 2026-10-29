@@ -64,18 +64,12 @@ export function useRoles(orgId: string) {
   return useQuery({
     queryKey: ["b2b-company", "roles", orgId],
     queryFn: async () => {
-      const [roles, rcs] = await Promise.all([
+      // Counts are grouped in the database (b2b_role_counts): reading candidate rows would stop at 1000.
+      const [roles, counts] = await Promise.all([
         rows<JobRoleRecord[]>(b2bDb.from("job_roles").select("*").eq("org_id", orgId).order("created_at", { ascending: false })),
-        rows<{ job_role_id: string; stage: string }[]>(b2bDb.from("role_candidates").select("job_role_id, stage").eq("org_id", orgId).limit(10000)),
+        rows<Record<string, { total: number; completed: number }>>(b2bDb.rpc("b2b_role_counts", { _org_id: orgId })),
       ]);
-      const counts = new Map<string, { total: number; completed: number }>();
-      for (const r of rcs) {
-        const c = counts.get(r.job_role_id) ?? { total: 0, completed: 0 };
-        c.total++;
-        if (!["invited", "in_progress", "withdrawn"].includes(r.stage)) c.completed++;
-        counts.set(r.job_role_id, c);
-      }
-      return roles.map((r) => ({ ...r, counts: counts.get(r.id) ?? { total: 0, completed: 0 } }));
+      return roles.map((r) => ({ ...r, counts: counts[r.id] ?? { total: 0, completed: 0 } }));
     },
   });
 }

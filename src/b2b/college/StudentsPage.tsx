@@ -3,27 +3,31 @@ import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { b2bDb } from "@/features/b2b/lib/db";
 import { Loading, Empty } from "../layout/V1Shell";
+import { Chip, type Tone } from "../ui/broadcast";
 import { collegeApi, ApiError } from "../lib/api";
 import { CollegeShell, NativeSelect } from "./CollegeShell";
 import { InviteLinks, type InviteLinkRow } from "./InviteLinks";
 import { parseDob } from "./lib/import";
-import { STATUS_TEXT, STUDENT_PAGE, friendly, numOrNull, useStudentFacets, useStudents, type StudentQuery, type StudentRecord, type StudentStatus } from "./queries";
+import { STATUS_TEXT, STUDENT_PAGE, friendly, numOrNull, useStudentFacets, useStudentStatusCounts, useStudents, type StudentQuery, type StudentRecord, type StudentStatus } from "./queries";
 
 export default function StudentsPage() {
   return <CollegeShell>{({ orgId, isAdmin }) => <Students orgId={orgId} isAdmin={isAdmin} />}</CollegeShell>;
 }
 
-const STATUS_VARIANT: Record<StudentStatus, "outline" | "secondary" | "destructive" | "default"> = {
-  imported: "outline", invited: "secondary", active: "default", deactivated: "destructive", held_minor: "secondary",
+const STATUS_TONE: Record<StudentStatus, Tone> = {
+  imported: "muted", invited: "blue", active: "gold", deactivated: "muted", held_minor: "red",
 };
+
+const STATUS_TABS: StudentStatus[] = ["active", "invited", "imported", "held_minor", "deactivated"];
+const STATUS_TAB_LABEL: Partial<Record<StudentStatus, string>> = { held_minor: "Held" };
 
 function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
   const qc = useQueryClient();
@@ -31,10 +35,12 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
   const [q, setQ] = useState<StudentQuery>({ search: "", department: "", batchYear: "", status: "", page: 1 });
   const students = useStudents(orgId, q);
   const facets = useStudentFacets(orgId);
+  const counts = useStudentStatusCounts(orgId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<StudentRecord | "new" | null>(null);
   const [links, setLinks] = useState<{ links: InviteLinkRow[]; emailed: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const set = (patch: Partial<StudentQuery>) => { setQ((cur) => ({ ...cur, page: 1, ...patch })); setSelected(new Set()); };
   const refresh = () => void qc.invalidateQueries({ queryKey: ["b2b-college"] });
@@ -67,33 +73,17 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
     }
   };
 
+  const c = counts.data;
+  const total0 = c ? c.active + c.invited + c.imported + c.held_minor + c.deactivated : undefined;
+  const otherFiltered = !!(q.search || q.department || q.batchYear);
+  const clearOthers = () => set({ search: "", department: "", batchYear: "" });
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="flex-1 min-w-48">
-          <Label htmlFor="student-search">Search</Label>
-          <Input id="student-search" placeholder="Name, roll no or email" value={q.search} onChange={(e) => set({ search: e.target.value })} />
-        </div>
-        <div className="w-40">
-          <Label htmlFor="f-dept">Branch</Label>
-          <NativeSelect id="f-dept" value={q.department} onChange={(e) => set({ department: e.target.value })}>
-            <option value="">All</option>
-            {facets.data?.departments.map((d) => <option key={d} value={d}>{d}</option>)}
-          </NativeSelect>
-        </div>
-        <div className="w-32">
-          <Label htmlFor="f-batch">Batch</Label>
-          <NativeSelect id="f-batch" value={q.batchYear} onChange={(e) => set({ batchYear: e.target.value })}>
-            <option value="">All</option>
-            {facets.data?.batchYears.map((y) => <option key={y} value={y}>{y}</option>)}
-          </NativeSelect>
-        </div>
-        <div className="w-40">
-          <Label htmlFor="f-status">Status</Label>
-          <NativeSelect id="f-status" value={q.status} onChange={(e) => set({ status: e.target.value })}>
-            <option value="">All</option>
-            {(Object.keys(STATUS_TEXT) as StudentStatus[]).map((s) => <option key={s} value={s}>{STATUS_TEXT[s]}</option>)}
-          </NativeSelect>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="hr-display text-[22px]">Roster</h2>
+          <p className="text-sm text-[var(--hr-muted)] mt-1.5">Every student imported for this college, across every batch and branch.</p>
+          <p className="hr-data text-sm text-foreground mt-1.5">{total0 ?? "–"} students</p>
         </div>
         {isAdmin && (
           <div className="flex gap-2">
@@ -103,11 +93,55 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
         )}
       </div>
 
+      {/* Decision D4: status is a tab bar with counts; search, branch and batch sit behind one Filters button. */}
+      <div className="flex flex-wrap items-end gap-x-2 gap-y-2 hr-rule-b">
+        <div role="tablist" aria-label="Status" className="flex items-stretch overflow-x-auto -mb-px">
+          {[{ key: "" as const, label: "All", n: total0 }, ...STATUS_TABS.map((s) => ({ key: s, label: STATUS_TAB_LABEL[s] ?? STATUS_TEXT[s], n: c?.[s] }))].map((t) => {
+            const on = q.status === t.key;
+            return (
+              <button key={t.key || "all"} type="button" role="tab" aria-selected={on}
+                      onClick={() => set({ status: t.key })}
+                      className={cn("px-3 py-2 text-sm whitespace-nowrap", on ? "text-foreground shadow-[inset_0_-2px_0_var(--hr-orange)]" : "text-[var(--hr-muted)] hover:text-foreground")}>
+                {t.label} <span className="hr-data text-xs ml-1">{t.n ?? "–"}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="ml-auto flex items-center gap-2 pb-1.5">
+          {otherFiltered && <Button type="button" size="sm" variant="ghost" onClick={clearOthers}>Clear</Button>}
+          <Button type="button" size="sm" variant="outline" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
+            Filters{otherFiltered ? ` (${[q.search, q.department, q.batchYear].filter(Boolean).length})` : ""}
+          </Button>
+        </div>
+      </div>
+      {showFilters && (
+        <div className="flex flex-wrap items-end gap-2" role="group" aria-label="Filter students">
+          <div className="flex-1 min-w-48">
+            <Label htmlFor="student-search" className="hr-label">Search</Label>
+            <Input id="student-search" placeholder="Name, roll no or email" value={q.search} onChange={(e) => set({ search: e.target.value })} />
+          </div>
+          <div className="w-40">
+            <Label htmlFor="f-dept" className="hr-label">Branch</Label>
+            <NativeSelect id="f-dept" value={q.department} onChange={(e) => set({ department: e.target.value })}>
+              <option value="">All</option>
+              {facets.data?.departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </NativeSelect>
+          </div>
+          <div className="w-32">
+            <Label htmlFor="f-batch" className="hr-label">Batch</Label>
+            <NativeSelect id="f-batch" value={q.batchYear} onChange={(e) => set({ batchYear: e.target.value })}>
+              <option value="">All</option>
+              {facets.data?.batchYears.map((y) => <option key={y} value={y}>{y}</option>)}
+            </NativeSelect>
+          </div>
+        </div>
+      )}
+
       {links && <InviteLinks links={links.links} emailed={links.emailed} />}
 
       {isAdmin && selected.size > 0 && (
-        <div className="flex items-center gap-2 rounded-md border p-2 text-sm">
-          <span>{selected.size} selected</span>
+        <div className="flex items-center gap-3 border border-[var(--hr-rule)] bg-[var(--hr-surface)] px-3 py-2 text-sm">
+          <span className="hr-data">{selected.size} selected</span>
           <Button size="sm" disabled={busy} onClick={() => void invite([...selected])}>Send activation invites</Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
         </div>
@@ -115,7 +149,10 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
 
       {students.isLoading ? <Loading /> : students.error ? <Empty title="Couldn't load students" body={friendly(students.error)} /> :
         !data?.rows.length ? (
-          <Empty title={q.search || q.department || q.batchYear || q.status ? "No students match" : "No students yet"}
+          <Empty stage={!q.search && !q.department && !q.batchYear && !q.status
+                   ? [{ label: "Import", state: "current" }, { label: "Invite", state: "todo" }, { label: "Assign", state: "todo" }]
+                   : undefined}
+                 title={q.search || q.department || q.batchYear || q.status ? "No students match" : "No students yet"}
                  body={isAdmin ? "Import your student list from Excel or CSV." : undefined}>
             {isAdmin && !q.search && <Button asChild><Link to={`/c/${orgId}/students/import`}>Import students</Link></Button>}
           </Empty>
@@ -123,7 +160,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
           <>
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   {isAdmin && (
                     <TableHead className="w-8">
                       <input type="checkbox" aria-label="Select all invitable students on this page"
@@ -131,9 +168,11 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
                         onChange={(e) => setSelected(e.target.checked ? new Set(data.rows.filter(invitable).map((s) => s.id)) : new Set())} />
                     </TableHead>
                   )}
-                  <TableHead>Roll no</TableHead><TableHead>Name</TableHead><TableHead>Branch</TableHead><TableHead>Batch</TableHead>
-                  <TableHead>Sec</TableHead><TableHead className="text-right">CGPA</TableHead><TableHead className="text-right">Backlogs</TableHead>
-                  <TableHead>Status</TableHead>{isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead className="hr-label">Roll no</TableHead><TableHead className="hr-label">Name</TableHead>
+                  <TableHead className="hr-label">Branch</TableHead><TableHead className="hr-label">Batch</TableHead>
+                  <TableHead className="hr-label">Sec</TableHead><TableHead className="hr-label text-right">CGPA</TableHead>
+                  <TableHead className="hr-label text-right">Backlogs</TableHead>
+                  <TableHead className="hr-label">Status</TableHead>{isAdmin && <TableHead className="hr-label text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -145,12 +184,12 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
                           onChange={(e) => setSelected((cur) => { const n = new Set(cur); if (e.target.checked) n.add(s.id); else n.delete(s.id); return n; })} />
                       </TableCell>
                     )}
-                    <TableCell className="font-mono text-xs">{s.roll_no}</TableCell>
-                    <TableCell><div className="font-medium">{s.full_name}</div><div className="text-xs text-muted-foreground">{s.email}</div></TableCell>
-                    <TableCell>{s.department ?? "—"}</TableCell><TableCell>{s.batch_year ?? "—"}</TableCell><TableCell>{s.section ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{numOrNull(s.cgpa) ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{s.active_backlogs ?? "—"}</TableCell>
-                    <TableCell><Badge variant={STATUS_VARIANT[s.status]}>{STATUS_TEXT[s.status]}</Badge></TableCell>
+                    <TableCell className="hr-data text-xs text-[var(--hr-muted)]">{s.roll_no}</TableCell>
+                    <TableCell><div className="font-medium">{s.full_name}</div><div className="text-xs text-[var(--hr-muted)]">{s.email}</div></TableCell>
+                    <TableCell>{s.department ?? "–"}</TableCell><TableCell>{s.batch_year ?? "–"}</TableCell><TableCell>{s.section ?? "–"}</TableCell>
+                    <TableCell className="hr-data text-right">{numOrNull(s.cgpa) ?? "–"}</TableCell>
+                    <TableCell className="hr-data text-right">{s.active_backlogs ?? "–"}</TableCell>
+                    <TableCell><Chip tone={STATUS_TONE[s.status]}>{STATUS_TEXT[s.status]}</Chip></TableCell>
                     {isAdmin && (
                       <TableCell className="text-right whitespace-nowrap">
                         <Button size="sm" variant="ghost" onClick={() => setEditing(s)}>Edit</Button>
@@ -166,10 +205,10 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
               </TableBody>
             </Table>
             <div className="flex items-center justify-between text-sm">
-              <span>{data.total} students</span>
+              <span className="hr-data text-[var(--hr-muted)]">{data.total} students</span>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="outline" disabled={q.page <= 1} onClick={() => setQ((c) => ({ ...c, page: c.page - 1 }))}>Previous</Button>
-                <span>Page {q.page} of {pages}</span>
+                <span className="hr-data text-xs">Page {q.page} of {pages}</span>
                 <Button size="sm" variant="outline" disabled={q.page >= pages} onClick={() => setQ((c) => ({ ...c, page: c.page + 1 }))}>Next</Button>
               </div>
             </div>

@@ -4,9 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Stat, Loading } from "../layout/V1Shell";
+import { Chip } from "../ui/broadcast";
 import { companyApi } from "../lib/api";
 import { NativeSelect } from "../college/CollegeShell";
+
+/** Owner decision 2026-10-24: top-ups go to the owner by email; no pack size is promised anywhere. */
+const TOPUP_MAILTO = "mailto:ranjitperumala@gmail.com?subject=Credit%20top-up%20for%20";
 import { CompanyShell } from "./CompanyShell";
 import { fmtDate, fmtDateTime, useCompanyLedger, useCompanyOrg, useTeam, type CompanyRole } from "./queries";
 
@@ -25,40 +30,53 @@ export function Settings({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }
   return (
     <div className="space-y-8 max-w-3xl">
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Credits</h2>
+        <h2 className="hr-display text-xl">Credits</h2>
         <div className="grid grid-cols-2 gap-3">
-          <Stat label="Balance" value={org.data ? Number(org.data.credits_balance) : "—"} hint={`${cost} credit${cost === 1 ? "" : "s"} per completed candidate session`} />
+          <Stat label="Balance" value={org.data ? Number(org.data.credits_balance) : "–"} hint={`${cost} credit${cost === 1 ? "" : "s"} per completed candidate session`} />
         </div>
-        <p className="text-sm text-muted-foreground">Credits are used once per candidate who finishes every step. New invites are blocked when the balance can't cover them. Top-ups: contact HiResume.</p>
+        <p className="text-sm text-[var(--hr-muted)]">Credits are used once per candidate who finishes every step. New invites are blocked when the balance can't cover them.</p>
+        <p className="text-sm text-[var(--hr-muted)] flex flex-wrap items-center gap-3">
+          Need more credits? Contact HiResume for a top-up.
+          <Button variant="outline" size="sm" asChild>
+            <a href={`${TOPUP_MAILTO}${encodeURIComponent(org.data?.name ?? "")}`}>Contact HiResume</a>
+          </Button>
+        </p>
         {isAdmin && (ledger.isLoading ? <Loading /> : (
-          <table className="w-full text-sm" aria-label="Credit ledger">
-            <thead><tr className="text-left text-muted-foreground"><th className="py-1">Date</th><th>What</th><th className="text-right">Change</th><th className="text-right">Balance</th></tr></thead>
-            <tbody>
+          <Table aria-label="Credit ledger">
+            <TableHeader><TableRow className="hover:bg-transparent">
+              <TableHead className="hr-label">Date</TableHead><TableHead className="hr-label">What</TableHead>
+              <TableHead className="hr-label text-right">Change</TableHead><TableHead className="hr-label text-right">Balance</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
               {(ledger.data ?? []).map((l) => (
-                <tr key={l.id} className="border-t border-border">
-                  <td className="py-1">{fmtDateTime(l.created_at)}</td><td>{REASON_TEXT[l.reason] ?? l.reason}{l.note ? ` · ${l.note}` : ""}</td>
-                  <td className="text-right tabular-nums">{Number(l.delta) > 0 ? "+" : ""}{Number(l.delta)}</td>
-                  <td className="text-right tabular-nums">{Number(l.balance_after)}</td>
-                </tr>
+                <TableRow key={l.id}>
+                  <TableCell className="text-sm text-[var(--hr-muted)]">{fmtDateTime(l.created_at)}</TableCell>
+                  <TableCell className="text-sm">{REASON_TEXT[l.reason] ?? l.reason}{l.note ? ` · ${l.note}` : ""}</TableCell>
+                  <TableCell className="hr-data text-sm text-right">{Number(l.delta) > 0 ? "+" : ""}{Number(l.delta)}</TableCell>
+                  <TableCell className="hr-data text-sm text-right">{Number(l.balance_after)}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         ))}
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Team</h2>
+      <section className="space-y-3 hr-rule-t pt-6">
+        <h2 className="hr-display text-xl">Team</h2>
         {team.isLoading ? <Loading /> : (
-          <ul className="divide-y divide-border rounded-lg border border-border text-sm">
+          <ul className="divide-y divide-[var(--hr-rule)]">
             {(team.data?.members ?? []).map((m) => (
-              <li key={m.id} className="flex gap-2 p-3"><span className="flex-1">{m.full_name || m.email}</span><span className="text-muted-foreground">{ROLE_TEXT[m.role]}</span></li>
+              <li key={m.id} className="flex items-center gap-2 py-3 text-sm"><span className="flex-1">{m.full_name || m.email}</span><Chip tone="muted">{ROLE_TEXT[m.role]}</Chip></li>
             ))}
             {(team.data?.invites ?? []).map((i) => (
-              <li key={i.id} className="flex gap-2 p-3 text-muted-foreground"><span className="flex-1">{i.email} (invited, expires {fmtDate(i.expires_at)})</span><span>{ROLE_TEXT[i.role as CompanyRole] ?? i.role}</span></li>
+              <li key={i.id} className="flex items-center gap-2 py-3 text-sm text-[var(--hr-muted)]">
+                <span className="flex-1">{i.email} (invited, expires {fmtDate(i.expires_at)})</span>
+                <Chip tone="muted">{ROLE_TEXT[i.role as CompanyRole] ?? i.role}</Chip>
+              </li>
             ))}
           </ul>
         )}
-        {isAdmin ? <InviteStaff orgId={orgId} /> : <p className="text-sm text-muted-foreground">Only company admins can invite people.</p>}
+        {isAdmin ? <InviteStaff orgId={orgId} /> : <p className="text-sm text-[var(--hr-muted)]">Only company admins can invite people.</p>}
       </section>
     </div>
   );
@@ -82,7 +100,7 @@ function InviteStaff({ orgId }: { orgId: string }) {
     }
   }
   return (
-    <div className="grid sm:grid-cols-4 gap-2 items-end">
+    <div className="grid sm:grid-cols-4 gap-2 items-end pt-2">
       <div className="space-y-1"><Label htmlFor="staff-name">Name</Label><Input id="staff-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
       <div className="space-y-1"><Label htmlFor="staff-email">Email</Label><Input id="staff-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
       <div className="space-y-1"><Label htmlFor="staff-role">Role</Label>

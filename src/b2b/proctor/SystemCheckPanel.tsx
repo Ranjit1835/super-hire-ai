@@ -1,8 +1,11 @@
 // System check: browser, camera, microphone, speakers, bandwidth, device tier, displays.
 // Used as the first step of ProctoredSession and on the stand-alone /proctor/check page.
+// Each row states its result in words (Passed / Needs attention / Not checked / Checking…) plus the one fix to make.
+// Red is reserved for a row that actually blocks the test; a non-blocking suggestion stays orange, never alarming.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Circle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   MEDIA_MESSAGE, MIN_BANDWIDTH_KBPS, SUPPORT_MESSAGE, deviceInfo, detectBrowser, displayCount, estimateBandwidth, mediaProblem,
   qualityTier, requestCameraMic, stopStream, supportProblem, type BrowserInfo, type MediaProblem, type Tier,
@@ -24,15 +27,30 @@ export interface CheckResult {
   stream: MediaStream | null;
 }
 
-function Row({ label, status, detail }: { label: string; status: Status; detail?: string }) {
-  const Icon = status === "ok" ? CheckCircle2 : status === "warn" ? AlertTriangle : status === "fail" ? XCircle : Loader2;
-  const color = status === "ok" ? "text-emerald-600" : status === "warn" ? "text-amber-600" : status === "fail" ? "text-destructive" : "text-muted-foreground animate-spin";
+/** Not checked yet is a distinct, calm state from a real problem: say so in words, not just an icon. */
+function rowWord(status: Status, detail?: string): string {
+  if (status === "ok") return "Passed";
+  if (status === "pending") return "Checking…";
+  if (status === "warn") return detail === "Not checked yet" ? "Not checked" : "Needs attention";
+  return "Needs attention";
+}
+
+/** Exported for the gallery (a fixed-state preview needs the same row without live camera/mic calls). */
+export function Row({ label, status, detail }: { label: string; status: Status; detail?: string }) {
+  const word = rowWord(status, detail);
+  const notChecked = word === "Not checked";
+  const Icon = status === "ok" ? CheckCircle2 : status === "pending" ? Loader2 : notChecked ? Circle : AlertTriangle;
+  const tone = status === "ok" ? "text-[var(--hr-gold)]" : status === "pending" ? "text-[var(--hr-blue-ink)]"
+    : notChecked ? "text-[var(--hr-muted)]" : status === "fail" ? "text-[var(--hr-red-ink)]" : "text-[var(--hr-orange)]";
   return (
-    <li className="flex items-start gap-3 py-2" data-testid={`check-${label}`} data-status={status}>
-      <Icon className={`h-5 w-5 mt-0.5 shrink-0 ${color}`} aria-hidden />
-      <div className="min-w-0">
-        <p className="font-medium text-sm">{label}</p>
-        {detail && <p className="text-sm text-muted-foreground">{detail}</p>}
+    <li className="flex items-start gap-3 py-3 hr-rule-b" data-testid={`check-${label}`} data-status={status}>
+      <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", tone, status === "pending" && "animate-spin")} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <p className="text-sm font-semibold">{label}</p>
+          <span className={cn("hr-label !text-[10px]", tone)}>{word}</span>
+        </div>
+        {detail && detail !== "Not checked yet" && <p className="text-sm text-[var(--hr-muted)] mt-0.5">{detail}</p>}
       </div>
     </li>
   );
@@ -113,17 +131,17 @@ export function SystemCheckPanel({ kind, onPassed, keepStream = true }: {
 
   if (support) {
     return (
-      <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-4" data-testid="unsupported">
-        <p className="font-semibold">This device or browser isn't supported for proctored tests</p>
+      <div role="alert" className="border border-[var(--hr-red)] bg-[var(--hr-surface)] p-4" data-testid="unsupported">
+        <p className="font-semibold text-[var(--hr-red-ink)]">This device or browser isn't supported for proctored tests</p>
         <p className="text-sm mt-1">{SUPPORT_MESSAGE[support]}</p>
-        <p className="text-xs text-muted-foreground mt-2">Detected: {browser.browser} {browser.version || ""}{browser.mobile ? " (mobile)" : ""}</p>
+        <p className="hr-data text-xs text-[var(--hr-muted)] mt-2">Detected: {browser.browser} {browser.version || ""}{browser.mobile ? " (mobile)" : ""}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <ul className="divide-y divide-border">
+    <div className="space-y-5">
+      <ul className="bg-[var(--hr-surface)] px-4" aria-label="Checks">
         <Row label="Browser" status="ok" detail={`${browser.browser} ${browser.version}`} />
         <Row label="Camera" status={media.status === "ok" ? (media.camera ? "ok" : "fail") : media.status === "error" ? "fail" : media.status === "asking" ? "pending" : "warn"}
              detail={media.status === "error" ? MEDIA_MESSAGE[media.problem ?? "other"] : media.status === "idle" ? "Not checked yet" : undefined} />
@@ -138,7 +156,7 @@ export function SystemCheckPanel({ kind, onPassed, keepStream = true }: {
       </ul>
 
       <div className="flex flex-wrap items-center gap-3">
-        <video ref={preview} muted playsInline autoPlay className="h-24 w-32 rounded-md bg-muted object-cover -scale-x-100" aria-label="Camera preview" />
+        <video ref={preview} muted playsInline autoPlay className="h-24 w-32 bg-[var(--hr-surface-2)] object-cover -scale-x-100 shadow-[inset_0_0_0_1px_var(--hr-rule)]" aria-label="Camera preview" />
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant={media.status === "ok" ? "outline" : "default"} onClick={askMedia} disabled={media.status === "asking"}>
             {media.status === "ok" ? "Re-check camera & mic" : "Allow camera & microphone"}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useB2BTheme, Loading } from "../layout/V1Shell";
 import { ApiError, assessApi } from "../lib/api";
 import { ProctoredSession } from "../proctor";
+import { LogoMark } from "../ui/broadcast";
 import type { AttemptState } from "../../../supabase/functions/_shared/contracts/assess";
 import type { ProctoringPolicyV1 } from "../types";
 import { Runner } from "./Runner";
@@ -23,7 +24,14 @@ const asPolicy = (p: string): ProctoringPolicyV1 => (POLICIES.includes(p as Proc
 
 export function Centered({ children }: { children: ReactNode }) {
   useB2BTheme();
-  return <div className="min-h-screen bg-background text-foreground grid place-items-center p-6"><div className="max-w-md w-full text-center">{children}</div></div>;
+  return (
+    <div className="min-h-screen bg-background text-foreground grid place-items-center p-6">
+      <div className="max-w-md w-full text-center">
+        <LogoMark className="h-8 w-12 mx-auto mb-5" title="HiResume" />
+        <div className="bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] px-6 py-8">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 export default function RunnerPage() {
@@ -49,16 +57,16 @@ export default function RunnerPage() {
 
   if (phase.kind === "loading") return <Loading />;
   if (phase.kind === "error") {
-    return <Centered><p className="font-medium">Couldn't open this test</p><p className="text-sm text-muted-foreground mt-1">{phase.message}</p>
-      <Button className="mt-4" onClick={() => { void load(); }}>Try again</Button></Centered>;
+    return <Centered><p className="hr-display text-lg">Couldn't open this test</p><p className="text-sm text-[var(--hr-muted)] mt-2">{phase.message}</p>
+      <Button className="mt-5" onClick={() => { void load(); }}>Try again</Button></Centered>;
   }
   if (phase.kind === "conflict") {
     return (
       <Centered>
-        <p className="font-medium">This test is open in another tab or device</p>
-        <p className="text-sm text-muted-foreground mt-1">You can take it in one place at a time. Close the other tab, or if you already closed it,
+        <p className="hr-display text-lg">This test is open in another tab or device</p>
+        <p className="text-sm text-[var(--hr-muted)] mt-2">You can take it in one place at a time. Close the other tab, or if you already closed it,
           wait about a minute and try again. This has been noted for the reviewer.</p>
-        <Button className="mt-4" onClick={() => { void load(); }}>Try again</Button>
+        <Button className="mt-5" onClick={() => { void load(); }}>Try again</Button>
       </Centered>
     );
   }
@@ -82,22 +90,28 @@ export function Submitted({ state }: { state: AttemptState | null }) {
   const doneTo = back.startsWith("/") && !back.startsWith("//") ? back : "/";
   return (
     <Centered>
-      <p className="text-2xl font-semibold">Submitted</p>
-      <p className="text-sm text-muted-foreground mt-2">
+      <p className="hr-display text-2xl">Submitted</p>
+      <p className="text-sm text-[var(--hr-muted)] mt-2">
         {state?.status === "expired" ? "Time ran out, so your saved answers were submitted automatically." : "Your answers have been submitted."}
       </p>
       {r ? (
-        <div className="mt-6 rounded-lg border border-border p-4 text-left" aria-label="Your score">
-          {r.grading === "pending" && <p className="text-xs text-muted-foreground mb-2">Some code is still being checked; the score may go up.</p>}
-          <p className="text-lg font-semibold">Score: {r.score ?? 0} / {r.max_score ?? 0}</p>
-          <ul className="mt-2 text-sm space-y-1">
-            {r.section_scores.map((s, i) => <li key={i} className="flex justify-between"><span>{s.title || `Section ${i + 1}`}</span><span className="tabular-nums">{s.score} / {s.max_score}</span></li>)}
+        <div className="mt-6 shadow-[inset_0_0_0_1px_var(--hr-rule)] p-4 text-left" aria-label="Your score">
+          {r.grading === "pending" && <p className="text-xs text-[var(--hr-muted)] mb-3">Some code is still being checked; the score may go up.</p>}
+          <p className="hr-label">Score</p>
+          <p className="hr-numeral text-[40px] text-[var(--hr-gold)] leading-none mt-1">{r.score ?? 0} <span className="text-base text-[var(--hr-muted)]">/ {r.max_score ?? 0}</span></p>
+          <ul className="mt-4 text-sm divide-y divide-[var(--hr-rule)]">
+            {r.section_scores.map((s, i) => (
+              <li key={i} className="flex justify-between py-1.5">
+                <span className="text-[var(--hr-muted)]">{s.title || `Section ${i + 1}`}</span>
+                <span className="hr-data">{s.score} / {s.max_score}</span>
+              </li>
+            ))}
           </ul>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground mt-4">Results will be shared by the organiser.</p>
+        <p className="text-sm text-[var(--hr-muted)] mt-4">Results will be shared by the organiser.</p>
       )}
-      <Link to={doneTo} className="inline-block mt-6 text-sm underline">Done</Link>
+      <Link to={doneTo} className="inline-block mt-6 text-sm text-[var(--hr-muted)] hover:text-foreground underline underline-offset-4">Done</Link>
     </Centered>
   );
 }

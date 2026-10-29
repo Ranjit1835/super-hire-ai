@@ -149,7 +149,8 @@ describe("pipeline", () => {
     });
     wrap(<RoleView orgId={ORG} role={role} isEditor />);
     await screen.findByText("Asha");
-    fireEvent.click(within(screen.getByRole("form", { name: "Filters" })).getByText("Completed"));
+    fireEvent.click(screen.getByRole("tab", { name: /Completed/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.click(within(screen.getByRole("form", { name: "Filters" })).getByText("Medium"));
     fireEvent.change(screen.getByLabelText("Minimum match score"), { target: { value: "50" } });
     fireEvent.change(screen.getByLabelText("Search candidates"), { target: { value: "ash" } });
@@ -163,6 +164,14 @@ describe("pipeline", () => {
     await screen.findByText("2 updated.");
     expect(api.companyApi).toHaveBeenCalledWith("decide", { roleCandidateIds: [RC, RC2], decision: "advance" });
     expect(screen.getByText(/AI does not pass or fail candidates; your team decides/)).toBeInTheDocument();
+  });
+
+  it("the All tab counts every candidate, not just the filtered page", async () => {
+    // counts are per stage over the whole role; total is the filtered count (1 shortlisted here).
+    api.companyApi.mockResolvedValue({ access: "editor", total: 1, counts: { invited: 3, completed: 2, shortlisted: 1 }, rows: [row()] });
+    wrap(<RoleView orgId={ORG} role={role} isEditor />);
+    await screen.findByText("Asha");
+    expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("6");
   });
 });
 

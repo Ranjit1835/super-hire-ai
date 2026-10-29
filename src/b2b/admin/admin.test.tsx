@@ -80,6 +80,11 @@ describe("super admin: organisations", () => {
     expect(within(rows[2]).getByRole("button", { name: "Reactivate" })).toBeInTheDocument();
   });
 
+  it("header counts read as English: one company, one pending invite", () => {
+    renderAt("/admin/orgs");
+    expect(screen.getByText("2 organisations · 1 college · 1 company · 1 pending invite")).toBeInTheDocument();
+  });
+
   it("creates a college with a plan, seats, credits and its TPO admin, and shows the link when email is off", async () => {
     api.adminApi.mockResolvedValue({ orgId: "o9", credits: 1200, invite: { inviteId: "i9", link: "https://hiresume.in/invite/tok", emailed: false } });
     renderAt("/admin/orgs");

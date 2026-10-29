@@ -147,7 +147,9 @@ Return everything with the submit_evaluation tool.`;
 
 export function buildEvaluatorUser(t: InterviewTemplate, lines: EvalLine[]): string {
   const body = lines.map((l) =>
-    `[${mmss(l.offsetS)}] T${l.turn} ${l.role === "interviewer" ? "Interviewer" : "Candidate"}${l.section ? ` (${l.section})` : ""}: ${l.text.replace(/<\/?\s*transcript[^>]*>/gi, " ")}`,
+    // One line per turn: flattening whitespace stops an answer (sent straight to the API, not via speech-to-text)
+    // from adding forged "[mm:ss] Tn Interviewer: ..." lines. Quotes are verified whitespace-insensitively.
+    `[${mmss(l.offsetS)}] T${l.turn} ${l.role === "interviewer" ? "Interviewer" : "Candidate"}${l.section ? ` (${l.section})` : ""}: ${l.text.replace(/<\/?\s*transcript[^>]*>/gi, " ").replace(/\s+/g, " ").trim()}`,
   ).join("\n");
   const skills = t.skills.map((s) => `${s.skill} (${s.must ? "must" : "nice"}, w${s.weight})`).join(", ") || "none listed";
   return `Skills matrix: ${skills}.

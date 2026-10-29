@@ -1,11 +1,12 @@
 // The test runner (inside <ProctoredSession>): question navigator, coding (Monaco, run, submit) and MCQ,
 // server-synced countdown, autosave every ~5 s and on blur with an offline queue, heartbeat for the single
 // active session, watermark, auto-submit at the deadline.
+// World: Auction Night (stadium-night broadcast graphics), but nothing here animates — this is where a person
+// is mid-task. No entrance motion, no numeral drive-in, no 3D, no stat strips; only palette, type and density.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, CloudOff, Loader2, Play, Send, Wifi } from "lucide-react";
+import { CloudOff, Play, Send, Wifi } from "lucide-react";
 import type { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -14,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ApiError, assessApi } from "../lib/api";
 import { useProctor } from "../proctor";
+import { Chip } from "../ui/broadcast";
 import type { AttemptState, JudgeResult, RunnerQuestion } from "../../../supabase/functions/_shared/contracts/assess";
 import type { Language as LanguageSchema } from "../../../supabase/functions/_shared/contracts/common";
 import { AutosaveQueue, storedSaves, type EditEvent, type SaveStatus } from "./autosave";
@@ -83,6 +85,7 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
   const [time, setTime] = useState<ServerTime>({ deadlineAt: state.deadline_at, serverNow: state.server_now, receivedAt: Date.now() });
   const [serverPaused, setServerPaused] = useState(state.paused);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [runs, setRuns] = useState<Record<string, JudgeResult | { error: string }>>({});
   const [running, setRunning] = useState(false);
@@ -107,7 +110,7 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
       });
       setTime({ deadlineAt: r.deadline_at, serverNow: r.server_now, receivedAt: Date.now() });
     },
-    onStatus: (s) => setSaveStatus(s),
+    onStatus: (s) => { setSaveStatus(s); if (s === "saved") setSavedAt(Date.now()); },
     onFatal: (code) => {
       if (code === "OTHER_SESSION") cbs.current.onConflict();
       else if (code === "PAUSED") setServerPaused(true);
@@ -257,70 +260,93 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
   const a = answers[q.id];
   const result = runs[q.id];
   const lowTime = left !== null && left < 5 * 60_000;
+  const answeredCount = questions.filter(answered).length;
 
   return (
     <div className="relative min-h-screen bg-background text-foreground flex flex-col">
       <Watermark text={state.watermark ?? attemptId} />
-      <header className="border-b border-border flex items-center gap-3 px-4 h-14 sticky top-0 bg-background z-20">
-        <h1 className="font-semibold truncate flex-1">{state.title ?? "Test"}</h1>
-        <SaveIndicator status={saveStatus} online={online} />
-        <div role="timer" aria-label="Time left" className={cn("font-mono tabular-nums text-lg px-2 rounded", lowTime && "text-destructive")}>
+      <header className="hr-rule-b flex items-center gap-3 px-4 h-14 sticky top-0 bg-[var(--hr-ground)] z-20">
+        <h1 className="hr-display text-[16px] truncate flex-1">{state.title ?? "Test"}</h1>
+        <SaveIndicator status={saveStatus} online={online} savedAt={savedAt} />
+        <div role="timer" aria-label="Time left"
+             className={cn("hr-data tabular-nums text-lg px-2", lowTime ? "text-[var(--hr-orange)]" : "text-foreground")}>
           {left === null ? "--:--" : formatRemaining(left)}
         </div>
         <Button size="sm" onClick={() => setConfirmFinish(true)} disabled={finishing}>
-          {finishing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Finish test
+          {finishing ? "Finishing…" : "Finish test"}
         </Button>
       </header>
 
       <div className="flex flex-1 min-h-0">
-        <nav aria-label="Questions" className="w-20 sm:w-28 border-r border-border p-2 flex flex-col gap-1 overflow-y-auto">
-          {questions.map((qq, i) => (
-            <button key={qq.id} type="button" onClick={() => go(i)} aria-current={i === index ? "step" : undefined}
-              aria-label={`Question ${i + 1}${answered(qq) ? ", answered" : ""}`}
-              className={cn("rounded-md border px-2 py-1.5 text-sm text-left flex items-center justify-between",
-                i === index ? "border-primary bg-primary/10" : "border-border hover:bg-muted")}>
-              <span>Q{i + 1}</span>
-              {answered(qq) && <CheckCircle2 className="h-3.5 w-3.5 text-primary" aria-hidden />}
-            </button>
-          ))}
+        <nav aria-label="Questions" className="w-16 sm:w-36 shrink-0 shadow-[inset_-1px_0_0_var(--hr-rule)] p-2 flex flex-col gap-1 overflow-y-auto">
+          {questions.map((qq, i) => {
+            const done = answered(qq);
+            const current = i === index;
+            return (
+              <button key={qq.id} type="button" onClick={() => go(i)} aria-current={current ? "step" : undefined}
+                aria-label={`Question ${i + 1}${done ? ", answered" : ", not answered"}`}
+                className={cn("px-2.5 py-2 text-left flex items-center justify-between gap-1",
+                  current ? "bg-[var(--hr-orange)] text-[#07090F]" : "text-[var(--hr-muted)] hover:bg-[var(--hr-surface)] hover:text-foreground")}>
+                <span className="hr-data text-sm">Q{i + 1}</span>
+                {/* Phones: the rail is too narrow for words, so a filled (answered) or hollow (not answered) square. */}
+                <span aria-hidden className={cn("sm:hidden size-2 shrink-0",
+                  done ? (current ? "bg-[#07090F]" : "bg-[var(--hr-gold)]") : current ? "shadow-[inset_0_0_0_1px_#07090F]" : "shadow-[inset_0_0_0_1px_var(--hr-muted)]")} />
+                <span aria-hidden className={cn("hidden sm:inline hr-label !text-[9px] whitespace-nowrap", current ? "text-[#07090F]/70" : done ? "text-[var(--hr-gold)]" : "text-[var(--hr-muted)]")}>
+                  {done ? "Answered" : "Not answered"}
+                </span>
+              </button>
+            );
+          })}
         </nav>
 
-        <main className="flex-1 min-w-0 grid lg:grid-cols-2 gap-4 p-4">
-          <section aria-label="Question" className="min-w-0 overflow-y-auto">
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              {q.section && <Badge variant="outline">{q.section}</Badge>}
-              <Badge variant="secondary" className="capitalize">{q.difficulty}</Badge>
-              <span className="text-xs text-muted-foreground">{q.points} {q.points === 1 ? "point" : "points"}</span>
+        <main className="flex-1 min-w-0 grid lg:grid-cols-2 gap-px lg:gap-0 lg:divide-x lg:divide-[var(--hr-rule)] bg-[var(--hr-rule)] lg:bg-transparent">
+          <section aria-label="Question" className="min-w-0 overflow-y-auto bg-background px-4 py-4">
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              {q.section && <Chip tone="muted">{q.section}</Chip>}
+              <Chip tone="muted">{q.difficulty}</Chip>
+              <span className="hr-data text-xs text-[var(--hr-muted)]">{q.points} {q.points === 1 ? "point" : "points"}</span>
             </div>
-            <h2 className="text-lg font-semibold mb-2">{index + 1}. {q.title}</h2>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">{q.statement}</div>
-            {q.constraints && <div className="mt-3 text-sm"><b>Constraints</b><div className="whitespace-pre-wrap">{q.constraints}</div></div>}
+            <h2 className="hr-display text-xl mb-3">{index + 1}. {q.title}</h2>
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--hr-floodlight)]">{q.statement}</div>
+            {q.constraints && (
+              <div className="mt-4 text-sm">
+                <p className="hr-label mb-1">Constraints</p>
+                <div className="whitespace-pre-wrap text-[var(--hr-muted)]">{q.constraints}</div>
+              </div>
+            )}
             {q.samples && q.samples.length > 0 && (
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 space-y-3">
                 {q.samples.map((s, i) => (
                   <div key={i} className="grid grid-cols-2 gap-2 text-xs">
-                    <div><p className="font-medium mb-1">Sample input {i + 1}</p><pre className="bg-muted rounded p-2 overflow-x-auto">{s.input}</pre></div>
-                    <div><p className="font-medium mb-1">Expected output</p><pre className="bg-muted rounded p-2 overflow-x-auto">{s.output}</pre></div>
+                    <div>
+                      <p className="hr-label mb-1">Sample input {i + 1}</p>
+                      <pre className="hr-data bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] p-2 overflow-x-auto">{s.input}</pre>
+                    </div>
+                    <div>
+                      <p className="hr-label mb-1">Expected output</p>
+                      <pre className="hr-data bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] p-2 overflow-x-auto">{s.output}</pre>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </section>
 
-          <section aria-label="Answer" className="min-w-0 flex flex-col gap-3">
+          <section aria-label="Answer" className="min-w-0 flex flex-col gap-3 bg-background px-4 py-4">
             {q.type === "mcq" ? (
               <McqOptions question={q} value={a.mcq} onChange={(mcq) => update(q.id, { mcq })} />
             ) : (
               <>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm" htmlFor="lang">Language</label>
-                  <select id="lang" className="border border-border rounded-md bg-background px-2 py-1 text-sm" value={a.language}
+                  <label className="hr-label" htmlFor="lang">Language</label>
+                  <select id="lang" aria-label="Language"
+                    className="shadow-[inset_0_0_0_1px_var(--hr-rule)] bg-[var(--hr-surface)] px-2 py-1 text-sm hr-data" value={a.language}
                     onChange={(e) => { update(q.id, { language: e.target.value }); }}>
                     {(q.languages ?? []).map((l) => <option key={l} value={l}>{LANGUAGE_LABEL[l] ?? l}</option>)}
                   </select>
                 </div>
                 <div className="flex-1 min-h-[320px]">
-                  <Suspense fallback={<div className="h-[320px] grid place-items-center text-sm text-muted-foreground">Loading editor…</div>}>
+                  <Suspense fallback={<div className="h-[320px] grid place-items-center text-sm text-[var(--hr-muted)]">Loading editor…</div>}>
                     <CodeEditor key={`${q.id}:${a.language}`} language={a.language} value={a.codeByLang[a.language] ?? ""}
                       readOnly={paused}
                       onChange={(code, ev) => {
@@ -332,13 +358,13 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
                   </Suspense>
                 </div>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm">
+                  <label className="flex items-center gap-2 text-sm text-[var(--hr-muted)]">
                     <input type="checkbox" checked={useCustom} onChange={(e) => setUseCustom(e.target.checked)} /> Also run with my own input
                   </label>
-                  {useCustom && <Textarea aria-label="Custom input" rows={3} value={customInput} onChange={(e) => setCustomInput(e.target.value)} className="font-mono text-xs" />}
+                  {useCustom && <Textarea aria-label="Custom input" rows={3} value={customInput} onChange={(e) => setCustomInput(e.target.value)} className="hr-data text-xs" />}
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => { void run(); }} disabled={running || paused}>
-                      {running ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}Run samples
+                      {running ? "Running…" : <><Play className="h-4 w-4 mr-1" />Run samples</>}
                     </Button>
                   </div>
                   {result && <RunPanel result={result} />}
@@ -349,33 +375,45 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
               <Button size="sm" onClick={() => { void submitQuestion(); }} disabled={paused}><Send className="h-4 w-4 mr-1" />Submit answer</Button>
               {index < questions.length - 1 && <Button size="sm" variant="ghost" onClick={() => go(index + 1)}>Next question</Button>}
             </div>
-            {notice && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
+            {notice && <p role="status" className="text-sm text-[var(--hr-muted)]">{notice}</p>}
           </section>
         </main>
       </div>
 
       {paused && (
-        <div role="alertdialog" aria-label="Test paused" className="fixed inset-0 z-40 bg-background/95 grid place-items-center p-6 text-center">
-          <div><p className="text-lg font-semibold">The test is paused</p>
-            <p className="text-sm text-muted-foreground mt-1">Fix the proctoring issue shown on screen to continue.</p></div>
+        <div role="alertdialog" aria-label="Test paused" className="fixed inset-0 z-40 bg-[var(--hr-ground)]/97 grid place-items-center p-6 text-center">
+          <div>
+            <p className="hr-display text-xl">The test is paused</p>
+            <p className="text-sm text-[var(--hr-muted)] mt-2">Fix the proctoring issue shown on screen to continue.</p>
+          </div>
         </div>
       )}
 
-      <AlertDialog open={confirmFinish} onOpenChange={setConfirmFinish}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Finish the test?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You've answered {questions.filter(answered).length} of {questions.length} questions. You can't change your answers after this.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep working</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { void finish("submitted"); }}>Finish</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <FinishConfirmDialog open={confirmFinish} onOpenChange={setConfirmFinish} answeredCount={answeredCount} total={questions.length}
+        onConfirm={() => { void finish("submitted"); }} />
     </div>
+  );
+}
+
+/** The submit confirmation: a clear question, the real count, no way to undo by accident. */
+export function FinishConfirmDialog({ open, onOpenChange, answeredCount, total, onConfirm }: {
+  open: boolean; onOpenChange: (open: boolean) => void; answeredCount: number; total: number; onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="hr-display">Finish the test?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You've answered {answeredCount} of {total} questions. You can't change your answers after this.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep working</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Finish</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -383,12 +421,13 @@ function McqOptions({ question, value, onChange }: { question: RunnerQuestion; v
   const multi = !!question.multi_select;
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm text-muted-foreground mb-2">{multi ? "Select all that apply" : "Select one answer"}</legend>
+      <legend className="hr-label mb-2">{multi ? "Select all that apply" : "Select one answer"}</legend>
       {(question.options ?? []).map((o) => {
         const checked = value.includes(o.id);
         return (
-          <label key={o.id} className={cn("flex items-start gap-3 rounded-md border p-3 cursor-pointer text-sm", checked ? "border-primary bg-primary/5" : "border-border")}>
-            <input type={multi ? "checkbox" : "radio"} name={`q-${question.id}`} checked={checked} className="mt-0.5"
+          <label key={o.id} className={cn("flex items-start gap-3 shadow-[inset_0_0_0_1px_var(--hr-rule)] p-3 cursor-pointer text-sm",
+            checked ? "bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-orange)]" : "bg-[var(--hr-surface)]/40")}>
+            <input type={multi ? "checkbox" : "radio"} name={`q-${question.id}`} checked={checked} className="mt-0.5 accent-[var(--hr-orange)]"
               onChange={() => onChange(multi ? (checked ? value.filter((x) => x !== o.id) : [...value, o.id]) : [o.id])} />
             <span className="whitespace-pre-wrap">{o.text}</span>
           </label>
@@ -398,20 +437,20 @@ function McqOptions({ question, value, onChange }: { question: RunnerQuestion; v
   );
 }
 
-function RunPanel({ result }: { result: JudgeResult | { error: string } }) {
-  if ("error" in result) return <p role="alert" className="text-sm text-destructive">{result.error}</p>;
+export function RunPanel({ result }: { result: JudgeResult | { error: string } }) {
+  if ("error" in result) return <p role="alert" className="text-sm text-[var(--hr-red-ink)]">{result.error}</p>;
   return (
-    <div className="rounded-md border border-border p-3 text-xs space-y-2" aria-label="Run results">
+    <div className="shadow-[inset_0_0_0_1px_var(--hr-rule)] bg-[var(--hr-surface)] p-3 text-xs space-y-2" aria-label="Run results">
       <p className="font-medium">{result.passed} of {result.total} sample tests passed</p>
-      {result.compile_output && <pre className="bg-muted rounded p-2 overflow-x-auto text-destructive">{result.compile_output}</pre>}
+      {result.compile_output && <pre className="hr-data bg-[var(--hr-ground)] p-2 overflow-x-auto text-[var(--hr-red-ink)]">{result.compile_output}</pre>}
       {result.tests.map((t, i) => (
         <div key={i}>
-          <p>Sample {i + 1}: <b className={t.passed ? "text-primary" : "text-destructive"}>{t.passed ? "passed" : t.status.replace(/_/g, " ")}</b>
-            {t.time_ms !== null && <span className="text-muted-foreground"> · {t.time_ms} ms</span>}</p>
+          <p>Sample {i + 1}: <b className={t.passed ? "text-[var(--hr-orange)]" : "text-[var(--hr-red-ink)]"}>{t.passed ? "passed" : t.status.replace(/_/g, " ")}</b>
+            {t.time_ms !== null && <span className="text-[var(--hr-muted)]"> · {t.time_ms} ms</span>}</p>
           {!t.passed && t.stdout !== undefined && (
             <div className="grid grid-cols-2 gap-2 mt-1">
-              <pre className="bg-muted rounded p-2 overflow-x-auto">{t.stdout || "(no output)"}</pre>
-              <pre className="bg-muted rounded p-2 overflow-x-auto">{t.expected}</pre>
+              <pre className="hr-data bg-[var(--hr-ground)] p-2 overflow-x-auto">{t.stdout || "(no output)"}</pre>
+              <pre className="hr-data bg-[var(--hr-ground)] p-2 overflow-x-auto">{t.expected}</pre>
             </div>
           )}
         </div>
@@ -419,21 +458,38 @@ function RunPanel({ result }: { result: JudgeResult | { error: string } }) {
       {result.custom && (
         <div>
           <p className="font-medium">Your input: {result.custom.status === "ok" ? "ran" : result.custom.status.replace(/_/g, " ")}</p>
-          <pre className="bg-muted rounded p-2 overflow-x-auto">{result.custom.stdout || "(no output)"}</pre>
-          {result.custom.stderr && <pre className="bg-muted rounded p-2 overflow-x-auto text-destructive">{result.custom.stderr}</pre>}
+          <pre className="hr-data bg-[var(--hr-ground)] p-2 overflow-x-auto">{result.custom.stdout || "(no output)"}</pre>
+          {result.custom.stderr && <pre className="hr-data bg-[var(--hr-ground)] p-2 overflow-x-auto text-[var(--hr-red-ink)]">{result.custom.stderr}</pre>}
         </div>
       )}
     </div>
   );
 }
 
-export function SaveIndicator({ status, online }: { status: SaveStatus; online: boolean }) {
+/** "Saved 12s ago" without re-rendering the runner: the indicator keeps its own clock. `now` pins it (gallery). */
+function useSecondTick(enabled: boolean) {
+  const [t, setT] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return;
+    const h = setInterval(() => setT(Date.now()), 1000);
+    return () => clearInterval(h);
+  }, [enabled]);
+  return t;
+}
+
+const agoText = (sec: number) => (sec < 2 ? "just now" : sec < 60 ? `${sec}s ago` : sec < 3600 ? `${Math.floor(sec / 60)} min ago` : "over an hour ago");
+
+export function SaveIndicator({ status, online, savedAt, now }: { status: SaveStatus; online: boolean; savedAt?: number | null; now?: number }) {
   const offline = !online || status === "offline";
+  const tick = useSecondTick(now === undefined && !!savedAt && !offline && status !== "saving");
+  const at = now ?? tick;
+  const ago = savedAt ? Math.max(0, Math.round((at - savedAt) / 1000)) : null;
   return (
-    <span role="status" aria-label="Connection" className={cn("hidden sm:inline-flex items-center gap-1 text-xs", offline ? "text-destructive" : "text-muted-foreground")}>
+    <span role="status" aria-label="Connection" className={cn("hidden sm:inline-flex items-center gap-1 text-xs", offline ? "text-[var(--hr-red-ink)]" : "text-[var(--hr-muted)]")}>
       {offline ? <><CloudOff className="h-3.5 w-3.5" /> Offline, answers kept on this device</>
-        : status === "saving" ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</>
-        : <><Wifi className="h-3.5 w-3.5" /> All answers saved</>}
+        : status === "saving" ? "Saving…"
+        // The ticking age is hidden from screen readers so the live region isn't re-announced every second.
+        : <><Wifi className="h-3.5 w-3.5" /> All answers saved{ago !== null && <span className="hr-data" aria-hidden>{" · "}{agoText(ago)}</span>}</>}
     </span>
   );
 }

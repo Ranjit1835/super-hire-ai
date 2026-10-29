@@ -86,8 +86,8 @@ export function CreditsDialog({ org, onClose, onChanged }: { org: OrgRow | null;
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Credits — {org.name}</DialogTitle>
-          <DialogDescription>Balance: <b>{num(org.credits_balance)}</b> credits. 1 credit = one 20-minute practice interview.</DialogDescription>
+          <DialogTitle>Credits: {org.name}</DialogTitle>
+          <DialogDescription>Balance: <b className="hr-data text-foreground">{num(org.credits_balance)}</b> credits. 1 credit = one 20-minute practice interview.</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
           <div><Label htmlFor="cr-amount">{mode === "top_up" ? "Add credits" : "Adjust by (negative removes)"}</Label>
@@ -99,19 +99,19 @@ export function CreditsDialog({ org, onClose, onChanged }: { org: OrgRow | null;
         </div>
         <div><Label htmlFor="cr-note">Note</Label><Input id="cr-note" value={note} placeholder="e.g. Invoice #12" onChange={(e) => setNote(e.target.value)} /></div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <div className="max-h-56 overflow-y-auto rounded border border-border">
+        <div className="max-h-56 overflow-y-auto shadow-[inset_0_0_0_1px_var(--hr-rule)]">
           <table className="w-full text-xs">
-            <thead className="text-muted-foreground"><tr><th className="text-left p-2">When</th><th className="text-left p-2">What</th><th className="text-right p-2">Change</th><th className="text-right p-2">Balance</th></tr></thead>
+            <thead className="hr-label"><tr><th className="text-left p-2">When</th><th className="text-left p-2">What</th><th className="text-right p-2">Change</th><th className="text-right p-2">Balance</th></tr></thead>
             <tbody>
               {(ledger.data ?? []).map((l) => (
-                <tr key={l.id} className="border-t border-border">
-                  <td className="p-2">{fmtDate(l.created_at)}</td>
+                <tr key={l.id} className="hr-rule-t">
+                  <td className="p-2 hr-data">{fmtDate(l.created_at)}</td>
                   <td className="p-2">{l.reason}{l.feature ? ` · ${l.feature}` : ""}{l.note ? ` · ${l.note}` : ""}</td>
-                  <td className="p-2 text-right tabular-nums">{num(l.delta) > 0 ? "+" : ""}{num(l.delta)}</td>
-                  <td className="p-2 text-right tabular-nums">{num(l.balance_after)}</td>
+                  <td className="p-2 text-right hr-data">{num(l.delta) > 0 ? "+" : ""}{num(l.delta)}</td>
+                  <td className="p-2 text-right hr-data">{num(l.balance_after)}</td>
                 </tr>
               ))}
-              {ledger.data?.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">No credit movements yet</td></tr>}
+              {ledger.data?.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-[var(--hr-muted)]">No credit movements yet</td></tr>}
             </tbody>
           </table>
         </div>
