@@ -28,6 +28,11 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(fn, args);
   if (error) {
     if (/FORBIDDEN|insufficient_privilege/.test(error.message)) throw new HttpError(403, "FORBIDDEN", "You don't have permission to do that.");
+    // R2.1 scheduling gate (migration 0029): the pool can't give this many students different-enough papers.
+    if (/POOL_TOO_SMALL/.test(error.message)) {
+      throw new HttpError(409, "POOL_TOO_SMALL", "The question bank is too small to give every assigned student a different-enough paper. " +
+        "Add questions to the test's pick rules, raise its overlap limit, or ask HiResume to approve this drive.");
+    }
     throw error;
   }
   return data as T;

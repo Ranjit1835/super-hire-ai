@@ -14,7 +14,7 @@ import { Chip } from "../ui/broadcast";
 import { assessTabs } from "../bank/BankPage";
 import {
   AssessmentForm, assessmentFromRow, assessmentRow, checkDraw, describeRule, emptyAssessment, firstError, LANGUAGE_LABEL, LANGUAGES,
-  poolMatches, type PoolRule, type SectionForm,
+  paperCapacity, poolMatches, type PaperCapacity, type PoolRule, type SectionForm,
 } from "../bank/forms";
 import { friendly, saveAssessment, useAssessment, useCanEdit, useVerifiedPool, type PoolRow } from "../bank/queries";
 
@@ -39,6 +39,7 @@ export default function BuilderPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorField, setErrorField] = useState<"title" | "duration_min" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [batch, setBatch] = useState(100);   // students expected in one drive, for the uniqueness check
   const titleRef = useRef<HTMLInputElement>(null);
   const durationRef = useRef<HTMLInputElement>(null);
 
@@ -161,6 +162,11 @@ export default function BuilderPage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
+              <Label htmlFor="t-overlap">Most two students may share (%)</Label>
+              <Input id="t-overlap" type="number" min={1} max={100} value={f.max_overlap_pct}
+                     onChange={(e) => set("max_overlap_pct", Number(e.target.value))} />
+            </div>
+            <div>
               <Label htmlFor="t-negative">Negative marking for wrong MCQs (fraction of points)</Label>
               <Input id="t-negative" type="number" min={0} max={1} step={0.25} value={f.negative_marking}
                      onChange={(e) => set("negative_marking", Number(e.target.value))} />
@@ -221,6 +227,8 @@ export default function BuilderPage() {
           <p className="hr-data text-2xl">{f.duration_min}</p>
           <p className="text-xs text-[var(--hr-muted)]">minutes</p>
         </div>
+        <PaperUniqueness cap={paperCapacity(bank.data ?? [], f.sections, f.languages, f.max_overlap_pct, batch, f.randomize)}
+                         target={f.max_overlap_pct} batch={batch} onBatch={setBatch} loading={!bank.data} />
         {shortfalls.length > 0 && (
           <div className="grid gap-1">
             <p className="hr-label">Rule shortfalls</p>
@@ -327,5 +335,41 @@ function SectionEditor({ index, section, bank, languages, guaranteed, fixedAtRis
         </div>
       </div>
     </div>
+  );
+}
+
+/** R2.1/R2.2: can this paper keep every pair of students under the overlap target for a batch this size? */
+function PaperUniqueness({ cap, target, batch, onBatch, loading }: {
+  cap: PaperCapacity; target: number; batch: number; onBatch: (n: number) => void; loading: boolean;
+}) {
+  const short = cap.rules.filter((r) => !r.ok);
+  return (
+    <section aria-label="Paper uniqueness" className="grid gap-1.5 hr-rule-t pt-3">
+      <p className="hr-label">Different paper for each student</p>
+      <label className="text-xs text-[var(--hr-muted)] flex items-center gap-2">
+        Students in one drive
+        <Input aria-label="Students in one drive" type="number" min={1} max={5000} value={batch} className="h-8 w-24"
+               onChange={(e) => onBatch(Math.max(1, Number(e.target.value) || 1))} />
+      </label>
+      {loading ? <p className="text-xs text-[var(--hr-muted)]">Checking the question bank…</p> : (
+        <>
+          <p className={`text-sm ${cap.feasible ? "text-[var(--hr-gold)]" : "text-[var(--hr-red-ink)]"}`}>
+            {cap.feasible ? `OK: papers overlap about ${cap.expectedOverlapPct}% on average (limit ${target}%).`
+              : `Not enough questions to keep ${batch} papers under ${target}% overlap.`}
+          </p>
+          {!cap.fixed.ok && (
+            <p className="text-xs text-[var(--hr-red-ink)]">
+              {cap.fixed.count} hand-picked question{cap.fixed.count === 1 ? " is" : "s are"} in every paper ({cap.fixed.sharedPct}% of it). Use pick rules instead.
+            </p>
+          )}
+          {short.map((r) => (
+            <p key={`${r.section}-${r.rule}`} className="text-xs text-[var(--hr-red-ink)]">
+              Section {r.section + 1}, {r.label}: {r.pool} in bank, about {r.needed} needed
+            </p>
+          ))}
+          {!cap.feasible && <p className="text-xs text-[var(--hr-muted)]">A drive using this test can't be scheduled for that many students until the bank grows, unless HiResume approves an exception.</p>}
+        </>
+      )}
+    </section>
   );
 }

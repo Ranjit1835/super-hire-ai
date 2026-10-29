@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   assessmentFromRow, assessmentRow, checkDraw, CodingForm, codingPayload, describeRule, emptyAssessment, emptyCoding, McqForm, mcqPayload,
-  poolMatches, type AssessmentRow, type QuestionRow,
+  paperCapacity, poolMatches, type AssessmentRow, type QuestionRow,
 } from "./forms";
 
 const state = vi.hoisted(() => ({ canEdit: true as boolean | undefined, bank: [] as unknown[], assessment: null as unknown, queries: [] as unknown[] }));
@@ -149,6 +149,26 @@ describe("bank forms (pure)", () => {
     ], ["python"]);
     expect(c.fixedAtRisk).toEqual([Q1]);
     expect(c.short).toBe(true);
+  });
+});
+
+describe("paper uniqueness calculator (R2.1/R2.2, same rule as b2b_paper_capacity)", () => {
+  const pool = Array.from({ length: 60 }, (_, i) => question({ id: `q${i}`, type: "mcq", topics: ["aptitude"], languages: [] }));
+  const sections = (fixed: string[] = []) => [{ type: "mcq" as const, pick: [{ difficulty: "" as const, topics: "aptitude", count: 10 }], question_ids: fixed }];
+
+  it("10 per paper from 60 at a 10% limit: about 200 needed, not feasible; at 40% it is", () => {
+    const c = paperCapacity(pool, sections(), ["python"], 10, 30);
+    expect(c).toMatchObject({ feasible: false, paperSize: 10, expectedOverlapPct: 16.7 });
+    expect(c.rules[0]).toMatchObject({ pool: 60, needed: 200, ok: false });
+    expect(paperCapacity(pool, sections(), ["python"], 40, 30).feasible).toBe(true);
+    expect(paperCapacity(pool, sections(), ["python"], 10, 1).feasible).toBe(true);
+  });
+
+  it("hand-picked questions are in every paper; a fixed order (no randomising) can't be unique", () => {
+    const c = paperCapacity(pool, sections(["q0", "q1", "q2", "q3", "q4"]), ["python"], 40, 30);
+    expect(c.fixed).toEqual({ count: 5, sharedPct: 33.3, ok: true });
+    expect(paperCapacity(pool, sections(["q0", "q1", "q2", "q3", "q4", "q5"]), ["python"], 30, 30).fixed.ok).toBe(false);
+    expect(paperCapacity(pool, sections(), ["python"], 40, 30, false).feasible).toBe(false);
   });
 });
 

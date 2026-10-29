@@ -195,6 +195,7 @@ export function usedThisMonth(ledger: CreditLedgerRow[], now = new Date()): numb
 export function friendly(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e);
   // Seat rules (R1.3/R1.4, migration 0018). SEAT_LOCKED is checked first: its message also says "permission".
+  if (/POOL_TOO_SMALL/.test(m)) return "The question bank is too small to give every assigned student a different-enough paper. Add questions, raise the test's overlap limit, or ask HiResume to approve this drive.";
   if (/SEAT_LIMIT/.test(m)) return "All your seats are in use. Deactivate a student who hasn't used HiResume yet, or contact HiResume for more seats.";
   if (/SEAT_LOCKED/.test(m)) return "This student has already used their seat, so it stays counted. Deactivate them instead; HiResume can free the seat if needed.";
   if (/FORBIDDEN|permission|row-level security/i.test(m)) return "You don't have permission to do that.";

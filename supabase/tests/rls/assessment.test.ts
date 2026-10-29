@@ -85,6 +85,8 @@ beforeAll(async () => {
     { type: "mcq", title: "CS", pick: [{ topics: ["os"], count: 2 }] },
     { type: "coding", title: "Coding", question_ids: [r.code] },
   ])]);
+  // These fixtures test runner rules, not paper uniqueness (paper-uniqueness.test.ts does): allow full overlap.
+  await db.query("UPDATE assessments SET max_overlap_pct = 100 WHERE id = $1", [r.asA]);
   r.dA = await id(`INSERT INTO drives (org_id, name, assessment_id, status, window_start, window_end)
     VALUES ($1, 'CSE 2027', $2, 'live', now() - interval '1 hour', now() + interval '3 hours') RETURNING id`, [o.A, r.asA]);
   await db.query("INSERT INTO drive_assignments (drive_id, org_id, student_id) VALUES ($1, $2, $3), ($1, $2, $4)", [r.dA, o.A, r.sA, r.sA3]);

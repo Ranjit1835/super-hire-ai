@@ -5,7 +5,7 @@
 
 _Last updated: 2026-10-29_
 
-## Current: `HIRESUME_B2B_SPEC.md`, Phase 1 done, Phase 2 next (branch `feat/b2b-hardening`)
+## Current: `HIRESUME_B2B_SPEC.md`, Phase 1 done, Phase 2 in progress (branch `feat/b2b-hardening`)
 
 **Decisions (2026-10-29):**
 - **D1:** Claude in production; Gemini for now to keep costs down. The gateway gets a Claude provider and a per-environment switch.
@@ -38,6 +38,16 @@ _Last updated: 2026-10-29_
 - **R4.1:** B2C Playwright smoke, run locally with B2B off as in CI: 36 passed. **Local gotcha:** `.env.local` sets `VITE_B2B_ENABLED`, so run `VITE_B2B_ENABLED=false npm run build:e2e` before `npx playwright test`.
 
 **Phase 1 complete (2026-10-29).** Full suite: 858 tests pass. B2B types, lint and Deno checks are clean. Migrations 0012–0028 apply on local Supabase.
+
+**Phase 2 (in progress):**
+- **R2.1–R2.3 paper uniqueness:**
+  - Each test has a maximum overlap between any two students' papers (`assessments.max_overlap_pct`, default 10%).
+  - The builder's "Paper uniqueness" panel shows, for an expected batch size, whether each pick rule's pool is big enough. A rule needs about `count / (target/2)` questions.
+  - Hand-picked questions appear in every paper and count against the target. A fixed order (no randomising) can't be unique.
+  - A drive can't be scheduled or go live on a short pool (`POOL_TOO_SMALL`) unless a super admin records an override with a note (`super_override_drive_pool`).
+  - At draw time, up to 25 seeded draws are tried under a per-drive lock, and the one with the least overlap against the drive's existing papers is kept. If it still breaks the target, that's audited (`paper.overlap_exceeded`).
+  - Each question records how many papers it has been in. The bank shows this as "Papers", and editors can retire over-exposed questions.
+  - Evidence: migration 0029, `paper-uniqueness.test.ts` (12 students, 60-question pool: worst pair ≤ 40%, all papers distinct, exposure = 120), and calculator tests in `bank.test.tsx`. Full suite: 866 tests pass.
 
 **Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
 

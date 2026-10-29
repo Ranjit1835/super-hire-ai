@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { b2bDb } from "@/features/b2b/lib/db";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -149,6 +150,11 @@ export default function BankPage() {
           )}
         </div>
 
+        {orgId !== null && <RetireOverexposed orgId={orgId} onDone={(n) => {
+          setNotice({ tone: "ok", text: n ? `Retired ${n} over-used question${n === 1 ? "" : "s"}.` : "No questions have been used that often." });
+          void refresh();
+        }} />}
+
         {notice && (
           <p role={notice.tone === "error" ? "alert" : "status"}
              className={`text-sm ${notice.tone === "error" ? "text-destructive" : "text-[var(--hr-gold)]"}`}>
@@ -170,7 +176,9 @@ export default function BankPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent"><TableHead className="hr-label">Title</TableHead><TableHead className="hr-label">Type</TableHead><TableHead className="hr-label">Difficulty</TableHead>
                 <TableHead className="hr-label">Topics</TableHead><TableHead className="hr-label">Languages</TableHead>
-                <TableHead className="hr-label">Status</TableHead><TableHead className="hr-label text-right">Actions</TableHead></TableRow>
+                <TableHead className="hr-label">Status</TableHead>
+                <TableHead className="hr-label text-right" title="Papers this question has been in">Papers</TableHead>
+                <TableHead className="hr-label text-right">Actions</TableHead></TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((q) => (
@@ -187,6 +195,7 @@ export default function BankPage() {
                     {q.type === "coding" ? q.languages.map((l) => LANGUAGE_LABEL[l] ?? l).join(", ") || "–" : "–"}
                   </TableCell>
                   <TableCell><Chip tone={STATUS_TONE[q.status]} solid={q.status === "verified"}>{STATUS_LABEL[q.status]}</Chip></TableCell>
+                  <TableCell className="hr-data text-right text-xs">{q.exposure_count ?? 0}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     {mine(q) ? (
                       <>
@@ -221,5 +230,32 @@ export default function BankPage() {
                     onSaved={(id) => { void verify(id); }} />
       <GenerateDialog open={generating} onOpenChange={setGenerating} orgId={orgId} onDone={onGenerated} />
     </V1Shell>
+  );
+}
+
+/** R2.3: retire this org's questions once they've been in too many papers (b2b_retire_overexposed). */
+function RetireOverexposed({ orgId, onDone }: { orgId: string; onDone: (n: number) => void }) {
+  const [threshold, setThreshold] = useState(200);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true); setError(null);
+    try {
+      const { data, error: e } = await b2bDb.rpc("b2b_retire_overexposed", { _org_id: orgId, _threshold: threshold });
+      if (e) throw new Error(e.message);
+      onDone(Number(data));
+    } catch (e) {
+      setError(friendly(e));
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-[var(--hr-muted)]">Retire your questions used in</span>
+      <Input aria-label="Retire after this many papers" type="number" min={1} value={threshold} className="h-8 w-24"
+             onChange={(e) => setThreshold(Math.max(1, Number(e.target.value) || 1))} />
+      <span className="text-[var(--hr-muted)]">or more papers</span>
+      <Button size="sm" variant="outline" onClick={() => void run()} disabled={busy}>{busy ? "Retiring…" : "Retire"}</Button>
+      {error && <span role="alert" className="text-[var(--hr-red-ink)]">{error}</span>}
+    </div>
   );
 }
