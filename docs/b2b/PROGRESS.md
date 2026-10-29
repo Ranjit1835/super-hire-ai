@@ -27,15 +27,25 @@ _Last updated: 2026-10-29_
 - **Practice (owner decision):** practice stays self-serve when a TPO enables it on a test, limited to one run per student per test. An open run can be resumed; once a run exists a new start returns `PRACTICE_USED`. The student home shows "Practice done" (migration 0020, `assessment.test.ts`).
 - **R1.6 sessions (no credits):** one active session per student, 30-minute idle timeout and 8-hour absolute expiry. Orgs can override these with `settings.session_idle_min` / `session_max_hours`. A session is identified by the JWT's `session_id`, so refresh, reload and extra tabs don't count as new logins. Enforcement is server-side in every B2B edge call (`requireUser` → `b2b_session_touch`). The browser sends a heartbeat on activity, a new login signs other devices out (`signOut({scope:"others"})`), and an ended session shows the reason (migration 0021, `sessions.test.ts`, `src/b2b/session.test.ts`). Staff, candidates and B2C users aren't affected. If the session check itself errors, requests are allowed and logged.
 
-**Phase 1, next:**
-- R1.8 per-activity costs and quotas.
-- R3.2 no B2C pages from B2B.
-- R3.5 MFA and admin audit.
-- R1.9 alerts.
-- R6.1 cost views.
-- R5.5 retention job (P1).
+- **R3.2:** `B2CGuard` sends signed-in B2B members from B2C pricing, paywall and checkout pages to their portal. B2C users, visitors and super admins are unchanged (`B2CGuard.test.tsx`).
+- **R3.5:** super admins need MFA (TOTP). `is_super_admin()` requires aal2, B2B edge functions answer `MFA_REQUIRED`, and admin pages show an enrol/verify screen. `user_roles`, `b2b_pricing` and `interview_modules` are now audited (migration 0022, `super-admin-mfa.test.ts`, `MfaGate.test.tsx`). Verified with real local auth: aal1 is refused, a real TOTP verify gives aal2 and is allowed.
+- **R5.5:** evidence snapshots older than `retention_days` (default 90) are deleted through the Storage API, and transcripts for roles closed past retention are deleted. This runs in the `b2b-retention` function on a daily cron (migrations 0023–0024, `retention.test.ts` ×2). Verified on local Storage.
+- **R1.9:** super-admin alerts for low credits, plans expiring or ended, and seats at 90%+. They show on the organisations page and go out as a daily email digest to `B2B_ALERT_EMAIL` (migrations 0025–0026, `org-alerts.test.ts`, `alerts.test.ts`).
+
+**Phase 1, remaining:**
+- R6.1 cost views (per college, student, feature and day).
+- R1.8 per-activity cost settings for super admins.
+- R3.1 bundle grep test.
+- B2C Playwright smoke run locally (it passes in CI).
+
+**Then:**
+- Phase 2: paper uniqueness, plagiarism with Dolos, and code playback.
+- Phase 3: voice stack. This needs your choice of host for the voice worker.
 
 **Deploy notes:**
+- New secrets: `B2B_ALERT_EMAIL` (alert digest recipient). `B2B_CRON_SECRET` and the Vault entries `b2b_project_url` / `b2b_cron_secret` already exist for the evaluation sweep. The new cron jobs (retention, alerts) use them.
+- New edge functions to deploy with the batch: `b2b-retention`, `b2b-alerts`. Both have `verify_jwt = false` and are called by cron with `x-cron-secret`.
+- Super admins must enrol an authenticator app on first visit to `/admin/*` once 0022 is live.
 - Hotfix migration `20261029100001` (in #7) sorts after 0006–0018. When the batch goes to production, use `supabase db push --include-all`; the CLI skips older-numbered migrations otherwise, as it did locally.
 - Migrations 0006–0018 and the V1 functions are not in production. Never deploy B2B functions from this branch until they are.
 - Local test runs: use `--maxWorkers=2`. With Docker running, the 8 GB machine times out under full parallelism.
