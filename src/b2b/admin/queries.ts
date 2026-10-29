@@ -20,6 +20,30 @@ export function useIsSuperAdmin() {
   });
 }
 
+export interface OrgAlert {
+  org_id: string; org_name: string;
+  kind: "low_credits" | "plan_expired" | "plan_expiring" | "seats_full";
+  detail: { credits?: number; threshold?: number; ends_at?: string; days_left?: number; seats_used?: number; seat_limit?: number };
+}
+/** R1.9: organisations that need attention (super_org_alerts, migration 0025). */
+export function useOrgAlerts(enabled: boolean) {
+  return useQuery({
+    queryKey: ["b2b-v1", "org-alerts"],
+    enabled,
+    queryFn: () => rows<OrgAlert[]>(b2bDb.rpc("super_org_alerts")),
+  });
+}
+
+export function alertText(a: OrgAlert): string {
+  const d = a.detail;
+  switch (a.kind) {
+    case "low_credits": return `${num(d.credits)} credits left`;
+    case "plan_expired": return `Plan ended ${fmtDate(d.ends_at ?? null)}; access is blocked`;
+    case "plan_expiring": return `Plan ends in ${d.days_left} day${d.days_left === 1 ? "" : "s"} (${fmtDate(d.ends_at ?? null)})`;
+    case "seats_full": return `${d.seats_used} of ${d.seat_limit} seats used`;
+  }
+}
+
 export function useOrgs(enabled: boolean) {
   return useQuery({
     queryKey: ["b2b-v1", "orgs"],

@@ -11,7 +11,7 @@ import { adminApi } from "../lib/api";
 import type { OrgRow } from "../types";
 import { CreateOrgDialog } from "./CreateOrgDialog";
 import { CreditsDialog, InviteStaffDialog } from "./OrgActions";
-import { ORG_TYPE_LABEL, ROLE_LABEL, fmtDate, friendly, num, useIsSuperAdmin, useOrgs, usePlans, useStaffInvites } from "./queries";
+import { ORG_TYPE_LABEL, ROLE_LABEL, alertText, fmtDate, friendly, num, useIsSuperAdmin, useOrgAlerts, useOrgs, usePlans, useStaffInvites } from "./queries";
 
 export const ADMIN_TABS = [
   { to: "/admin/orgs", label: "Organisations" },
@@ -25,6 +25,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
   const isSuper = useIsSuperAdmin();
   const enabled = isSuper.data === true;
   const orgs = useOrgs(enabled);
+  const alerts = useOrgAlerts(enabled);
   const plans = usePlans(enabled);
   const invites = useStaffInvites(enabled);
   const qc = useQueryClient();
@@ -64,6 +65,20 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
           </div>
           <Button size="sm" onClick={() => setCreating(true)}><Plus className="h-4 w-4 mr-1" />New organisation</Button>
         </div>
+
+        {/* R1.9: low credits, plans ending or ended, seats nearly full. Also emailed daily (b2b-alerts). */}
+        {!!alerts.data?.length && (
+          <section aria-label="Alerts" className="bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-orange)] px-4 py-3">
+            <p className="hr-label">Needs attention</p>
+            <ul className="mt-1.5 space-y-1 text-sm">
+              {alerts.data.map((a) => (
+                <li key={`${a.org_id}-${a.kind}`}>
+                  <b className="text-foreground">{a.org_name}</b>: <span className={a.kind === "plan_expired" ? "text-[var(--hr-red-ink)]" : ""}>{alertText(a)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {lastLink && (
           <div role="status" className="bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] px-4 py-3">

@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   plans: [] as unknown[],
   invites: [] as unknown[],
   usage: [] as unknown[],
+  alerts: [] as unknown[],
 }));
 const api = vi.hoisted(() => ({ adminApi: vi.fn() }));
 
@@ -22,6 +23,7 @@ vi.mock("./queries", async (orig) => ({
   useStaffInvites: () => ({ data: state.invites }),
   useLedger: () => ({ data: [], refetch: vi.fn() }),
   useOrgUsage: () => ({ data: state.usage, isLoading: false, error: null }),
+  useOrgAlerts: () => ({ data: state.alerts, isLoading: false, error: null }),
   adjustCredits: vi.fn().mockResolvedValue(10),
 }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), adminApi: api.adminApi }));
@@ -58,6 +60,7 @@ beforeEach(() => {
   state.plans = [plan("college_starter", "college", 399, 4), plan("college_plus", "college", 599, 5), plan("company_v1", "company", 0, 0)];
   state.invites = [{ id: "i1", org_id: "o1", email: "tpo@svr.in", full_name: "TPO", role: "org_admin", status: "pending", expires_at: "", email_sent_at: null, email_error: null, created_at: "" }];
   state.usage = [];
+  state.alerts = [];
   api.adminApi.mockReset();
 });
 
@@ -78,6 +81,24 @@ describe("super admin: organisations", () => {
     expect(within(rows[2]).getByText("Company")).toBeInTheDocument();
     expect(within(rows[2]).getByText("Suspended")).toBeInTheDocument();
     expect(within(rows[2]).getByRole("button", { name: "Reactivate" })).toBeInTheDocument();
+  });
+
+  it("shows organisations that need attention (R1.9), and nothing when all is well", () => {
+    renderAt("/admin/orgs");
+    expect(screen.queryByRole("region", { name: "Alerts" })).toBeNull();
+  });
+
+  it("lists low credits, plan expiry and full seats at the top", () => {
+    state.alerts = [
+      { org_id: "o1", org_name: "SVR College", kind: "plan_expired", detail: { ends_at: "2026-10-01T00:00:00Z" } },
+      { org_id: "o2", org_name: "Acme Labs", kind: "low_credits", detail: { credits: 12, threshold: 50 } },
+      { org_id: "o1", org_name: "SVR College", kind: "seats_full", detail: { seats_used: 290, seat_limit: 300 } },
+    ];
+    renderAt("/admin/orgs");
+    const panel = screen.getByRole("region", { name: "Alerts" });
+    expect(within(panel).getByText(/Plan ended 1 Oct 2026; access is blocked/)).toBeInTheDocument();
+    expect(within(panel).getByText("12 credits left")).toBeInTheDocument();
+    expect(within(panel).getByText("290 of 300 seats used")).toBeInTheDocument();
   });
 
   it("header counts read as English: one company, one pending invite", () => {

@@ -79,6 +79,10 @@ verify_jwt = false
 [functions.b2b-retention]
 verify_jwt = false
 
+# R1.9 alert digest: called by pg_cron with x-cron-secret (no user JWT), or by a super admin.
+[functions.b2b-alerts]
+verify_jwt = false
+
 [functions.b2b-public-test]
 verify_jwt = false
 
