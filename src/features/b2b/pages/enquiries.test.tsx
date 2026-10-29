@@ -16,13 +16,19 @@ const db = vi.hoisted(() => {
   return {
     rows, rpc, update,
     from: vi.fn(() => ({
-      select: () => ({ order: () => ({ limit: async () => ({ data: rows, error: null }) }) }),
+      select: () => ({ order: () => ({ order: () => ({ range: async () => ({ data: rows, error: null }) }) }) }),
       update,
     })),
   };
 });
-vi.mock("@/features/b2b/lib/db", () => ({ b2bDb: { rpc: db.rpc, from: db.from } }));
-vi.mock("../lib/db", () => ({ b2bDb: { rpc: db.rpc, from: db.from } }));
+vi.mock("@/features/b2b/lib/db", () => ({
+  b2bDb: { rpc: db.rpc, from: db.from },
+  selectAll: async (page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>) => (await page(0, 999)).data,
+}));
+vi.mock("../lib/db", () => ({
+  b2bDb: { rpc: db.rpc, from: db.from },
+  selectAll: async (page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>) => (await page(0, 999)).data,
+}));
 const csv = vi.hoisted(() => ({ downloadCsv: vi.fn() }));
 vi.mock("../lib/csv-export", async (orig) => ({ ...(await orig<typeof import("../lib/csv-export")>()), downloadCsv: csv.downloadCsv }));
 

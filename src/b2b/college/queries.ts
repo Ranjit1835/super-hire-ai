@@ -100,20 +100,12 @@ export function useStudentFacets(orgId: string) {
   return useQuery({
     queryKey: ["b2b-college", "facets", orgId],
     staleTime: 60_000,
-    queryFn: async () => {
-      const data = await rows<{ department: string | null; batch_year: number | null; section: string | null }[]>(
-        b2bDb.from("students").select("department, batch_year, section").eq("org_id", orgId).limit(10000));
-      const uniq = <T,>(xs: (T | null)[]) => [...new Set(xs.filter((x): x is T => x !== null && x !== ""))];
-      return {
-        departments: uniq(data.map((d) => d.department)).sort(),
-        batchYears: uniq(data.map((d) => d.batch_year)).sort((a, b) => a - b),
-        sections: uniq(data.map((d) => d.section)).sort(),
-      };
-    },
+    // Distinct values computed in the database (b2b_student_facets): reading rows would stop at 1000 students.
+    queryFn: () => rows<{ departments: string[]; batchYears: number[]; sections: string[] }>(
+      b2bDb.rpc("b2b_student_facets", { _org_id: orgId })),
   });
 }
 
-/** How many students sit in each status, for the roster header and status tabs. Real counts over the whole roster, not a page. */
 export function useStudentStatusCounts(orgId: string) {
   return useQuery({
     queryKey: ["b2b-college", "student-status-counts", orgId],

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { b2bDb } from "../lib/db";
+import { b2bDb, selectAll } from "../lib/db";
 import { B2B_ENABLED } from "@/lib/config";
 import type {
   Batch, InterviewModule, InterviewQuota, MembershipWithOrg, OrgInvite, OrgMembership, OrgUsageSummary, Organization, Plan, StudentUsage,
@@ -69,13 +69,12 @@ export function useOrgStudents(orgId: string | undefined) {
     enabled: !!orgId,
     staleTime: 15_000,
     queryFn: async (): Promise<StudentRow[]> => {
+      // Whole roster, not the first 1000 rows (selectAll pages until done).
       const [members, usage] = await Promise.all([
-        unwrap<OrgMembership[]>(
-          b2bDb.from("org_memberships").select("*").eq("org_id", orgId!).eq("role", "student").order("roll_no"),
-        ),
-        unwrap<StudentUsage[]>(
-          b2bDb.from("org_student_usage").select("org_id, user_id, interviews_used").eq("org_id", orgId!),
-        ),
+        selectAll<OrgMembership>((from, to) =>
+          b2bDb.from("org_memberships").select("*").eq("org_id", orgId!).eq("role", "student").order("roll_no").order("id").range(from, to)),
+        selectAll<StudentUsage>((from, to) =>
+          b2bDb.from("org_student_usage").select("org_id, user_id, interviews_used").eq("org_id", orgId!).order("user_id").range(from, to)),
       ]);
       const used = new Map(usage.map((u) => [u.user_id, u.interviews_used]));
       return members.map((m) => ({ ...m, interviews_used: used.get(m.user_id) ?? 0 }));
@@ -92,13 +91,12 @@ export function useAllOrgs(enabled: boolean) {
     queryKey: ["b2b", "all-orgs"],
     enabled,
     queryFn: async (): Promise<OrgWithCounts[]> => {
-      const [orgs, students] = await Promise.all([
+      // Student counts are grouped in the database: reading every student membership would stop at 1000 rows.
+      const [orgs, counts] = await Promise.all([
         unwrap<Organization[]>(b2bDb.from("organizations").select("*").order("created_at", { ascending: false })),
-        unwrap<{ org_id: string }[]>(b2bDb.from("org_memberships").select("org_id").eq("role", "student")),
+        unwrap<Record<string, number>>(b2bDb.rpc("b2b_student_counts_by_org")),
       ]);
-      const counts = new Map<string, number>();
-      for (const s of students) counts.set(s.org_id, (counts.get(s.org_id) ?? 0) + 1);
-      return orgs.map((o) => ({ ...o, student_count: counts.get(o.id) ?? 0 }));
+      return orgs.map((o) => ({ ...o, student_count: counts[o.id] ?? 0 }));
     },
   });
 }

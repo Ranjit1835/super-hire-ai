@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { V1Shell, Loading as CenteredSpinner, Empty as EmptyState } from "@/b2b/layout/V1Shell";
 import { ADMIN_TABS } from "@/b2b/admin/AdminOrgsPage";
 import { useIsSuperAdmin } from "../hooks/useB2B";
-import { b2bDb } from "../lib/db";
+import { b2bDb, selectAll } from "../lib/db";
 import { friendlyDbError } from "../lib/format";
 import { downloadCsv, toCsv } from "../lib/csv-export";
 
@@ -55,9 +55,8 @@ function useEnquiries(enabled: boolean) {
     queryKey: ["admin", "enquiries"],
     enabled,
     queryFn: async () => {
-      const { data, error } = await b2bDb.from("institution_enquiries").select(COLUMNS).order("created_at", { ascending: false }).limit(1000);
-      if (error) throw error;
-      return (data ?? []) as Enquiry[];
+      return selectAll<Enquiry>((from, to) =>
+        b2bDb.from("institution_enquiries").select(COLUMNS).order("created_at", { ascending: false }).order("id").range(from, to));
     },
   });
 }
