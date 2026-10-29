@@ -118,10 +118,14 @@ export function useStudentStatusCounts(orgId: string) {
   return useQuery({
     queryKey: ["b2b-college", "student-status-counts", orgId],
     queryFn: async () => {
-      const data = await rows<{ status: StudentStatus }[]>(b2bDb.from("students").select("status").eq("org_id", orgId).limit(10000));
-      const counts: Record<StudentStatus, number> = { imported: 0, invited: 0, active: 0, deactivated: 0, held_minor: 0 };
-      for (const r of data) counts[r.status] = (counts[r.status] ?? 0) + 1;
-      return counts;
+      // One head-only count per status: fetching rows would stop at PostgREST's max_rows (1000) and undercount.
+      const statuses = Object.keys(STATUS_TEXT) as StudentStatus[];
+      const totals = await Promise.all(statuses.map(async (s) => {
+        const { count, error } = await b2bDb.from("students").select("*", { count: "exact", head: true }).eq("org_id", orgId).eq("status", s);
+        if (error) throw new Error(error.message);
+        return count ?? 0;
+      }));
+      return Object.fromEntries(statuses.map((s, i) => [s, totals[i]])) as Record<StudentStatus, number>;
     },
   });
 }
