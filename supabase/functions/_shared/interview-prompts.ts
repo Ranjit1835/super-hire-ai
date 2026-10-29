@@ -73,7 +73,8 @@ export function buildTurnMessage(
   elapsedSeconds: number,
 ): string {
   const history = recent.slice(-RECENT_TURNS)
-    .map((t) => `${t.role === "interviewer" ? "Interviewer" : "Student"}: ${clip(t.content)}`)
+    // Stored answers are untrusted: flatten them like the current one so they can't add forged "Interviewer:" lines.
+    .map((t) => `${t.role === "interviewer" ? "Interviewer" : "Student"}: ${clip(sanitizeAnswer(t.content))}`)
     .join("\n");
   const d = plan.difficultyIf;
   const moveRule = plan.mustMoveOn

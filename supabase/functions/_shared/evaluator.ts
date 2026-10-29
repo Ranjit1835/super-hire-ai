@@ -92,8 +92,11 @@ Reasons must be one or two plain sentences a student can act on. Return everythi
 }
 
 export function buildEvaluatorMessage(spec: ModuleSpec, transcript: TranscriptEntry[], metrics: AudioMetrics, endReason: string | null): string {
+  // One line per turn, delimiters stripped: an answer sent straight to the API can't close <transcript> or add
+  // forged "Qn:" / "An:" lines.
+  const flat = (s: string) => s.replace(/<\/?\s*transcript[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
   const lines = transcript.map((t) =>
-    t.role === "interviewer" ? `Q${t.turn}${t.topic ? ` [${t.topic}]` : ""}: ${t.content}` : `A${t.turn}: ${t.content}`,
+    t.role === "interviewer" ? `Q${t.turn}${t.topic ? ` [${t.topic}]` : ""}: ${flat(t.content)}` : `A${t.turn}: ${flat(t.content)}`,
   ).join("\n");
   const m = metrics;
   const fmt = (n: number | null, unit = "") => (n === null ? "n/a" : `${n}${unit}`);
