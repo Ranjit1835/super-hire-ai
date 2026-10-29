@@ -14,9 +14,9 @@ import { Chip } from "../ui/broadcast";
 import { assessTabs } from "../bank/BankPage";
 import {
   AssessmentForm, assessmentFromRow, assessmentRow, checkDraw, describeRule, emptyAssessment, firstError, LANGUAGE_LABEL, LANGUAGES,
-  poolMatches, type PoolRule, type QuestionRow, type SectionForm,
+  poolMatches, type PoolRule, type SectionForm,
 } from "../bank/forms";
-import { friendly, saveAssessment, useAssessment, useBank, useCanEdit } from "../bank/queries";
+import { friendly, saveAssessment, useAssessment, useCanEdit, useVerifiedPool, type PoolRow } from "../bank/queries";
 
 const POLICIES: { value: AssessmentForm["proctoring_policy"]; label: string; hint: string }[] = [
   { value: "off", label: "Off", hint: "No proctoring." },
@@ -33,7 +33,7 @@ export default function BuilderPage() {
   const qc = useQueryClient();
   const canEdit = useCanEdit(orgId);
   const existing = useAssessment(assessmentId);
-  const bank = useBank(orgId, canEdit.data === true);
+  const bank = useVerifiedPool(orgId, canEdit.data === true);
   const [f, setF] = useState<AssessmentForm>(emptyAssessment);
   const [loaded, setLoaded] = useState(!assessmentId);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +65,10 @@ export default function BuilderPage() {
       return;
     }
     // The server quietly hands out fewer questions when a pool runs dry; a test in use must never do that.
+    if (parsed.data.status === "ready" && !bank.data) {
+      setError(bank.error ? `Couldn't load the question bank to check this test: ${friendly(bank.error)}` : "Still loading the question bank. Try again in a moment.");
+      return;
+    }
     if (parsed.data.status === "ready" && draw.short) {
       setError("Some candidates would get fewer questions than this test asks for (see the rules marked in red). Add questions to the bank, lower the counts, or save it as a draft.");
       return;
@@ -184,6 +188,7 @@ export default function BuilderPage() {
           {f.sections.map((s, si) => (
             <SectionEditor key={si} index={si} section={s} bank={bank.data ?? []} languages={f.languages}
                            guaranteed={draw.guaranteed[si] ?? []} fixedAtRisk={draw.fixedAtRisk}
+                           unavailable={bank.data ? s.question_ids.filter((id) => draw.unavailable.includes(id)) : []}
                            onChange={(patch) => setSection(si, patch)} onRule={(ri, patch) => setRule(si, ri, patch)}
                            onRemove={f.sections.length > 1 ? () => set("sections", f.sections.filter((_, j) => j !== si)) : undefined} />
           ))}
@@ -232,8 +237,10 @@ export default function BuilderPage() {
   );
 }
 
-function SectionEditor({ index, section, bank, languages, guaranteed, fixedAtRisk, onChange, onRule, onRemove }: {
-  index: number; section: SectionForm; bank: QuestionRow[]; languages: string[]; guaranteed: number[]; fixedAtRisk: string[];
+function SectionEditor({ index, section, bank, languages, guaranteed, fixedAtRisk, unavailable, onChange, onRule, onRemove }: {
+  index: number; section: SectionForm; bank: PoolRow[]; languages: string[]; guaranteed: number[]; fixedAtRisk: string[];
+  /** This section's chosen ids the server can't serve any more (retired, back to draft, deleted). */
+  unavailable: string[];
   onChange: (patch: Partial<SectionForm>) => void; onRule: (ri: number, patch: Partial<PoolRule>) => void; onRemove?: () => void;
 }) {
   const [search, setSearch] = useState("");
@@ -293,6 +300,18 @@ function SectionEditor({ index, section, bank, languages, guaranteed, fixedAtRis
       </div>
       <div className="grid gap-2">
         <p className="hr-label">Always include these questions ({section.question_ids.length} chosen)</p>
+        {unavailable.length > 0 && (
+          <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-[var(--hr-red-ink)]">
+            <span>
+              {unavailable.length === 1 ? "1 chosen question is" : `${unavailable.length} chosen questions are`} no longer
+              verified (retired, sent back to draft or deleted), so candidates wouldn't get {unavailable.length === 1 ? "it" : "them"}.
+            </span>
+            <Button type="button" size="sm" variant="outline"
+                    onClick={() => onChange({ question_ids: section.question_ids.filter((id) => !unavailable.includes(id)) })}>
+              Remove {unavailable.length === 1 ? "it" : "them"}
+            </Button>
+          </div>
+        )}
         <Input aria-label={`Section ${n} search questions`} placeholder="Search verified questions" value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="max-h-48 overflow-y-auto border border-[var(--hr-rule)] p-2 grid gap-1">
           {pickable.length === 0 ? <p className="text-xs text-[var(--hr-muted)]">No verified {section.type === "coding" ? "coding" : "MCQ"} questions match.</p>

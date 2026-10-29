@@ -7,14 +7,21 @@ import {
   poolMatches, type AssessmentRow, type QuestionRow,
 } from "./forms";
 
-const state = vi.hoisted(() => ({ canEdit: true as boolean | undefined, bank: [] as unknown[], assessment: null as unknown }));
+const state = vi.hoisted(() => ({ canEdit: true as boolean | undefined, bank: [] as unknown[], assessment: null as unknown, queries: [] as unknown[] }));
 const fns = vi.hoisted(() => ({ saveQuestion: vi.fn(), saveAssessment: vi.fn(), setQuestionStatus: vi.fn(), assessApi: vi.fn() }));
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" }, signOut: vi.fn() }) }));
 vi.mock("./queries", async (orig) => ({
   ...(await orig<typeof import("./queries")>()),
   useCanEdit: () => ({ data: state.canEdit, isLoading: false }),
-  useBank: () => ({ data: state.bank, isLoading: false, error: null }),
+  // The page asks the server for one filtered page; the mock records the query and serves the whole fixture bank.
+  useBankPage: (_org: string | null, q: unknown) => {
+    state.queries.push(q);
+    const all = state.bank as { status: string; type: string }[];
+    const n = (f: (x: { status: string; type: string }) => boolean) => all.filter(f).length;
+    return { data: { total: all.length, rows: all, counts: { verified: n((x) => x.status === "verified"), draft: n((x) => x.status === "draft"), retired: n((x) => x.status === "retired"), coding: n((x) => x.type === "coding"), mcq: n((x) => x.type === "mcq") } }, isLoading: false, isFetching: false, error: null };
+  },
+  useVerifiedPool: () => ({ data: (state.bank as { status: string }[]).filter((q) => q.status === "verified"), isLoading: false, error: null }),
   useAssessments: () => ({ data: [], isLoading: false, error: null }),
   useAssessment: (id: string | undefined) => ({ data: id ? state.assessment : undefined, isLoading: false, error: null }),
   loadCodingDetails: vi.fn().mockResolvedValue({ tests: [], reference: null }),
@@ -58,6 +65,7 @@ beforeEach(() => {
   state.canEdit = true;
   state.bank = [];
   state.assessment = null;
+  state.queries = [];
   Object.values(fns).forEach((f) => f.mockReset());
 });
 
@@ -105,6 +113,14 @@ describe("bank forms (pure)", () => {
     expect(poolMatches(bank, "coding", { difficulty: "easy", topics: "arrays", count: 1 }, ["python"])).toBe(1);
     expect(poolMatches(bank, "coding", { difficulty: "", topics: "", count: 1 }, ["python", "c"])).toBe(3);
     expect(poolMatches(bank, "mcq", { difficulty: "", topics: "", count: 1 }, ["python"])).toBe(0);
+  });
+
+  it("draw check: chosen questions that are missing, unverified or the wrong type are unavailable and make it short", () => {
+    const bank = [question({}), question({ id: Q2, status: "retired" })];
+    const c = checkDraw(bank, [{ type: "coding", pick: [], question_ids: [Q1, Q2, "gone"] }, { type: "mcq", pick: [], question_ids: [Q1] }], ["python"]);
+    expect(c.unavailable).toEqual([Q2, "gone", Q1]);
+    expect(c.short).toBe(true);
+    expect(checkDraw(bank, [{ type: "coding", pick: [], question_ids: [Q1] }], ["python"]).short).toBe(false);
   });
 
   it("draw check: overlapping rules and chosen questions count against later rules, as the server draws them", () => {
@@ -164,12 +180,18 @@ describe("question bank page", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("The code runner isn't set up yet");
   });
 
-  it("filters by search", () => {
+  it("sends search to the server once typing settles, back on page 1", async () => {
     state.bank = [question({}), question({ id: Q2, title: "Balanced brackets", topics: ["stacks"] })];
     renderAt(`/assess/bank/${ORG}`);
-    fireEvent.change(screen.getByLabelText("Search questions"), { target: { value: "stack" } });
-    expect(screen.queryByText("Pair sums")).not.toBeInTheDocument();
-    expect(screen.getByText("Balanced brackets")).toBeInTheDocument();
+    expect(state.queries.at(-1)).toEqual({ type: "all", owner: "all", search: "", page: 1 });
+    fireEvent.change(screen.getByLabelText("Search questions"), { target: { value: "  Stack " } });
+    await waitFor(() => expect(state.queries.at(-1)).toEqual({ type: "all", owner: "all", search: "Stack", page: 1 }));
+  });
+
+  it("header counts come from the server's whole-bank counts", () => {
+    state.bank = [question({ status: "draft" }), question({ id: Q2, type: "mcq", title: "Train speed" })];
+    renderAt(`/assess/bank/${ORG}`);
+    expect(screen.getByText("1 verified · 1 draft · 0 retired · 1 coding · 1 MCQ")).toBeInTheDocument();
   });
 });
 
@@ -248,6 +270,23 @@ describe("test builder", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save test" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("fewer questions than this test asks for");
     expect(fns.saveAssessment).not.toHaveBeenCalled();
+  });
+
+  it("a chosen question that was retired blocks a ready test and can be removed", async () => {
+    // The pool holds verified questions only; Q2 was chosen earlier and has since been retired.
+    state.bank = [question({}), question({ id: Q2, title: "Old one", status: "retired" })];
+    state.assessment = { ...assessmentRow(ORG, { ...emptyAssessment(), title: "Campus round 1", status: "ready",
+      sections: [{ type: "coding", title: "Coding", question_ids: [Q1, Q2], pick: [] }] }), id: Q2, created_at: "", updated_at: "" };
+    fns.saveAssessment.mockResolvedValue(Q2);
+    renderAt(`/assess/tests/${ORG}/${Q2}`);
+    expect(await screen.findByText(/1 chosen question is no longer verified/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save test" }));
+    await waitFor(() => expect(screen.getAllByRole("alert").some((a) => /fewer questions than this test asks for/.test(a.textContent ?? ""))).toBe(true));
+    expect(fns.saveAssessment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Remove it" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save test" }));
+    await waitFor(() => expect(fns.saveAssessment).toHaveBeenCalled());
+    expect(fns.saveAssessment.mock.calls[0][1].sections[0].question_ids).toEqual([Q1]);
   });
 
   it("loads an existing test for editing and updates it", async () => {

@@ -1,6 +1,6 @@
 // /assess/bank/:orgId — the org's question bank (org editors) plus verified global questions.
 // /assess/bank/global — the global bank (super admin only).
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { CodingDialog } from "./CodingDialog";
 import { GenerateDialog, type GenerateResult } from "./GenerateDialog";
 import { McqDialog } from "./McqDialog";
 import { LANGUAGE_LABEL, type QuestionRow } from "./forms";
-import { friendly, orgOf, setQuestionStatus, useBank, useCanEdit } from "./queries";
+import { BANK_PAGE, friendly, orgOf, setQuestionStatus, useBankPage, useCanEdit, type BankOwner, type BankType } from "./queries";
 
 export function assessTabs(orgParam: string): ShellTab[] {
   if (orgParam === "global") return [{ to: "/assess/bank/global", label: "Global question bank" }];
@@ -31,10 +31,16 @@ export default function BankPage() {
   const orgId = orgOf(orgParam);
   const qc = useQueryClient();
   const canEdit = useCanEdit(orgId);
-  const bank = useBank(orgId, canEdit.data === true);
-  const [type, setType] = useState<"all" | "coding" | "mcq">("all");
-  const [owner, setOwner] = useState<"all" | "ours" | "global">("all");
+  const [type, setType] = useState<BankType>("all");
+  const [owner, setOwner] = useState<BankOwner>("all");
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");   // the search actually sent: settles 300ms after typing stops
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    const h = setTimeout(() => { setQuery(search.trim()); setPage(1); }, 300);
+    return () => clearTimeout(h);
+  }, [search]);
+  const bank = useBankPage(orgId, { type, owner, search: query, page }, canEdit.data === true);
   const [editing, setEditing] = useState<{ kind: "mcq" | "coding"; row: QuestionRow | null } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -42,23 +48,9 @@ export default function BankPage() {
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["b2b-assess", "bank", orgId] });
 
-  const rows = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    return (bank.data ?? []).filter((q) => (type === "all" || q.type === type)
-      && (owner === "all" || (owner === "global" ? q.org_id === null : q.org_id !== null))
-      && (!s || q.title.toLowerCase().includes(s) || q.topics.some((t) => t.includes(s))));
-  }, [bank.data, type, owner, search]);
-
-  const counts = useMemo(() => {
-    const all = bank.data ?? [];
-    return {
-      verified: all.filter((q) => q.status === "verified").length,
-      draft: all.filter((q) => q.status === "draft").length,
-      retired: all.filter((q) => q.status === "retired").length,
-      coding: all.filter((q) => q.type === "coding").length,
-      mcq: all.filter((q) => q.type === "mcq").length,
-    };
-  }, [bank.data]);
+  const rows = bank.data?.rows ?? [];
+  const counts = bank.data?.counts;
+  const total = bank.data?.total ?? 0;
 
   const verify = async (id: string) => {
     setBusyId(id);
@@ -102,7 +94,7 @@ export default function BankPage() {
   }
 
   const mine = (q: QuestionRow) => q.org_id === orgId;
-  const filtered = search.trim() !== "" || type !== "all" || owner !== "all";
+  const filtered = query !== "" || type !== "all" || owner !== "all";
   const empty = rows.length === 0;
 
   return (
@@ -120,7 +112,7 @@ export default function BankPage() {
             {orgId === null ? "Verified questions every organisation can draw from." : "Your own questions plus every verified question from the global bank."}
           </p>
           <p className="hr-data text-sm text-foreground mt-1.5">
-            {bank.data ? counts.verified : "–"} verified · {bank.data ? counts.draft : "–"} draft · {bank.data ? counts.retired : "–"} retired · {bank.data ? counts.coding : "–"} coding · {bank.data ? counts.mcq : "–"} MCQ
+            {counts ? counts.verified : "–"} verified · {counts ? counts.draft : "–"} draft · {counts ? counts.retired : "–"} retired · {counts ? counts.coding : "–"} coding · {counts ? counts.mcq : "–"} MCQ
           </p>
         </div>
 
@@ -137,7 +129,7 @@ export default function BankPage() {
           </div>
           <div className="w-36">
             <p className="hr-label mb-1.5">Type</p>
-            <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
+            <Select value={type} onValueChange={(v) => { setType(v as BankType); setPage(1); }}>
               <SelectTrigger aria-label="Type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem><SelectItem value="coding">Coding</SelectItem><SelectItem value="mcq">MCQ</SelectItem>
@@ -147,7 +139,7 @@ export default function BankPage() {
           {orgId !== null && (
             <div className="w-44">
               <p className="hr-label mb-1.5">Source</p>
-              <Select value={owner} onValueChange={(v) => setOwner(v as typeof owner)}>
+              <Select value={owner} onValueChange={(v) => { setOwner(v as BankOwner); setPage(1); }}>
                 <SelectTrigger aria-label="Source"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Ours and global</SelectItem><SelectItem value="ours">Ours only</SelectItem><SelectItem value="global">Global only</SelectItem>
@@ -214,6 +206,13 @@ export default function BankPage() {
               ))}
             </TableBody>
           </Table>
+        )}
+        {total > BANK_PAGE && (
+          <div className="flex justify-end items-center gap-2 text-sm">
+            <Button size="sm" variant="outline" disabled={page <= 1 || bank.isFetching} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+            <span className="hr-data text-xs">Page {page} of {Math.ceil(total / BANK_PAGE)} · {total} questions</span>
+            <Button size="sm" variant="outline" disabled={page * BANK_PAGE >= total || bank.isFetching} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          </div>
         )}
       </div>
       <McqDialog open={editing?.kind === "mcq"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}

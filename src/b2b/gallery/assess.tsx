@@ -43,17 +43,26 @@ const demoQuestions: QuestionRow[] = [
     answer: ["a"], points: 1, status: "retired" }),
 ];
 
+/** The bank page's first page, as b2b_bank_page returns it (counts over the whole bank). */
+function bankPage(list: QuestionRow[]) {
+  const n = (f: (q: QuestionRow) => boolean) => list.filter(f).length;
+  return { total: list.length, rows: list, counts: {
+    verified: n((q) => q.status === "verified"), draft: n((q) => q.status === "draft"), retired: n((q) => q.status === "retired"),
+    coding: n((q) => q.type === "coding"), mcq: n((q) => q.type === "mcq") } };
+}
+const FIRST_PAGE = { type: "all", owner: "all", search: "", page: 1 };
+
 function Bank() {
   return (
     <Scene path={`/assess/bank/${DEMO.org}`} route="/assess/bank/:orgId" element={<BankPage />}
-      seed={(qc) => { seedAssessAccess(qc); qc.setQueryData(["b2b-assess", "bank", DEMO.org], demoQuestions); }} />
+      seed={(qc) => { seedAssessAccess(qc); qc.setQueryData(["b2b-assess", "bank", DEMO.org, "page", FIRST_PAGE], bankPage(demoQuestions)); }} />
   );
 }
 
 function BankEmpty() {
   return (
     <Scene path={`/assess/bank/${DEMO.org}`} route="/assess/bank/:orgId" element={<BankPage />}
-      seed={(qc) => { seedAssessAccess(qc); qc.setQueryData(["b2b-assess", "bank", DEMO.org], []); }} />
+      seed={(qc) => { seedAssessAccess(qc); qc.setQueryData(["b2b-assess", "bank", DEMO.org, "page", FIRST_PAGE], bankPage([])); }} />
   );
 }
 
@@ -91,7 +100,7 @@ function Builder() {
   const shortBank = demoQuestions.filter((q) => q.type === "mcq" || q.difficulty !== "easy");
   return (
     <Scene path={`/assess/tests/${DEMO.org}/new`} route="/assess/tests/:orgId/new" element={<BuilderPage />}
-      seed={(qc) => { seedAssessAccess(qc); qc.setQueryData(["b2b-assess", "bank", DEMO.org], shortBank); }} />
+      seed={(qc) => { seedAssessAccess(qc); qc.setQueryData(["b2b-assess", "bank", DEMO.org, "pool"], shortBank.filter((q) => q.status === "verified")); }} />
   );
 }
 
