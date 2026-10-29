@@ -5,7 +5,7 @@
 
 _Last updated: 2026-10-29_
 
-## Current: `HIRESUME_B2B_SPEC.md`, Phase 1 in progress (branch `feat/b2b-hardening`)
+## Current: `HIRESUME_B2B_SPEC.md`, Phase 1 done, Phase 2 next (branch `feat/b2b-hardening`)
 
 **Decisions (2026-10-29):**
 - **D1:** Claude in production; Gemini for now to keep costs down. The gateway gets a Claude provider and a per-environment switch.
@@ -32,15 +32,19 @@ _Last updated: 2026-10-29_
 - **R5.5:** evidence snapshots older than `retention_days` (default 90) are deleted through the Storage API, and transcripts for roles closed past retention are deleted. This runs in the `b2b-retention` function on a daily cron (migrations 0023–0024, `retention.test.ts` ×2). Verified on local Storage.
 - **R1.9:** super-admin alerts for low credits, plans expiring or ended, and seats at 90%+. They show on the organisations page and go out as a daily email digest to `B2B_ALERT_EMAIL` (migrations 0025–0026, `org-alerts.test.ts`, `alerts.test.ts`).
 
-**Phase 1, remaining:**
-- R6.1 cost views (per college, student, feature and day).
-- R1.8 per-activity cost settings for super admins.
-- R3.1 bundle grep test.
-- B2C Playwright smoke run locally (it passes in CI).
+- **R6.1:** AI cost by college, student, feature and day (IST) for super admins (migration 0027, `cost-breakdown.test.ts`).
+- **R1.8:** super admins set per-college activity costs and limits in a "Costs & limits" dialog. Practice cost is configurable (0 = free), and there are no charges for login or assigned drives (migration 0028, `activity-costs.test.ts`).
+- **R3.1 check:** `scripts/check-b2b-price-secrecy.mjs` runs in CI on a build with B2B on, covering source and bundle (`price-secrecy.test.ts`). `/college-placement` (it shows institution prices) is behind `B2CGuard`.
+- **R4.1:** B2C Playwright smoke, run locally with B2B off as in CI: 36 passed. **Local gotcha:** `.env.local` sets `VITE_B2B_ENABLED`, so run `VITE_B2B_ENABLED=false npm run build:e2e` before `npx playwright test`.
 
-**Then:**
-- Phase 2: paper uniqueness, plagiarism with Dolos, and code playback.
-- Phase 3: voice stack. This needs your choice of host for the voice worker.
+**Phase 1 complete (2026-10-29).** Full suite: 858 tests pass. B2B types, lint and Deno checks are clean. Migrations 0012–0028 apply on local Supabase.
+
+**Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
+
+**Phase 2, next:**
+- R2.1–R2.3: paper uniqueness, a pool calculator, parameterised MCQs, and exposure tracking.
+- R2.7: code playback.
+- R2.8: plagiarism with Dolos.
 
 **Deploy notes:**
 - New secrets: `B2B_ALERT_EMAIL` (alert digest recipient). `B2B_CRON_SECRET` and the Vault entries `b2b_project_url` / `b2b_cron_secret` already exist for the evaluation sweep. The new cron jobs (retention, alerts) use them.
