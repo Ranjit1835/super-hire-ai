@@ -21,8 +21,6 @@ export function useCanEdit(orgId: string | null) {
   });
 }
 
-const QUESTION_COLS = "id, org_id, type, title, statement, difficulty, topics, category, languages, starter_code, constraints, time_limit_ms, memory_limit_kb, options, answer, multi_select, explanation, points, status, source, version, created_at";
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type BankType = "all" | "coding" | "mcq";
