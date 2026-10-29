@@ -258,6 +258,12 @@ export function makeV1Handlers(deps: V1Deps) {
     },
 
     async liveToken(input: { interviewId?: string }, actor: string) {
+      // The spike page is only routed in dev builds, but this endpoint is reachable wherever GEMINI_API_KEY is set
+      // (it is in production, for every other B2B AI call). Without a server-side switch any staff member, or a
+      // candidate mid-interview, could mint platform-key Live tokens without limit. Off unless B2B_LIVE_SPIKE=true.
+      if ((deps.env("B2B_LIVE_SPIKE") ?? "").trim() !== "true") {
+        throw new V1Error(404, "LIVE_DISABLED", "The Gemini Live spike is turned off on this server.");
+      }
       const key = (deps.env("GEMINI_API_KEY") ?? "").trim();
       if (!key) throw new V1Error(503, "LIVE_NOT_CONFIGURED", "The Gemini Live spike isn't configured (GEMINI_API_KEY is not set).");
       const allowed = await rpc<boolean>("b2b_iv_live_allowed", { _actor: actor, _interview_id: input.interviewId ?? null });

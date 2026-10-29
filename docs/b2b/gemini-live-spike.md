@@ -11,7 +11,8 @@ the steps below and fills in the results table.
 
 - `b2b-interview` action **`liveToken`** (`supabase/functions/b2b-interview/v1.ts`): asks Gemini for a single-use
   ephemeral token (`POST https://generativelanguage.googleapis.com/v1alpha/auth_tokens`, `uses: 1`, session must open
-  within 2 minutes, token valid 30 minutes). Answers **503 `LIVE_NOT_CONFIGURED`** when `GEMINI_API_KEY` is unset.
+  within 2 minutes, token valid 30 minutes). Answers **503 `LIVE_NOT_CONFIGURED`** when `GEMINI_API_KEY` is unset, and **404 `LIVE_DISABLED`** unless the server sets
+  `B2B_LIVE_SPIKE=true` (off in production). Outside an interview only super admins get a token.
   Allowed for the subject of a live interview, or (no interview id) staff / super admin. The API key never reaches the
   browser.
 - Dev-only page **`/interview/v1/live-spike`** (`src/b2b/interview/LiveSpikePage.tsx`; routed only in `npm run dev`
@@ -28,7 +29,7 @@ body, the WebSocket URL, the default model name (`gemini-live-2.5-flash-preview`
 
 ## How to run it (about 45 minutes)
 
-1. `supabase/functions/.env`: `B2B_ENABLED=true`, `GEMINI_API_KEY=<key>` (optional `GEMINI_LIVE_MODEL=<model>`).
+1. `supabase/functions/.env`: `B2B_ENABLED=true`, `B2B_LIVE_SPIKE=true`, `GEMINI_API_KEY=<key>` (optional `GEMINI_LIVE_MODEL=<model>`).
    `.env.local`: `VITE_B2B_ENABLED=true`.
 2. `npx supabase start -x studio,imgproxy,vector,logflare`, `npx supabase functions serve b2b-interview`, `npm run dev`.
 3. Sign in as a staff user (TPO admin, recruiter) or the super admin. Open `http://localhost:8080/interview/v1/live-spike`

@@ -240,12 +240,22 @@ describe("finish → evaluation", () => {
 });
 
 describe("Gemini Live spike token", () => {
-  it("503 without GEMINI_API_KEY; 403 for students without a live interview; a token for staff", async () => {
+  const env = (vars: Record<string, string>) => (k: string) => vars[k];
+  it("off unless B2B_LIVE_SPIKE=true, even with a Gemini key", async () => {
+    const fetchMock = vi.fn();
+    const { h } = handlers({ env: env({ GEMINI_API_KEY: "test-key" }), fetch: fetchMock as unknown as typeof fetch });
+    expect(await rejects(h.liveToken({}, f.u.super))).toMatchObject({ status: 404, code: "LIVE_DISABLED" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("503 without GEMINI_API_KEY; outside an interview only super admins get a token", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ name: "auth_tokens/abc123" }), { status: 200 }));
-    expect(await rejects(handlers().h.liveToken({}, f.u.recC))).toMatchObject({ status: 503, code: "LIVE_NOT_CONFIGURED" });
-    const { h } = handlers({ env: (k) => (k === "GEMINI_API_KEY" ? "test-key" : undefined), fetch: fetchMock as unknown as typeof fetch });
-    expect(await rejects(h.liveToken({}, f.u.stuA))).toMatchObject({ status: 403 });
-    const tok = await h.liveToken({}, f.u.recC);
+    expect(await rejects(handlers({ env: env({ B2B_LIVE_SPIKE: "true" }) }).h.liveToken({}, f.u.super)))
+      .toMatchObject({ status: 503, code: "LIVE_NOT_CONFIGURED" });
+    const { h } = handlers({ env: env({ B2B_LIVE_SPIKE: "true", GEMINI_API_KEY: "test-key" }), fetch: fetchMock as unknown as typeof fetch });
+    for (const actor of [f.u.stuA, f.u.recC, f.u.tpoA]) expect(await rejects(h.liveToken({}, actor))).toMatchObject({ status: 403 });
+    expect(fetchMock).not.toHaveBeenCalled();
+    const tok = await h.liveToken({}, f.u.super);
     expect(tok).toMatchObject({ token: "auth_tokens/abc123", model: expect.any(String) });
     expect(interviewContract.liveToken.output.safeParse(tok).success).toBe(true);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];

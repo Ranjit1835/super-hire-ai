@@ -82,6 +82,8 @@ export class ProctorMonitor {
   private cameraVideo: HTMLVideoElement | null = null;
   private vad: EnergyVad | null = null;
   private devtoolsOpen = false;
+  /** Stops the current camera's watchers (listeners, frozen check, face loop); run when the camera is replaced. */
+  private stopCameraWatch: (() => void)[] = [];
 
   constructor(private readonly d: MonitorDeps) {
     this.win = d.win ?? window;
@@ -323,8 +325,12 @@ export class ProctorMonitor {
   }
 
   private watchCamera(stream: MediaStream | null) {
+    // A replaced camera's face loop would otherwise keep running on the dead stream's last frame next to the new
+    // one: double the detection work, and stale results mixed into the no-face / looking-away signals.
+    for (const c of this.stopCameraWatch.splice(0)) { try { c(); } catch { /* ignore */ } }
     const track = stream?.getVideoTracks()[0];
     if (!track) return;
+    const own = (fn: () => void) => { this.stopCameraWatch.push(fn); this.cleanups.push(fn); };
     this.cameraVideo = videoFor(stream!);
     if (looksVirtual(track.label ?? "")) {
       this.emit("virtual_camera_suspected", { confidence: 0.6, meta: { label: track.label.slice(0, 80) } });
@@ -344,7 +350,7 @@ export class ProctorMonitor {
     track.addEventListener("ended", onEnded);
     track.addEventListener("mute", onMute);
     track.addEventListener("unmute", onUnmute);
-    this.cleanups.push(() => {
+    own(() => {
       track.removeEventListener("ended", onEnded); track.removeEventListener("mute", onMute); track.removeEventListener("unmute", onUnmute);
       if (mutedTimer) clearTimeout(mutedTimer);
     });
@@ -352,20 +358,21 @@ export class ProctorMonitor {
     // Frozen feed: compare tiny thumbnails every 2 s.
     const canvas = this.doc.createElement("canvas");
     let prev: Uint8ClampedArray | null = null;
-    this.every(2000, () => {
+    const frozenTimer = setInterval(() => {
       if (this.d.camera !== stream || !this.cameraVideo) return;
       const cur = tinyFrame(this.cameraVideo, canvas);
       this.tracker.set("camera_frozen", framesIdentical(prev, cur), Date.now());
       prev = cur;
-    });
+    }, 2000);
+    own(() => clearInterval(frozenTimer));
 
     const fps = TIER_FPS[this.d.tier];
     if (fps > 0 && this.d.loadDetector) {
       const video = this.cameraVideo;
       this.d.loadDetector().then((det) => {
         if (this.stopped || this.d.camera !== stream) return;
-        const stopLoop = startFaceLoop(det, video, fps, (f) => this.onFace(f));
-        this.cleanups.push(stopLoop);
+        const stopLoop = startFaceLoop(det, video, fps, (f) => { if (this.d.camera === stream) this.onFace(f); });
+        own(stopLoop);
       }).catch(() => { /* model unavailable: browser signals + snapshots still run */ });
     }
   }
