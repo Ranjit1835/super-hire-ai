@@ -75,6 +75,10 @@ verify_jwt = false
 [functions.b2b-evaluate]
 verify_jwt = false
 
+# R5.5 retention sweep: called by pg_cron with x-cron-secret (no user JWT), or by a super admin.
+[functions.b2b-retention]
+verify_jwt = false
+
 [functions.b2b-public-test]
 verify_jwt = false
 
