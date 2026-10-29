@@ -3,7 +3,20 @@
 > Read this first at the start of every session; update it at the end.
 > Spec + **Decisions log**: `docs/b2b/hiresume-b2b-build-prompt.md` · Evidence and numbers: `docs/b2b/AUDIT.md`
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-29_
+
+## Current: `HIRESUME_B2B_SPEC.md` — Phase 0 done, waiting for approval
+
+- Spec: `HIRESUME_B2B_SPEC.md` (requirement IDs R1–R6). Branch **`feat/b2b-hardening`** (from `design/b2b-redesign`, PR #5).
+- **Phase 0 audit:** `docs/b2b/PHASE0_AUDIT.md`: baseline, traceability matrix, P0/P1/P2 issues, decisions D1–D8, verdict **NO-GO** for B2B in production.
+- **IDs done (with evidence in the audit):** R1.7 (per activity), R1.10 (LLM), R2.4, R3.4, R3.6, R4.1, R4.2, R6.5, R6.8.
+- **Open decisions:** D1 LLM provider · D2 staging environment · D3 sessions on the Free plan · D4 voice stack · D5 email collision · D6 plagiarism engine · D7 who grants org admin · D8 hotfix for the live price leak.
+- **Next step:** your answers to D1–D8, then Phase 1 (R4.1 B2C baseline, R3.3–R3.6, R1, R3.1–R3.2, R6.1). No deploys and no production migrations (spec §0).
+- 2026-10-29 already shipped to prod (before this spec): PR #6, the pilot transcript-forging fix (functions b2b-interview v6, b2b-evaluate v7, b2b-public-test v6).
+
+---
+
+_Previous status (2026-10-22) below._
 
 ## Where things stand
 
