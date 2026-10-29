@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { StageStep } from "./Stage";
+import { BLOCK_D, BLOCK_H, BLOCK_W, FRAME_H, GAP, frameWidth } from "./layout";
 
 const COLOR: Record<StageStep["state"], string> = { done: "#FFC629", current: "#FF5A0F", todo: "#2B3550" };
-const BLOCK_W = 1, BLOCK_H = 0.62, BLOCK_D = 0.62, GAP = 0.34;
 
 /** A block with bevelled edges (an extruded rounded rectangle), centred on the origin. */
 function blockGeometry() {
@@ -28,7 +28,7 @@ function Fit({ count }: { count: number }) {
   const { camera, size, invalidate } = useThree();
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera;
-    const w = count * BLOCK_W + (count - 1) * GAP + 0.9, h = 1.9;
+    const w = frameWidth(count), h = FRAME_H;
     const vfov = (cam.fov * Math.PI) / 180;
     const aspect = size.width / Math.max(1, size.height);
     cam.position.z = Math.max(h / 2 / Math.tan(vfov / 2), w / 2 / Math.tan(vfov / 2) / aspect);

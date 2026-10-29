@@ -62,6 +62,8 @@ export function RoleView({ orgId, role, isEditor }: { orgId: string; role: JobRo
   const rows = data.data?.rows ?? [];
   const total = data.data?.total ?? 0;
   const counts = data.data?.counts ?? {};
+  // Stage counts come from the server unfiltered; "All" is their sum, not the filtered `total`.
+  const allCount = data.data ? Object.values(counts).reduce((n, v) => n + v, 0) : undefined;
   const pickedRow = rows.find((r) => r.id === picked) ?? null;
 
   function sortBy(by: SortBy) {
@@ -110,7 +112,7 @@ export function RoleView({ orgId, role, isEditor }: { orgId: string; role: JobRo
   }
 
   const allOnPage = rows.length > 0 && rows.every((r) => selected.includes(r.id));
-  const advancedCount = activeFilterCount({ ...form, stages: [] });
+  const advancedCount = activeFilterCount({ ...applied, stages: [] }); // applied filters, not the unsaved draft
   const header = (label: string, by: SortBy) => (
     <TableHead className="hr-label">
       <button type="button" className="hr-label hover:text-foreground" onClick={() => sortBy(by)} aria-label={`Sort by ${label}`}>
@@ -147,7 +149,7 @@ export function RoleView({ orgId, role, isEditor }: { orgId: string; role: JobRo
       {/* Decision D4: status is a tab bar with counts; integrity, score range and search sit behind one Filters button. */}
       <div className="flex flex-wrap items-end gap-x-2 gap-y-2 hr-rule-b">
         <div role="tablist" aria-label="Stage" className="flex items-stretch overflow-x-auto -mb-px">
-          {[{ key: null, label: "All", n: total }, ...STAGES.map((s) => ({ key: s.value, label: s.label, n: counts[s.value] }))].map((t) => {
+          {[{ key: null, label: "All", n: allCount }, ...STAGES.map((s) => ({ key: s.value, label: s.label, n: counts[s.value] }))].map((t) => {
             const on = t.key === null ? applied.stages.length === 0 : applied.stages.length === 1 && applied.stages[0] === t.key;
             return (
               <button key={t.key ?? "all"} type="button" role="tab" aria-selected={on}

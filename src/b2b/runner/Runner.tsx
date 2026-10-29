@@ -86,7 +86,6 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
   const [serverPaused, setServerPaused] = useState(state.paused);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [nowTick, setNowTick] = useState(() => Date.now());
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [runs, setRuns] = useState<Record<string, JudgeResult | { error: string }>>({});
   const [running, setRunning] = useState(false);
@@ -101,12 +100,6 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
 
   const paused = serverPaused || proctor.paused;
   const q = questions[index];
-
-  // Words, not a spinner alone: "Saved 10s ago". Purely presentational; no autosave logic changes.
-  useEffect(() => {
-    const h = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => clearInterval(h);
-  }, []);
 
   const [queue] = useState(() => new AutosaveQueue({
     storage, storageKey: queueKey(attemptId),
@@ -274,7 +267,7 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
       <Watermark text={state.watermark ?? attemptId} />
       <header className="hr-rule-b flex items-center gap-3 px-4 h-14 sticky top-0 bg-[var(--hr-ground)] z-20">
         <h1 className="hr-display text-[16px] truncate flex-1">{state.title ?? "Test"}</h1>
-        <SaveIndicator status={saveStatus} online={online} savedAt={savedAt} now={nowTick} />
+        <SaveIndicator status={saveStatus} online={online} savedAt={savedAt} />
         <div role="timer" aria-label="Time left"
              className={cn("hr-data tabular-nums text-lg px-2", lowTime ? "text-[var(--hr-orange)]" : "text-foreground")}>
           {left === null ? "--:--" : formatRemaining(left)}
@@ -285,7 +278,7 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
       </header>
 
       <div className="flex flex-1 min-h-0">
-        <nav aria-label="Questions" className="w-24 sm:w-36 shrink-0 shadow-[inset_-1px_0_0_var(--hr-rule)] p-2 flex flex-col gap-1 overflow-y-auto">
+        <nav aria-label="Questions" className="w-16 sm:w-36 shrink-0 shadow-[inset_-1px_0_0_var(--hr-rule)] p-2 flex flex-col gap-1 overflow-y-auto">
           {questions.map((qq, i) => {
             const done = answered(qq);
             const current = i === index;
@@ -295,7 +288,10 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
                 className={cn("px-2.5 py-2 text-left flex items-center justify-between gap-1",
                   current ? "bg-[var(--hr-orange)] text-[#07090F]" : "text-[var(--hr-muted)] hover:bg-[var(--hr-surface)] hover:text-foreground")}>
                 <span className="hr-data text-sm">Q{i + 1}</span>
-                <span className={cn("hr-label !text-[9px] whitespace-nowrap", current ? "text-[#07090F]/70" : done ? "text-[var(--hr-gold)]" : "text-[var(--hr-muted)]")}>
+                {/* Phones: the rail is too narrow for words, so a filled (answered) or hollow (not answered) square. */}
+                <span aria-hidden className={cn("sm:hidden size-2 shrink-0",
+                  done ? (current ? "bg-[#07090F]" : "bg-[var(--hr-gold)]") : current ? "shadow-[inset_0_0_0_1px_#07090F]" : "shadow-[inset_0_0_0_1px_var(--hr-muted)]")} />
+                <span aria-hidden className={cn("hidden sm:inline hr-label !text-[9px] whitespace-nowrap", current ? "text-[#07090F]/70" : done ? "text-[var(--hr-gold)]" : "text-[var(--hr-muted)]")}>
                   {done ? "Answered" : "Not answered"}
                 </span>
               </button>
@@ -470,14 +466,30 @@ export function RunPanel({ result }: { result: JudgeResult | { error: string } }
   );
 }
 
+/** "Saved 12s ago" without re-rendering the runner: the indicator keeps its own clock. `now` pins it (gallery). */
+function useSecondTick(enabled: boolean) {
+  const [t, setT] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return;
+    const h = setInterval(() => setT(Date.now()), 1000);
+    return () => clearInterval(h);
+  }, [enabled]);
+  return t;
+}
+
+const agoText = (sec: number) => (sec < 2 ? "just now" : sec < 60 ? `${sec}s ago` : sec < 3600 ? `${Math.floor(sec / 60)} min ago` : "over an hour ago");
+
 export function SaveIndicator({ status, online, savedAt, now }: { status: SaveStatus; online: boolean; savedAt?: number | null; now?: number }) {
   const offline = !online || status === "offline";
-  const ago = savedAt && now ? Math.max(0, Math.round((now - savedAt) / 1000)) : null;
+  const tick = useSecondTick(now === undefined && !!savedAt && !offline && status !== "saving");
+  const at = now ?? tick;
+  const ago = savedAt ? Math.max(0, Math.round((at - savedAt) / 1000)) : null;
   return (
     <span role="status" aria-label="Connection" className={cn("hidden sm:inline-flex items-center gap-1 text-xs", offline ? "text-[var(--hr-red-ink)]" : "text-[var(--hr-muted)]")}>
       {offline ? <><CloudOff className="h-3.5 w-3.5" /> Offline, answers kept on this device</>
         : status === "saving" ? "Saving…"
-        : <><Wifi className="h-3.5 w-3.5" /> All answers saved{ago !== null && <span className="hr-data">{" · "}{ago < 2 ? "just now" : `${ago}s ago`}</span>}</>}
+        // The ticking age is hidden from screen readers so the live region isn't re-announced every second.
+        : <><Wifi className="h-3.5 w-3.5" /> All answers saved{ago !== null && <span className="hr-data" aria-hidden>{" · "}{agoText(ago)}</span>}</>}
     </span>
   );
 }

@@ -5,6 +5,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "../motion";
+import { blockCentre, blockFraction, frameAspect, pitchFraction } from "./layout";
 
 export interface StageStep { label?: string; state: "done" | "current" | "todo" }
 
@@ -30,15 +31,22 @@ export function canAfford3D(): boolean {
 
 const FLAT: Record<StageStep["state"], string> = { done: "var(--hr-gold)", current: "var(--hr-orange)", todo: "#2B3550" };
 
+/** The no-WebGL stage: flat blocks at the same positions the 3D scene uses, so labels line up either way. */
 function StaticStage({ steps }: { steps: StageStep[] }) {
+  const n = steps.length;
   return (
-    <div className="absolute inset-0 flex items-center justify-center gap-3 px-6" aria-hidden>
+    <div className="absolute inset-0" aria-hidden>
       {steps.map((s, i) => (
-        <span key={i} className="block h-10 w-14" style={{ background: FLAT[s.state], transform: s.state === "current" ? "translateY(-8px)" : undefined }} />
+        <span key={i} className="absolute top-1/2 block h-[32%]"
+              style={{ left: `${blockCentre(i, n) * 100}%`, width: `${blockFraction(n) * 100}%`, background: FLAT[s.state],
+                       transform: `translate(-50%, ${s.state === "current" ? "-62%" : "-50%"})` }} />
       ))}
     </div>
   );
 }
+
+/** Height kept free under the frame for the step labels (two lines of 11px text plus padding). */
+const LABEL_SPACE = 36;
 
 export function Stage({ steps = NEUTRAL_STEPS, frozen = false, className }: { steps?: StageStep[]; frozen?: boolean; className?: string }) {
   const reduced = useReducedMotion();
@@ -62,27 +70,51 @@ export function Stage({ steps = NEUTRAL_STEPS, frozen = false, className }: { st
 
   const labelled = steps.some((s) => s.label);
   const use3D = afford && !reduced;
+  const n = steps.length;
+
+  // The frame keeps the scene's own aspect ratio (the largest box that fits the area), so the camera fit, the static
+  // blocks and the labels all use the same coordinates. Labels sit directly under the frame, not at the area's foot.
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      const aspect = frameAspect(n);
+      const W = el.clientWidth, H = Math.max(0, el.clientHeight - (labelled ? LABEL_SPACE : 0));
+      const w = Math.min(W, H * aspect);
+      setBox(w > 0 ? { w, h: w / aspect } : null);
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [n, labelled]);
+
   return (
     <div className={cn("flex flex-col", className)}>
-      <div ref={ref} className="relative flex-1 min-h-0 overflow-hidden" aria-hidden>
-        {use3D && visible ? (
-          <Suspense fallback={<StaticStage steps={steps} />}>
-            <StageScene steps={steps} running={!frozen && pageVisible} />
-          </Suspense>
-        ) : (
-          <StaticStage steps={steps} />
+      <div ref={ref} className="relative flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center">
+        <div className="relative shrink-0" aria-hidden style={box ? { width: box.w, height: box.h } : { width: "100%", height: "100%" }}>
+          {use3D && visible && box ? (
+            <Suspense fallback={<StaticStage steps={steps} />}>
+              <StageScene steps={steps} running={!frozen && pageVisible} />
+            </Suspense>
+          ) : (
+            <StaticStage steps={steps} />
+          )}
+        </div>
+        {labelled && (
+          <ol className="relative shrink-0 text-center" style={{ width: box?.w ?? "100%", height: LABEL_SPACE }} aria-label="Your steps">
+            {steps.map((s, i) => (
+              <li key={i} className={cn("absolute top-1 -translate-x-1/2 text-[11px] leading-tight",
+                s.state === "current" ? "text-foreground font-semibold" : "text-[var(--hr-muted)]")}
+                  style={{ left: `${blockCentre(i, n) * 100}%`, width: `${pitchFraction(n) * 100}%` }}>
+                {s.label}{s.state === "done" ? <span className="sr-only"> (done)</span> : s.state === "current" ? <span className="sr-only"> (now)</span> : null}
+              </li>
+            ))}
+          </ol>
         )}
       </div>
-      {labelled && (
-        <ol className="flex justify-center gap-3 px-4 pb-3 text-center" aria-label="Your steps">
-          {steps.map((s, i) => (
-            <li key={i} className={cn("w-[4.5rem] text-[11px] leading-tight",
-              s.state === "current" ? "text-foreground font-semibold" : "text-[var(--hr-muted)]")}>
-              {s.label}{s.state === "done" ? <span className="sr-only"> (done)</span> : s.state === "current" ? <span className="sr-only"> (now)</span> : null}
-            </li>
-          ))}
-        </ol>
-      )}
     </div>
   );
 }

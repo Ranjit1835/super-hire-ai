@@ -25,7 +25,7 @@ vi.mock("./CodeEditor", () => ({
   ),
 }));
 
-import { Runner, initialAnswers } from "./Runner";
+import { Runner, SaveIndicator, initialAnswers } from "./Runner";
 import StartPage from "./StartPage";
 import { ApiError } from "../lib/api";
 
@@ -332,5 +332,22 @@ describe("start page", () => {
   it("rejects incomplete links", () => {
     at("/assess/start?context=drive");
     expect(screen.getByText(/isn't complete/)).toBeInTheDocument();
+  });
+});
+
+describe("save indicator", () => {
+  it("says how long ago answers were saved, in minutes past a minute, outside the live region's announcement", () => {
+    const { rerender } = render(<SaveIndicator status="saved" online savedAt={1_000} now={1_500} />);
+    expect(screen.getByRole("status")).toHaveTextContent("All answers saved · just now");
+    rerender(<SaveIndicator status="saved" online savedAt={1_000} now={46_000} />);
+    expect(screen.getByRole("status")).toHaveTextContent("45s ago");
+    rerender(<SaveIndicator status="saved" online savedAt={1_000} now={1_000 + 5 * 60_000} />);
+    expect(screen.getByRole("status")).toHaveTextContent("5 min ago");
+    expect(screen.getByText(/5 min ago/)).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("offline wins over saved", () => {
+    render(<SaveIndicator status="saved" online={false} savedAt={1_000} now={2_000} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Offline, answers kept on this device");
   });
 });

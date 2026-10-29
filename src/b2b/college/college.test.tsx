@@ -188,6 +188,40 @@ describe("drive detail", () => {
     await waitFor(() => expect(api.collegeApi).toHaveBeenCalledWith("releaseResults", { driveId: DRIVE }));
   });
 
+  it("keeps whole-drive counts on the tabs and scorebug while a status tab filters the table", async () => {
+    // The server's summary covers only the filtered rows; the page must not show those as the drive's counts.
+    api.collegeApi.mockImplementation(async (action: string, body: { filters?: { status?: string[] } }) => {
+      if (action !== "analytics") return { ok: true };
+      return body.filters?.status
+        ? { total: 1, rows: [row()], summary: summary({ byStatus: { assigned: 0, in_progress: 0, completed: 1, absent: 0 } }) }
+        : { total: 2, rows: [row(), row({ student_id: "55555555-5555-4555-8555-555555555555", roll_no: "21A02", full_name: "Bala", status: "assigned", overall: null })], summary: summary() };
+    });
+    wrap(<DriveView orgId={ORG} drive={drive()} isAdmin />);
+    await screen.findByText("Bala");
+    fireEvent.click(screen.getByRole("tab", { name: /Completed/ }));
+    await waitFor(() => expect(api.collegeApi).toHaveBeenCalledWith("analytics", expect.objectContaining({ filters: { driveId: DRIVE, status: ["completed"] } })));
+    await waitFor(() => expect(screen.queryByText("Bala")).toBeNull());
+    expect(screen.getByRole("tab", { name: /Not started/ })).toHaveTextContent("1");
+    expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("2");
+    expect(screen.getByText("Assigned", { selector: "dt" }).nextSibling).toHaveTextContent("2");
+    fireEvent.click(screen.getByRole("button", { name: "Release results" }));
+    expect(within(await screen.findByRole("alertdialog")).getByText(/All 2 assigned students/)).toBeInTheDocument();
+  });
+
+  it("on a wide screen opens the first finished student once, and closing it keeps it closed", async () => {
+    const mm = vi.spyOn(window, "matchMedia").mockImplementation((q: string) =>
+      ({ matches: true, media: q, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() }) as MediaQueryList);
+    try {
+      api.collegeApi.mockResolvedValue({ total: 1, rows: [row()], summary: summary() });
+      wrap(<DriveView orgId={ORG} drive={drive()} isAdmin />);
+      const close = await screen.findByRole("button", { name: "Close Asha summary" });
+      fireEvent.click(close);
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Close Asha summary" })).toBeNull());
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.queryByRole("button", { name: "Close Asha summary" })).toBeNull();
+    } finally { mm.mockRestore(); }
+  });
+
   it("no release button for trainers, released drives or never-release drives", async () => {
     api.collegeApi.mockResolvedValue({ total: 0, rows: [], summary: summary() });
     const { unmount } = wrap(<DriveView orgId={ORG} drive={drive()} isAdmin={false} />);

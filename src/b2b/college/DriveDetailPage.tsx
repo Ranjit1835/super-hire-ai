@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,13 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
     queryKey: filtered ? ["b2b-college", "drive-results", drive.id, page, statuses, bands, search] : ["b2b-college", "drive-results", drive.id, page],
     queryFn: () => collegeApi("analytics", { orgId, filters, page, pageSize: PAGE, sort: { by: "roll_no", dir: "asc" } }),
   });
+  // The scorebug, the status tab counts and the release dialog describe the whole drive, never the filtered view:
+  // the server's summary is computed over the filtered rows, so they read the unfiltered first page instead (the same
+  // cache entry as `results` when no filter is on).
+  const overview = useQuery({
+    queryKey: ["b2b-college", "drive-results", drive.id, 1],
+    queryFn: () => collegeApi("analytics", { orgId, filters: { driveId: drive.id }, page: 1, pageSize: PAGE, sort: { by: "roll_no", dir: "asc" } }),
+  });
   const onSearch = (e: FormEvent) => { e.preventDefault(); setPage(1); setSearch(searchDraft.trim()); };
   const clearFilters = () => { setStatuses([]); setBands([]); setSearch(""); setSearchDraft(""); setPage(1); };
   const refresh = () => void qc.invalidateQueries({ queryKey: ["b2b-college"] });
@@ -84,8 +91,8 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
     } finally { setBusy(false); setConfirmRelease(false); }
   };
 
-  const counts = results.data?.summary.byStatus;
-  const total0 = counts ? counts.assigned + counts.in_progress + counts.completed + counts.absent : undefined;
+  const counts = overview.data?.summary.byStatus;
+  const assignedTotal = overview.data?.total ?? 0;
   const total = results.data?.total ?? 0;
   const canRelease = isAdmin && drive.results_release === "manual" && !drive.results_released_at;
   const parts = [drive.assessment_id && "Coding / MCQ test", drive.interview_module_id && "AI interview", drive.resume_task && "Resume task"].filter(Boolean);
@@ -93,9 +100,12 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
   const rows = results.data?.rows ?? [];
   const picked = rows.find((r) => r.student_id === selected) ?? null;
 
-  // On a wide screen the player card is part of the first view: open it on the first finished student.
+  // On a wide screen the player card is part of the first view: open it once on the first finished student. Only once,
+  // so closing the card keeps it closed.
+  const autoPicked = useRef(false);
   useEffect(() => {
-    if (selected || !rows.length || typeof window === "undefined" || !window.matchMedia?.("(min-width: 1280px)").matches) return;
+    if (autoPicked.current || selected || !rows.length || typeof window === "undefined" || !window.matchMedia?.("(min-width: 1280px)").matches) return;
+    autoPicked.current = true;
     setSelected((rows.find((r) => r.status === "completed") ?? rows[0]).student_id);
   }, [rows, selected]);
 
@@ -120,7 +130,7 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
           </>
         )}
         counters={[
-          { label: "Assigned", value: counts ? total : "–" },
+          { label: "Assigned", value: counts ? assignedTotal : "–" },
           { label: "Completed", short: "Done", value: counts?.completed ?? "–", tone: "gold", hint: "Finished both the test and the interview" },
           { label: "In progress", short: "Started", value: counts?.in_progress ?? "–", live: label === "Open" && !!counts?.in_progress },
           { label: "Not started", short: "Waiting", value: counts?.assigned ?? "–" },
@@ -138,7 +148,7 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
       {/* Decision D4: status is a tab bar with counts; integrity and search sit behind one Filters button. */}
       <div className="flex flex-wrap items-end gap-x-2 gap-y-2 hr-rule-b">
         <div role="tablist" aria-label="Status" className="flex items-stretch overflow-x-auto -mb-px">
-          {[{ key: "all" as const, label: "All", n: total0 }, ...STATUS_KEYS.map((k) => ({ key: k, label: STATUS_LABEL[k], n: counts?.[k] }))].map((t) => {
+          {[{ key: "all" as const, label: "All", n: counts ? assignedTotal : undefined }, ...STATUS_KEYS.map((k) => ({ key: k, label: STATUS_LABEL[k], n: counts?.[k] }))].map((t) => {
             const on = t.key === "all" ? statuses.length === 0 : statuses.length === 1 && statuses[0] === t.key;
             return (
               <button key={t.key} type="button" role="tab" aria-selected={on}
@@ -261,7 +271,7 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
           <AlertDialogHeader>
             <AlertDialogTitle>Release results for {drive.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              All {total} assigned students will see their scores on their dashboard, including students who finish later.
+              All {assignedTotal} assigned students will see their scores on their dashboard, including students who finish later.
               This can't be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

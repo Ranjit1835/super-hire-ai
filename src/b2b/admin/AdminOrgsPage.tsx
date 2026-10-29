@@ -49,6 +49,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
   const pendingFor = (orgId: string) => (invites.data ?? []).filter((i) => i.org_id === orgId);
   const colleges = orgs.data?.filter((o) => o.type === "college").length;
   const companies = orgs.data?.filter((o) => o.type === "company").length;
+  const count = (n: number | undefined, one: string, many = `${one}s`) => (n === undefined ? `– ${many}` : `${n} ${n === 1 ? one : many}`);
 
   return (
     <V1Shell title="Super admin" subtitle="Colleges and companies" tabs={ADMIN_TABS}>
@@ -58,7 +59,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
             <h2 className="hr-display text-[22px]">Organisations</h2>
             <p className="text-sm text-[var(--hr-muted)] mt-1.5">Every college and company on HiResume, with plan, credits and staff invites.</p>
             <p className="hr-data text-sm text-foreground mt-1.5">
-              {orgs.data ? orgs.data.length : "–"} organisations · {colleges ?? "–"} colleges · {companies ?? "–"} companies · {invites.data ? invites.data.length : "–"} pending invites
+              {count(orgs.data?.length, "organisation")} · {count(colleges, "college")} · {count(companies, "company", "companies")} · {count(invites.data?.length, "pending invite")}
             </p>
           </div>
           <Button size="sm" onClick={() => setCreating(true)}><Plus className="h-4 w-4 mr-1" />New organisation</Button>
