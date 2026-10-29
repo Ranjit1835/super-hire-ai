@@ -65,3 +65,26 @@ Framework for turn-taking and interruptions:
 - [Pipecat Smart Turn / LiveKit plugin discussion](https://community.livekit.io/t/livekit-plugin-for-smart-turn-eot-detection-models/2013)
 - [LiveKit turn handling](https://docs.livekit.io/reference/agents/turn-handling-options/)
 - [LiveKit adaptive interruption handling](https://docs.livekit.io/agents/logic/turns/adaptive-interruption-handling/)
+
+## Hosting decision (2026-10-29): Google Cloud Run, Mumbai (asia-south1)
+
+The voice worker (Pipecat + Sarvam) needs a long-lived WebSocket per interview, close to Indian users and to Sarvam.
+
+| Option | India region | Long-lived WebSockets | Idle cost | Notes |
+|---|---|---|---|---|
+| **Cloud Run** | **asia-south1 Mumbai** | Yes, up to 60 min per connection, up to 1,000 concurrent per container | Scales to zero | Billed as an active instance while a connection is open. Session affinity is best effort, so the worker keeps interview state in Postgres, not memory. |
+| Fly.io | None (nearest: Singapore `sin`) | Yes | Machines can stop | Adds about 50–70 ms each way for Indian users. |
+| Railway | None (nearest: Singapore) | Yes | Always-on service | Simple, but not in India and no scale-to-zero. |
+| Small VM (Mumbai) | Yes | Yes | Always on | You patch and scale it yourself. |
+
+**Choice: Cloud Run in asia-south1.**
+- **Request timeout:** 60 minutes (covers a 20–45 minute interview plus margin).
+- **Minimum instances:** 0 normally; 1 during scheduled drive windows, to avoid a cold start on the first candidate.
+- **Concurrency:** about 20 interviews per instance as a starting point, tuned from load tests (audio relay is light; the work happens at Sarvam and the LLM).
+- **Secrets:** Sarvam and LLM keys in Secret Manager.
+- **State:** the worker calls the existing interview SQL functions (`b2b_iv_*`) with the service role, so a reconnect that lands on another instance resumes from the database.
+- **Auth:** the browser connects with a short-lived ticket minted by `b2b-interview` (interview-scoped, single use). The worker never trusts the client for identity.
+
+Sources:
+- [Cloud Run WebSockets](https://docs.cloud.google.com/run/docs/triggering/websockets)
+- [Fly.io regions](https://docs.fly.io/reference/regions)
