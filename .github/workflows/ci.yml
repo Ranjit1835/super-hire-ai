@@ -40,6 +40,8 @@ jobs:
           done
       - name: Production build (B2B flag off)
         run: npm run build
+      - name: Pricing secrecy (R3.1) with B2B on
+        run: VITE_B2B_ENABLED=true npx vite build --outDir dist && npm run check:price-secrecy
 
   e2e:
     name: e2e

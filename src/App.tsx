@@ -109,7 +109,7 @@ function AppRoutes() {
       <Route path="/about" element={<About />} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
-      <Route path="/college-placement" element={<CollegePlacement />} />
+      <Route path="/college-placement" element={<B2CGuard><CollegePlacement /></B2CGuard>} />
       <Route path="/leaderboard" element={<Leaderboard />} />
       {/* Retired pages: keep old links working. */}
       <Route path="/reels-campaign" element={<Navigate to="/" replace />} />

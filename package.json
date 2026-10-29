@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:db": "vitest run supabase/tests",
+    "check:price-secrecy": "node scripts/check-b2b-price-secrecy.mjs --bundle",
     "load-test:b2b": "node scripts/b2b-load-test.ts",
     "calibrate:b2b": "node scripts/b2b-calibrate.ts",
     "demo:b2b": "node scripts/b2b-demo.ts",
