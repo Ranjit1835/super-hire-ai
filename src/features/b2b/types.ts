@@ -1,4 +1,4 @@
-export type OrgType = "college" | "coaching_institute";
+export type OrgType = "college" | "coaching_institute" | "company";   // company: V1 startup portal
 export type OrgMemberRole = "org_admin" | "trainer" | "student";
 
 export interface Plan {

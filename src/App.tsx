@@ -64,6 +64,7 @@ const InviteAccept = lazy(() => import("./features/b2b/pages/InviteAccept"));
 const OrgModules = lazy(() => import("./features/b2b/pages/OrgModules"));
 const ModuleEditor = lazy(() => import("./features/b2b/pages/ModuleEditor"));
 const OrgDashboard = lazy(() => import("./features/b2b/pages/OrgDashboard"));
+import { B2CGuard } from "./features/b2b/components/B2CGuard";
 const StudentDetail = lazy(() => import("./features/b2b/pages/StudentDetail"));
 const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
 const InterviewRoom = lazy(() => import("./features/b2b/pages/InterviewRoom"));
@@ -86,23 +87,24 @@ const PageLoader = () => (
   </div>
 );
 
+// R3.2: B2C pages with pricing, paywalls, upgrades or checkout send signed-in B2B members to their portal.
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<B2CGuard><Landing /></B2CGuard>} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/verify-otp" element={<OtpVerification />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/analysis/guest/:token" element={<GuestAnalysis />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/analysis/:id" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
-      <Route path="/fix/:id" element={<ProtectedRoute><FixResume /></ProtectedRoute>} />
-      <Route path="/build-resume" element={<ProtectedRoute><ResumeBuilder /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<B2CGuard><ProtectedRoute><Dashboard /></ProtectedRoute></B2CGuard>} />
+      <Route path="/analysis/:id" element={<B2CGuard><ProtectedRoute><Analysis /></ProtectedRoute></B2CGuard>} />
+      <Route path="/fix/:id" element={<B2CGuard><ProtectedRoute><FixResume /></ProtectedRoute></B2CGuard>} />
+      <Route path="/build-resume" element={<B2CGuard><ProtectedRoute><ResumeBuilder /></ProtectedRoute></B2CGuard>} />
       {/* The typed mock interview was retired: interviews are voice only. */}
       <Route path="/mock-interview" element={<Navigate to="/voice-interview" replace />} />
-      <Route path="/ats-checker" element={<ATSChecker />} />
-      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/ats-checker" element={<B2CGuard><ATSChecker /></B2CGuard>} />
+      <Route path="/pricing" element={<B2CGuard><Pricing /></B2CGuard>} />
       <Route path="/about" element={<About />} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
@@ -111,9 +113,9 @@ function AppRoutes() {
       {/* Retired pages: keep old links working. */}
       <Route path="/reels-campaign" element={<Navigate to="/" replace />} />
       <Route path="/weekly-stats" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/voice-interview" element={<ProtectedRoute><VoiceInterview /></ProtectedRoute>} />
-      <Route path="/studio" element={<ProtectedRoute><StudioPaywallPage /></ProtectedRoute>} />
-      <Route path="/studio/:resumeId" element={<ProtectedRoute><StudioPage /></ProtectedRoute>} />
+      <Route path="/voice-interview" element={<B2CGuard><ProtectedRoute><VoiceInterview /></ProtectedRoute></B2CGuard>} />
+      <Route path="/studio" element={<B2CGuard><ProtectedRoute><StudioPaywallPage /></ProtectedRoute></B2CGuard>} />
+      <Route path="/studio/:resumeId" element={<B2CGuard><ProtectedRoute><StudioPage /></ProtectedRoute></B2CGuard>} />
       <Route path="/studio/shared/:shareToken" element={<StudioSharedPage />} />
       {/* Institution enquiries come from the B2C college page, so the inbox stays on with B2B off. */}
       <Route path="/admin/enquiries" element={<ProtectedRoute><SuperAdminEnquiries /></ProtectedRoute>} />
