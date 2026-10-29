@@ -122,6 +122,15 @@ export function useStudentStatusCounts(orgId: string) {
   });
 }
 
+export interface StudentActivity { assigned: number; completed: number; last_active_at: string | null }
+/** Per-student drive counts and last activity (b2b_student_activity_summary, migration 0019). No login charges. */
+export function useStudentActivity(orgId: string) {
+  return useQuery({
+    queryKey: ["b2b-college", "student-activity", orgId],
+    queryFn: () => rows<Record<string, StudentActivity>>(b2bDb.rpc("b2b_student_activity_summary", { _org_id: orgId })),
+  });
+}
+
 export function useDrives(orgId: string) {
   return useQuery({
     queryKey: ["b2b-college", "drives", orgId],

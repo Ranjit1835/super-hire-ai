@@ -34,7 +34,7 @@ export default function StudentHome() {
                 const action =
                   w === "open" && d.status === "assigned" ? { label: "Start", variant: "default" as const }
                   : w === "open" && d.status === "in_progress" ? { label: "Continue", variant: "default" as const }
-                  : d.status === "completed" ? { label: "View results", variant: "outline" as const }
+                  : d.status === "completed" ? { label: d.results_visible ? "View results" : "Completed", variant: "outline" as const }
                   : { label: "Details", variant: "outline" as const };
                 return (
                   <li key={d.drive_id} className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 px-4 py-3.5 hr-rule-b [&:last-child]:shadow-none">

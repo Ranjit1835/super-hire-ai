@@ -22,8 +22,9 @@ _Last updated: 2026-10-29_
 - **R3.3 / D7:** staff invites are super-admin only, and org admins can update or delete student memberships only (migration 0017, `v1-isolation.test.ts`).
 - **R1.3 / R1.4:** the seat cap applies on every path with a per-org lock, a used seat is never recycled, and `super_free_seat()` frees one (migration 0018, `seats.test.ts`, plus a real-Postgres race on local Supabase).
 
+- **R1.5 / R1.6, changed by owner decision (2026-10-29): no credits are charged for logging in.** What's recorded instead is what each student was given and did: activated, then assigned, started, and completed / absent / removed. This lives in the append-only `student_activity` table, written only by triggers. A student sees only the drives their TPO assigned, gets one attempt per drive (unique per drive and student; attempts are reused), and a finished drive stays "Completed" until the TPO assigns another. The seat counts as used once the student activates their account (R1.4). The TPO roster shows drives done / assigned and last active (migration 0019, `student-activity.test.ts`). Session expiry and single-device (R1.6) aren't built. **Open question:** practice tests are still self-serve when a TPO enables them on a test, and they cost 0.25 credit each.
+
 **Phase 1, next:**
-- R1.5 / R1.6 session ledger: a counted session per login, 30-minute idle and 8-hour absolute expiry, newest login wins, and it stamps `seat_locked_at`.
 - R1.8 per-activity costs and quotas.
 - R3.2 no B2C pages from B2B.
 - R3.5 MFA and admin audit.
