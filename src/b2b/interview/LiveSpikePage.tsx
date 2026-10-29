@@ -119,18 +119,18 @@ export default function LiveSpikePage() {
   return (
     <V1Shell title="Gemini Live spike" subtitle="Developer experiment, not part of the product">
       <div className="space-y-4 max-w-3xl">
-        <p className="text-sm text-muted-foreground">Runs a 5-question scripted interview directly against Gemini Live with an ephemeral token. Use headphones. See docs/b2b/gemini-live-spike.md for what to record.</p>
-        <div className="flex gap-2">
+        <p className="text-sm text-[var(--hr-muted)]">Runs a 5-question scripted interview directly against Gemini Live with an ephemeral token. Use headphones. See docs/b2b/gemini-live-spike.md for what to record.</p>
+        <div className="flex flex-wrap gap-2">
           <Button onClick={() => void connect()} disabled={status === "connecting" || status === "live"}>Get token and connect</Button>
           <Button variant="outline" onClick={() => cleanup.current()} disabled={status !== "live"}>Stop</Button>
           <Button variant="outline" onClick={exportJson} disabled={!turns.length && !log.length}>Download results (JSON)</Button>
         </div>
-        <p className="text-sm" role="status">Status: {status}{note ? ` · ${note}` : ""}</p>
-        <div className="rounded-md border border-border p-3 text-sm" data-testid="live-stats">
+        <p className="text-sm" role="status">Status: <span className="hr-data">{status}</span>{note ? ` · ${note}` : ""}</p>
+        <div className="border border-[var(--hr-rule)] bg-[var(--hr-surface)] p-3 hr-data text-sm" data-testid="live-stats">
           Turns {stats.count} · p50 {stats.p50 ?? "–"} ms · p95 {stats.p95 ?? "–"} ms · session {seconds ?? "–"} s
         </div>
         <ol className="text-sm space-y-1 max-h-80 overflow-y-auto">
-          {log.map((l, i) => <li key={i}><span className="text-muted-foreground tabular-nums">{l.at}</span> <strong>{l.who}</strong>: {l.text}</li>)}
+          {log.map((l, i) => <li key={i} className="hr-rule-b py-1"><span className="hr-data text-xs text-[var(--hr-muted)]">{l.at}</span> <strong className="text-[var(--hr-blue-ink)]">{l.who}</strong>: {l.text}</li>)}
         </ol>
       </div>
     </V1Shell>

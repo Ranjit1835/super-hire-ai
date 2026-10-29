@@ -1,6 +1,6 @@
 // Create / edit a role: paste a JD → AI suggests a skills matrix (recruiter edits it) → coding test, AI interview,
 // proctoring policy (default Maximum), hiring managers, status. Saved through RLS (job_roles).
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,19 @@ export default function RoleFormPage() {
   );
 }
 
+/** A thin weight bar on the fixed 1-5 ramp: decorative next to the accessible weight input, never the only cue. */
+function WeightBar({ weight }: { weight: number }) {
+  return (
+    <span className="hr-strip w-16 shrink-0" aria-hidden>
+      <i style={{ background: "var(--hr-muted)", transform: `scaleX(${Math.max(0, Math.min(1, weight / 5))})` }} />
+    </span>
+  );
+}
+
+function Section({ title, children, first }: { title: string; children: ReactNode; first?: boolean }) {
+  return <section className={first ? "space-y-3" : "space-y-3 hr-rule-t pt-6"}><h3 className="hr-display text-lg">{title}</h3>{children}</section>;
+}
+
 export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord | null }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -59,14 +72,23 @@ export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord |
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<"jd" | "title" | null>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const jdRef = useRef<HTMLTextAreaElement>(null);
 
   const managers = (team.data?.members ?? []).filter((m) => m.role === "hiring_manager");
   const mErrors = matrixErrors(matrix);
   const hasStep = !!assessmentId || iv.enabled;
+  const assessmentTitle = assessmentId ? (assessments.data ?? []).find((a) => a.id === assessmentId)?.title ?? "Selected" : "No coding test";
+  const policyLabel = POLICIES.find((p) => p.value === policy)?.label.split(":")[0] ?? policy;
 
   async function extract() {
-    setError(null); setNotice(null);
-    if (jd.trim().length < 80) { setError("Paste the full job description (at least 80 characters)."); return; }
+    setError(null); setNotice(null); setErrorField(null);
+    if (jd.trim().length < 80) {
+      setError("Paste the full job description (at least 80 characters).");
+      setErrorField("jd"); jdRef.current?.focus();
+      return;
+    }
     setExtracting(true);
     try {
       const r = await companyApi("skillsFromJd", { orgId, jd });
@@ -80,8 +102,12 @@ export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord |
   }
 
   async function save() {
-    setError(null);
-    if (title.trim().length < 2) { setError("Give the role a title."); return; }
+    setError(null); setErrorField(null);
+    if (title.trim().length < 2) {
+      setError("Give the role a title.");
+      setErrorField("title"); titleRef.current?.focus();
+      return;
+    }
     if (mErrors.length) { setError(mErrors[0]); return; }
     if (status === "open" && !hasStep) { setError("An open role needs a coding test or the AI interview."); return; }
     const parsedIv = InterviewConfig.safeParse(iv);
@@ -107,37 +133,39 @@ export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord |
   }
 
   return (
-    <div className="max-w-3xl space-y-8">
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">{role ? "Edit role" : "New role from a job description"}</h2>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start max-w-[1200px]">
+    <div className="space-y-6 min-w-0">
+      <Section title={role ? "Edit role" : "New role from a job description"} first>
         <div className="space-y-1">
           <Label htmlFor="role-title">Role title</Label>
-          <Input id="role-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Backend engineer" />
+          <Input id="role-title" ref={titleRef} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Backend engineer"
+                 aria-invalid={errorField === "title" ? "true" : undefined} aria-describedby={errorField === "title" ? "role-form-error" : undefined} />
         </div>
         <div className="space-y-1">
           <Label htmlFor="role-jd">Job description</Label>
-          <Textarea id="role-jd" rows={8} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full JD here" />
-          <div className="flex items-center gap-3">
+          <Textarea id="role-jd" ref={jdRef} rows={8} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full JD here"
+                    aria-invalid={errorField === "jd" ? "true" : undefined} aria-describedby={errorField === "jd" ? "role-form-error" : undefined} />
+          <div className="flex items-center gap-3 pt-1">
             <Button type="button" variant="outline" onClick={extract} disabled={extracting}>
               {extracting ? "Reading the JD…" : "Suggest skills from the JD"}
             </Button>
-            <span className="text-xs text-muted-foreground">AI suggestion; you edit and decide.</span>
+            <span className="text-xs text-[var(--hr-muted)]">AI suggestion; you edit and decide.</span>
           </div>
         </div>
-      </section>
+      </Section>
 
-      <section className="space-y-3" aria-label="Skills matrix">
-        <h3 className="font-semibold">Skills matrix</h3>
-        {notice && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
+      <Section title="Skills matrix">
+        {notice && <p role="status" className="text-sm text-[var(--hr-muted)]">{notice}</p>}
         {(["must", "nice"] as const).map((kind) => (
           <div key={kind} className="space-y-2">
-            <p className="text-sm font-medium">{kind === "must" ? "Must-have" : "Nice-to-have"}</p>
+            <p className="hr-label">{kind === "must" ? "Must-have" : "Nice-to-have"}</p>
             {matrix.rows.filter((r) => r.kind === kind).map((r) => (
-              <div key={r.key} className="flex items-center gap-2">
-                <Input aria-label={`${kind === "must" ? "Must-have" : "Nice-to-have"} skill`} value={r.skill} className="flex-1"
+              <div key={r.key} className="flex flex-wrap items-center gap-2">
+                <Input aria-label={`${kind === "must" ? "Must-have" : "Nice-to-have"} skill`} value={r.skill} className="flex-1 min-w-[140px]"
                        onChange={(e) => setMatrix(updateSkill(matrix, r.key, { skill: e.target.value }))} />
-                <Input aria-label={`Weight for ${r.skill || "skill"}`} type="number" min={1} max={5} className="w-20" value={r.weight}
+                <Input aria-label={`Weight for ${r.skill || "skill"}`} type="number" min={1} max={5} className="w-16 hr-data" value={r.weight}
                        onChange={(e) => setMatrix(updateSkill(matrix, r.key, { weight: Number(e.target.value) }))} />
+                <WeightBar weight={r.weight} />
                 <NativeSelect aria-label={`Type of ${r.skill || "skill"}`} className="w-36" value={r.kind}
                               onChange={(e) => setMatrix(updateSkill(matrix, r.key, { kind: e.target.value as "must" | "nice" }))}>
                   <option value="must">Must-have</option><option value="nice">Nice-to-have</option>
@@ -150,7 +178,7 @@ export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord |
             </Button>
           </div>
         ))}
-        <p className="text-xs text-muted-foreground">Weight 1–5: how central the skill is. Must-haves count double in the AI match score.</p>
+        <p className="text-xs text-[var(--hr-muted)]">Weight 1–5: how central the skill is. Must-haves count double in the AI match score.</p>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <Label htmlFor="role-seniority">Seniority</Label>
@@ -159,22 +187,20 @@ export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord |
             </NativeSelect>
           </div>
         </div>
-        {mErrors.length > 0 && matrix.rows.length > 0 && <p className="text-sm text-destructive">{mErrors[0]}</p>}
-      </section>
+        {mErrors.length > 0 && matrix.rows.length > 0 && <p className="text-sm text-[var(--hr-red-ink)]">{mErrors[0]}</p>}
+      </Section>
 
-      <section className="space-y-3">
-        <h3 className="font-semibold">Coding test</h3>
+      <Section title="Coding test">
         <NativeSelect aria-label="Coding test" value={assessmentId} onChange={(e) => setAssessmentId(e.target.value)}>
           <option value="">No coding test</option>
           {(assessments.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}{a.status !== "ready" ? " (draft)" : ""}</option>)}
         </NativeSelect>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--hr-muted)]">
           Pick a test, or <Link className="underline" to={`/assess/tests/${orgId}`}>build one</Link> from the question bank (or generate questions with AI).
         </p>
-      </section>
+      </Section>
 
-      <section className="space-y-3">
-        <h3 className="font-semibold">AI interview</h3>
+      <Section title="AI interview">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={iv.enabled} onChange={(e) => setIv({ ...iv, enabled: e.target.checked })} /> Include an AI interview
         </label>
@@ -183,7 +209,7 @@ export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord |
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="iv-duration">Duration (minutes)</Label>
-                <Input id="iv-duration" type="number" min={5} max={90} value={iv.duration_min}
+                <Input id="iv-duration" type="number" min={5} max={90} value={iv.duration_min} className="hr-data"
                        onChange={(e) => setIv({ ...iv, duration_min: Math.round(Number(e.target.value) || 20) })} />
               </div>
               <div className="space-y-1">
@@ -203,21 +229,20 @@ export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord |
             </label>
           </div>
         )}
-      </section>
+      </Section>
 
-      <section className="space-y-3">
-        <h3 className="font-semibold">Proctoring and invites</h3>
+      <Section title="Proctoring and invites">
         <div className="space-y-1">
           <Label htmlFor="role-policy">Proctoring policy</Label>
           <NativeSelect id="role-policy" value={policy} onChange={(e) => setPolicy(e.target.value as ProctoringPolicyV1)}>
             {POLICIES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </NativeSelect>
-          <p className="text-xs text-muted-foreground">AI proctoring flags evidence for your team to review; it never fails a candidate on its own.</p>
+          <p className="text-xs text-[var(--hr-muted)]">AI proctoring flags evidence for your team to review; it never fails a candidate on its own.</p>
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <Label htmlFor="role-expiry">Invite links valid for (days)</Label>
-            <Input id="role-expiry" type="number" min={1} max={60} value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+            <Input id="role-expiry" type="number" min={1} max={60} value={expiry} className="hr-data" onChange={(e) => setExpiry(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="role-status">Status</Label>
@@ -226,26 +251,45 @@ export function RoleForm({ orgId, role }: { orgId: string; role: JobRoleRecord |
             </NativeSelect>
           </div>
         </div>
-      </section>
+      </Section>
 
-      <section className="space-y-2">
-        <h3 className="font-semibold">Hiring managers</h3>
+      <Section title="Hiring managers">
         {managers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hiring managers on the team yet. Invite them from Credits &amp; team.</p>
+          <p className="text-sm text-[var(--hr-muted)]">No hiring managers on the team yet. Invite them from Credits &amp; team.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {managers.map((m) => <CheckChip key={m.user_id} label={m.full_name || m.email || "Hiring manager"} checked={hms.includes(m.user_id)}
               onChange={(on) => setHms(toggle(hms, m.user_id, on))} />)}
           </div>
         )}
-        <p className="text-xs text-muted-foreground">Hiring managers see only the roles they're assigned to. They can read reports, comment and record decisions.</p>
-      </section>
+        <p className="text-xs text-[var(--hr-muted)]">Hiring managers see only the roles they're assigned to. They can read reports, comment and record decisions.</p>
+      </Section>
 
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      <div className="flex gap-2">
+      {error && <p role="alert" id="role-form-error" className="text-sm text-[var(--hr-red-ink)]">{error}</p>}
+      <div className="flex gap-2 hr-rule-t pt-6">
         <Button onClick={save} disabled={saving}>{saving ? "Saving…" : role ? "Save role" : "Create role"}</Button>
         <Button variant="outline" asChild><Link to={role ? `/co/${orgId}/roles/${role.id}` : `/co/${orgId}/roles`}>Cancel</Link></Button>
       </div>
+    </div>
+    <aside className="lg:sticky lg:top-20 bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] px-5 py-4 space-y-3">
+      <p className="hr-label">Summary</p>
+      <SummaryRow label="Title" value={title.trim() || "–"} />
+      <SummaryRow label="Status" value={STATUS_TEXT[status]} />
+      <SummaryRow label="Coding test" value={assessmentTitle} />
+      <SummaryRow label="AI interview" value={iv.enabled ? `On · ${iv.duration_min} min · ${iv.sections.length} section${iv.sections.length === 1 ? "" : "s"}` : "Off"} />
+      <SummaryRow label="Proctoring" value={policyLabel} last />
+    </aside>
+    </div>
+  );
+}
+
+const STATUS_TEXT: Record<JobRoleRecord["status"], string> = { draft: "Draft", open: "Open", closed: "Closed" };
+
+function SummaryRow({ label, value, last }: { label: string; value: ReactNode; last?: boolean }) {
+  return (
+    <div className={last ? undefined : "hr-rule-b pb-2"}>
+      <p className="hr-label">{label}</p>
+      <p className="text-sm mt-0.5">{value}</p>
     </div>
   );
 }

@@ -149,7 +149,8 @@ describe("pipeline", () => {
     });
     wrap(<RoleView orgId={ORG} role={role} isEditor />);
     await screen.findByText("Asha");
-    fireEvent.click(within(screen.getByRole("form", { name: "Filters" })).getByText("Completed"));
+    fireEvent.click(screen.getByRole("tab", { name: /Completed/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.click(within(screen.getByRole("form", { name: "Filters" })).getByText("Medium"));
     fireEvent.change(screen.getByLabelText("Minimum match score"), { target: { value: "50" } });
     fireEvent.change(screen.getByLabelText("Search candidates"), { target: { value: "ash" } });

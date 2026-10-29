@@ -83,4 +83,4 @@ export function friendly(e: unknown): string {
 export const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 export const num = (v: string | number | null | undefined) => (v === null || v === undefined ? 0 : Number(v));
 export const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "–";

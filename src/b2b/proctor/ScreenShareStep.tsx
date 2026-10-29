@@ -70,21 +70,22 @@ export function ScreenShareStep({ onStart, starting, error: outerError }: {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <Monitor className="h-6 w-6 text-primary shrink-0" aria-hidden />
+        <Monitor className="h-5 w-5 text-[var(--hr-orange)] shrink-0 mt-0.5" aria-hidden />
         <div>
-          <p className="font-medium">Share your entire screen</p>
-          <p className="text-sm text-muted-foreground">
-            In the dialog, choose <strong>Entire screen</strong> (not a window or tab). The test then opens in full screen.
-            Keep sharing until you finish.
+          <p className="font-semibold">Share your entire screen</p>
+          <p className="text-sm text-[var(--hr-muted)] mt-1">
+            In the dialog, choose <strong className="text-foreground">Entire screen</strong>, not a window or a browser tab: those let
+            other windows stay hidden from the proctor, which a proctored test can't allow. The test then opens in full
+            screen; keep sharing until you finish.
           </p>
         </div>
       </div>
-      {(error || outerError) && <p role="alert" className="text-sm text-destructive">{error ?? outerError}</p>}
+      {(error || outerError) && <p role="alert" className="text-sm text-[var(--hr-red-ink)]">{error ?? outerError}</p>}
       {!stream ? (
         <Button type="button" onClick={share} disabled={busy}>{busy ? "Waiting for screen share…" : "Share entire screen"}</Button>
       ) : (
         <div className="space-y-2">
-          <p className="text-sm text-emerald-700" data-testid="share-ok">Entire screen shared.</p>
+          <p className="text-sm text-[var(--hr-gold)]" data-testid="share-ok">Entire screen shared.</p>
           <Button type="button" onClick={start} disabled={starting}>{starting ? "Starting…" : "Enter full screen and start"}</Button>
         </div>
       )}

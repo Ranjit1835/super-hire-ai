@@ -87,8 +87,9 @@ describe("import wizard", () => {
       "21A01,Asha,asha@a.in,CSE,2027,8.2\n21A02,Bala,bala@a.in,CSE,2027,7.1\n21A01,Asha copy,asha2@a.in,CSE,2027,8\n21A09,Bad,not-an-email,CSE,2027,7";
     fireEvent.change(screen.getByLabelText("Student file"), { target: { files: [csvFile(csv)] } });
 
-    // Mapping step: detected columns are pre-selected.
-    expect(await screen.findByText(/students.csv/)).toBeInTheDocument();
+    // Mapping step: detected columns are pre-selected. (selector: "b" avoids matching the upload step's
+    // "picked file name" chip, which briefly shows the same filename before the mapping step mounts.)
+    expect(await screen.findByText(/students.csv/, { selector: "b" })).toBeInTheDocument();
     expect(screen.getByLabelText("Roll no / Hall ticket no")).toHaveValue("0");
     expect(screen.getByLabelText("Email")).toHaveValue("2");
     expect(screen.getByLabelText("Date of birth")).toHaveValue("");
@@ -177,7 +178,7 @@ describe("drive detail", () => {
     wrap(<DriveView orgId={ORG} drive={drive()} isAdmin />);
     expect(await screen.findByText("Asha")).toBeInTheDocument();
     expect(api.collegeApi).toHaveBeenCalledWith("analytics", expect.objectContaining({ orgId: ORG, filters: { driveId: DRIVE } }));
-    expect(screen.getByText("Completed", { selector: "p" }).nextSibling).toHaveTextContent("1");
+    expect(screen.getByText("Completed", { selector: "dt" }).nextSibling).toHaveTextContent("1");
 
     fireEvent.click(screen.getByRole("button", { name: "Release results" }));
     const dialog = await screen.findByRole("alertdialog");

@@ -43,14 +43,14 @@ export default function StartPage() {
       }));
   }, [valid, context, id, attempt, navigate]);
 
-  if (!valid) return <Centered><p className="font-medium">This test link isn't complete.</p><p className="text-sm text-muted-foreground mt-1">Please open it again from your dashboard or invitation.</p></Centered>;
+  if (!valid) return <Centered><p className="hr-display text-lg">This test link isn't complete.</p><p className="text-sm text-[var(--hr-muted)] mt-2">Please open it again from your dashboard or invitation.</p></Centered>;
   if (error) {
     return (
       <Centered>
-        <p className="font-medium">Couldn't start the test</p>
-        <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
-        {error.signIn ? <Link to="/auth" className="inline-block mt-4 underline">Sign in</Link>
-          : <Button className="mt-4" onClick={() => { setError(null); setAttempt((n) => n + 1); }}>Try again</Button>}
+        <p className="hr-display text-lg">Couldn't start the test</p>
+        <p className="text-sm text-[var(--hr-muted)] mt-2">{error.message}</p>
+        {error.signIn ? <Link to="/auth" className="inline-block mt-5 text-sm underline underline-offset-4">Sign in</Link>
+          : <Button className="mt-5" onClick={() => { setError(null); setAttempt((n) => n + 1); }}>Try again</Button>}
       </Centered>
     );
   }

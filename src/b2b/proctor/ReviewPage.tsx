@@ -1,28 +1,33 @@
 // /proctor/review/:sessionId — staff review of one proctoring session: the AI integrity score with its explanation,
-// a timeline of flags with evidence thumbnails (short-lived signed URLs), confirm / dismiss per flag with a note,
-// and the final human decision, stored and shown separately from the AI score.
+// a vertical timeline of flags with evidence thumbnails (short-lived signed URLs), confirm / dismiss per flag with a
+// note, and the final human decision, stored and shown separately from the AI score. Flags are evidence for review,
+// never a verdict — nobody is failed on an AI flag alone; a human reads the evidence and decides.
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import type { ContractOutput } from "../../../supabase/functions/_shared/contracts/common";
 import type { proctorContract } from "../../../supabase/functions/_shared/contracts/proctor";
 import { EVENT_LABEL, type ScoreDetail } from "../../../supabase/functions/_shared/contracts/proctor-rules";
 import { proctorApi } from "../lib/api";
 import { V1Shell, Loading, Empty } from "../layout/V1Shell";
+import { Chip, Numeral, type Tone } from "../ui/broadcast";
 
 type Timeline = ContractOutput<typeof proctorContract, "timeline">;
 type Ev = Timeline["events"][number];
 type Decision = "no_concern" | "minor_concern" | "serious_concern";
+type Severity = Ev["severity"];
 
 const BAND_LABEL = { high: "High integrity", medium: "Medium integrity", low: "Low integrity" } as const;
-const BAND_CLASS = { high: "bg-emerald-100 text-emerald-900", medium: "bg-amber-100 text-amber-900", low: "bg-red-100 text-red-900" } as const;
+const BAND_TONE: Record<keyof typeof BAND_LABEL, Tone> = { high: "gold", medium: "plain", low: "red" };
 const DECISION_LABEL: Record<Decision, string> = { no_concern: "No concern", minor_concern: "Minor concern", serious_concern: "Serious concern" };
-const SEV_CLASS = { info: "bg-muted text-muted-foreground", low: "bg-sky-100 text-sky-900", medium: "bg-amber-100 text-amber-900", high: "bg-red-100 text-red-900" } as const;
+/** Severity by series colour; red is reserved for what actually needs review. */
+const SEV_TONE: Record<Severity, Tone> = { info: "muted", low: "muted", medium: "plain", high: "red" };
+const SEV_DOT: Record<Severity, string> = { info: "var(--hr-muted)", low: "var(--hr-muted)", medium: "#F4F6FA", high: "var(--hr-red)" };
 
 export const reviewKey = (id: string) => ["b2b-v1", "proctor", "timeline", id];
 
@@ -37,38 +42,52 @@ function duration(e: Ev) {
 }
 const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—");
 
-function EventRow({ e, start, onReview, busy }: { e: Ev; start: string; busy: boolean; onReview: (status: "confirmed" | "dismissed", note: string) => void }) {
+/** One row on the timeline: a marker on the connector line, mono time, event name in words, evidence, controls. */
+function EventRow({ e, start, last, onReview, busy }: { e: Ev; start: string; last: boolean; busy: boolean; onReview: (status: "confirmed" | "dismissed", note: string) => void }) {
   const [note, setNote] = useState(e.review_note ?? "");
+  const [imgFailed, setImgFailed] = useState(false);
   const flag = e.severity !== "info";
+  const noSnapshot = flag && !e.evidenceUrl;
   return (
-    <li className="grid grid-cols-[3.5rem_1fr] sm:grid-cols-[3.5rem_1fr_9rem] gap-3 py-3" data-testid="timeline-event">
-      <span className="font-mono text-xs text-muted-foreground pt-1">{offset(start, e.started_at)}</span>
-      <div className="space-y-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-sm">{EVENT_LABEL[e.type] ?? e.type}</span>
-          <span className={`rounded px-1.5 py-0.5 text-xs ${SEV_CLASS[e.severity]}`}>{e.severity}</span>
-          {e.confidence < 1 && <span className="text-xs text-muted-foreground">confidence {Math.round(e.confidence * 100)}%</span>}
-          {duration(e) && <span className="text-xs text-muted-foreground">{duration(e)}</span>}
-          {e.review_status !== "pending" && (
-            <Badge variant={e.review_status === "confirmed" ? "destructive" : "secondary"}>{e.review_status === "confirmed" ? "Confirmed" : "Dismissed"}</Badge>
+    <li className="relative pl-7" data-testid="timeline-event">
+      {!last && <span aria-hidden className="absolute left-[5px] top-4 bottom-[-0.75rem] w-px bg-[var(--hr-rule)]" />}
+      <span aria-hidden className="absolute left-0 top-1.5 h-[11px] w-[11px]" style={{ background: SEV_DOT[e.severity] }} />
+      <div className="grid grid-cols-[3.5rem_1fr] sm:grid-cols-[3.5rem_1fr_9rem] gap-3 pb-5">
+        <span className="hr-data text-xs text-[var(--hr-muted)] pt-0.5">{offset(start, e.started_at)}</span>
+        <div className="space-y-1.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-sm">{EVENT_LABEL[e.type] ?? e.type}</span>
+            <Chip tone={SEV_TONE[e.severity]}>{e.severity}</Chip>
+            {e.confidence < 1 && <span className="hr-data text-xs text-[var(--hr-muted)]">confidence {Math.round(e.confidence * 100)}%</span>}
+            {duration(e) && <span className="hr-data text-xs text-[var(--hr-muted)]">{duration(e)}</span>}
+            {e.review_status !== "pending" && (
+              <Chip tone={e.review_status === "confirmed" ? "red" : "muted"} solid={e.review_status === "confirmed"}>
+                {e.review_status === "confirmed" ? "Confirmed" : "Dismissed"}
+              </Chip>
+            )}
+          </div>
+          {e.meta && typeof e.meta.cause === "string" && <p className="text-xs text-[var(--hr-muted)]">Cause: {EVENT_LABEL[e.meta.cause] ?? e.meta.cause}</p>}
+          {flag && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Textarea value={note} onChange={(x) => setNote(x.target.value)} placeholder="Note (optional)" rows={1}
+                        className="min-h-0 h-8 py-1 text-sm max-w-xs bg-[var(--hr-surface)]" aria-label={`Note for ${EVENT_LABEL[e.type] ?? e.type} at ${offset(start, e.started_at)}`} />
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => onReview("confirmed", note)}>Confirm</Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => onReview("dismissed", note)}>Dismiss</Button>
+            </div>
           )}
         </div>
-        {e.meta && typeof e.meta.cause === "string" && <p className="text-xs text-muted-foreground">Cause: {EVENT_LABEL[e.meta.cause] ?? e.meta.cause}</p>}
-        {flag && (
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Textarea value={note} onChange={(x) => setNote(x.target.value)} placeholder="Note (optional)" rows={1}
-                      className="min-h-0 h-8 py-1 text-sm max-w-xs" aria-label={`Note for ${EVENT_LABEL[e.type] ?? e.type} at ${offset(start, e.started_at)}`} />
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => onReview("confirmed", note)}>Confirm</Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => onReview("dismissed", note)}>Dismiss</Button>
-          </div>
-        )}
-      </div>
-      <div className="col-start-2 sm:col-start-auto">
-        {e.evidenceUrl ? (
-          <a href={e.evidenceUrl} target="_blank" rel="noreferrer" title="Open evidence (link expires in 5 minutes)">
-            <img src={e.evidenceUrl} alt={`Evidence: ${EVENT_LABEL[e.type] ?? e.type}`} loading="lazy" className="w-36 h-20 object-cover rounded border border-border bg-muted" />
-          </a>
-        ) : null}
+        <div className="col-start-2 sm:col-start-auto">
+          {e.evidenceUrl && !imgFailed ? (
+            <a href={e.evidenceUrl} target="_blank" rel="noreferrer" title="Open evidence (link expires in 5 minutes)">
+              <img src={e.evidenceUrl} alt={`Evidence: ${EVENT_LABEL[e.type] ?? e.type}`} loading="lazy" onError={() => setImgFailed(true)}
+                   className="w-36 h-20 object-cover bg-[var(--hr-surface-2)] shadow-[inset_0_0_0_1px_var(--hr-rule)]" />
+            </a>
+          ) : noSnapshot || imgFailed ? (
+            <div className="w-36 h-20 grid place-items-center bg-[var(--hr-surface-2)] shadow-[inset_0_0_0_1px_var(--hr-rule)]">
+              <span className="hr-label !text-[10px] text-[var(--hr-muted)]">No snapshot</span>
+            </div>
+          ) : null}
+        </div>
       </div>
     </li>
   );
@@ -106,39 +125,45 @@ export default function ReviewPage() {
 
   return (
     <V1Shell title="Integrity review" subtitle={`${s.subject_name ?? "Candidate"} · ${s.policy} policy · ${fmt(s.started_at)}`}>
-      <div className="grid gap-4 md:grid-cols-2 mb-6">
-        <section className="rounded-lg border border-border p-4 space-y-3" aria-labelledby="ai-score">
-          <h2 id="ai-score" className="font-semibold">AI integrity score</h2>
-          <div className="flex items-center gap-3">
-            <span className="text-3xl font-semibold" data-testid="ai-score">{s.integrity_score === null ? "—" : Math.round(s.integrity_score)}</span>
-            {s.integrity_band && <span className={`rounded px-2 py-1 text-sm ${BAND_CLASS[s.integrity_band]}`}>{BAND_LABEL[s.integrity_band]}</span>}
-            {s.provisional && <Badge variant="outline">Provisional (session didn't end cleanly)</Badge>}
+      <div className="grid gap-4 lg:grid-cols-2 mb-6">
+        <section className="hr-scorebug flex flex-col" aria-labelledby="ai-score-label">
+          <div className="px-5 py-4 flex-1">
+            <h2 id="ai-score-label" className="hr-label !text-[11px]">AI integrity score</h2>
+            <div className="flex items-baseline gap-3 mt-1.5">
+              <span className="text-[34px] leading-none" data-testid="ai-score">
+                <Numeral value={s.integrity_score === null ? "–" : Math.round(s.integrity_score)} tone={s.integrity_band ? BAND_TONE[s.integrity_band] : "plain"} />
+              </span>
+              {s.integrity_band && (s.integrity_band === "low"
+                ? <Chip tone="red">{BAND_LABEL[s.integrity_band]} · review</Chip>
+                : <span className={cn("text-sm", s.integrity_band === "high" ? "text-[var(--hr-gold)]" : "text-foreground")}>{BAND_LABEL[s.integrity_band]}</span>)}
+              {s.provisional && <Chip tone="plain">Provisional</Chip>}
+            </div>
+            <p className="text-sm text-[var(--hr-muted)] mt-3">
+              Computed from AI and browser signals. Flags are evidence for review, never a verdict. Check them below before deciding.
+            </p>
+            {detail?.by_type?.length ? (
+              <table className="w-full text-sm mt-3">
+                <thead><tr className="text-left hr-label !text-[10px]"><th className="font-normal pb-1">Signal</th><th className="font-normal text-right pb-1">Count</th><th className="font-normal text-right pb-1">Points</th><th className="font-normal text-right pb-1">Counted (cap)</th></tr></thead>
+                <tbody>
+                  {detail.by_type.map((t) => (
+                    <tr key={t.type} className="hr-rule-t"><td className="py-1">{t.label}</td><td className="hr-data text-right">{t.count}</td><td className="hr-data text-right">{t.points}</td><td className="hr-data text-right">{t.capped} ({t.cap})</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <p className="text-sm text-[var(--hr-muted)] mt-3">No flagged signals.</p>}
+            {detail?.formula && <p className="text-xs text-[var(--hr-muted)] mt-2">Score = {detail.formula}. Bands: 80+ high, 50–79 medium, below 50 low.</p>}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Computed from AI and browser signals. It is evidence for your review, not a verdict: check the flags below before deciding.
-          </p>
-          {detail?.by_type?.length ? (
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-muted-foreground"><th className="font-normal">Signal</th><th className="font-normal text-right">Count</th><th className="font-normal text-right">Points</th><th className="font-normal text-right">Counted (cap)</th></tr></thead>
-              <tbody>
-                {detail.by_type.map((t) => (
-                  <tr key={t.type}><td>{t.label}</td><td className="text-right">{t.count}</td><td className="text-right">{t.points}</td><td className="text-right">{t.capped} ({t.cap})</td></tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <p className="text-sm text-muted-foreground">No flagged signals.</p>}
-          {detail?.formula && <p className="text-xs text-muted-foreground">Score = {detail.formula}. Bands: 80+ high, 50–79 medium, below 50 low.</p>}
         </section>
 
-        <section className="rounded-lg border border-border p-4 space-y-3" aria-labelledby="human-decision">
-          <h2 id="human-decision" className="font-semibold">Human decision</h2>
+        <section className="bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] p-4 space-y-3" aria-labelledby="human-decision">
+          <h2 id="human-decision" className="hr-label !text-[11px]">Human decision</h2>
           {latest ? (
             <p className="text-sm" data-testid="latest-decision">
               <strong>{DECISION_LABEL[latest.decision]}</strong>{latest.note ? ` — ${latest.note}` : ""}
-              <span className="block text-xs text-muted-foreground">{latest.reviewer_name ?? "Reviewer"} · {fmt(latest.created_at)}</span>
+              <span className="block text-xs text-[var(--hr-muted)] mt-0.5">{latest.reviewer_name ?? "Reviewer"} · {fmt(latest.created_at)}</span>
             </p>
-          ) : <p className="text-sm text-muted-foreground">No decision recorded yet.</p>}
-          {pending > 0 && <p className="text-xs text-amber-700">{pending} flag{pending === 1 ? "" : "s"} not reviewed yet.</p>}
+          ) : <p className="text-sm text-[var(--hr-muted)]">No decision recorded yet.</p>}
+          {pending > 0 && <p className="text-xs text-foreground">{pending} flag{pending === 1 ? "" : "s"} not reviewed yet.</p>}
           <div role="radiogroup" aria-label="Decision" className="flex flex-wrap gap-2">
             {(Object.keys(DECISION_LABEL) as Decision[]).map((d) => (
               <Button key={d} type="button" size="sm" role="radio" aria-checked={decision === d} variant={decision === d ? "default" : "outline"} onClick={() => setDecision(d)}>
@@ -146,27 +171,27 @@ export default function ReviewPage() {
               </Button>
             ))}
           </div>
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reasoning (recommended)" aria-label="Decision note" rows={2} />
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reasoning (recommended)" aria-label="Decision note" rows={2} className="bg-[var(--hr-surface-2)]" />
           <Button type="button" disabled={!decision || decide.isPending} onClick={() => decision && decide.mutate({ decision, note })}>
             {latest ? "Record a new decision" : "Record decision"}
           </Button>
-          {decide.error && <p role="alert" className="text-sm text-destructive">{(decide.error as Error).message}</p>}
+          {decide.error && <p role="alert" className="text-sm text-[var(--hr-red-ink)]">{(decide.error as Error).message}</p>}
         </section>
       </div>
 
       <section aria-labelledby="timeline">
-        <div className="flex items-center justify-between mb-2">
-          <h2 id="timeline" className="font-semibold">Timeline <span className="text-sm font-normal text-muted-foreground">({flags.length} flags)</span></h2>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 id="timeline" className="hr-display text-lg">Timeline <span className="text-sm font-normal text-[var(--hr-muted)]">({flags.length} flags)</span></h2>
           <div className="flex items-center gap-2">
             <Switch id="snapshots" checked={showSnapshots} onCheckedChange={setShowSnapshots} />
             <Label htmlFor="snapshots" className="text-sm">Show periodic snapshots</Label>
           </div>
         </div>
-        {review.error && <p role="alert" className="text-sm text-destructive">{(review.error as Error).message}</p>}
+        {review.error && <p role="alert" className="text-sm text-[var(--hr-red-ink)] mb-2">{(review.error as Error).message}</p>}
         {events.length === 0 ? <Empty title="Nothing to review" body="No signals were recorded in this session." /> : (
-          <ul className="divide-y divide-border">
-            {events.map((e) => (
-              <EventRow key={e.id} e={e} start={s.started_at} busy={review.isPending}
+          <ul>
+            {events.map((e, i) => (
+              <EventRow key={e.id} e={e} start={s.started_at} last={i === events.length - 1} busy={review.isPending}
                         onReview={(status, n) => review.mutate({ eventId: e.id, status, note: n })} />
             ))}
           </ul>

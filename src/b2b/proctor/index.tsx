@@ -214,15 +214,17 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
       <Ctx.Provider value={api}>
         {/* React 18 types lack `inert`; "" is how React 18 sets the boolean attribute. */}
         <div aria-hidden={paused || undefined} {...(paused ? ({ inert: "" } as Record<string, string>) : {})}>{children}</div>
+        {/* In-test overlays: words, not colour, carry the message. Nothing beyond the 160ms fade already in .hr-rise. */}
         {warning && !paused && (
-          <div role="status" className="fixed top-3 left-1/2 -translate-x-1/2 z-50 max-w-md rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 shadow">
-            <AlertTriangle className="inline h-4 w-4 mr-2" aria-hidden />{warning}
+          <div role="status" className="hr-rise fixed top-3 left-1/2 -translate-x-1/2 z-50 max-w-md bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] px-4 py-2.5 text-sm text-foreground">
+            <AlertTriangle className="inline h-4 w-4 mr-2 -mt-0.5 text-[var(--hr-orange)]" aria-hidden />{warning}
           </div>
         )}
         {!paused && problems.length > 0 && (
-          <div role="alert" className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 max-w-lg rounded-md border border-border bg-background px-4 py-3 text-sm shadow-lg space-y-2">
+          <div role="alert" className="hr-rise fixed bottom-3 left-1/2 -translate-x-1/2 z-50 max-w-lg bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-orange)] px-4 py-3 text-sm space-y-2">
             {problems.map((p) => (
               <div key={p} className="flex items-center gap-3">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--hr-orange)]" aria-hidden />
                 <span className="flex-1">{PROBLEM_COPY[p]}</span>
                 {p !== "display" && <Button size="sm" variant="outline" onClick={() => void fix(p)}>Fix</Button>}
               </div>
@@ -231,13 +233,13 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
         )}
         {paused && (
           <div role="dialog" aria-modal="true" aria-label="Test paused" className="fixed inset-0 z-[60] bg-background flex items-center justify-center p-6">
-            <div className="max-w-md w-full space-y-4 text-center">
-              <PauseCircle className="h-10 w-10 mx-auto text-amber-600" aria-hidden />
-              <h2 className="text-lg font-semibold">Test paused</h2>
-              <p className="text-sm text-muted-foreground">Fix the items below to continue. Each pause is recorded for the reviewer.</p>
+            <div className="hr-rise max-w-md w-full space-y-4 text-center">
+              <PauseCircle className="h-9 w-9 mx-auto text-[var(--hr-orange)]" aria-hidden />
+              <h2 className="hr-display text-xl">Test paused</h2>
+              <p className="text-sm text-[var(--hr-muted)]">Fix the items below to continue. Each pause is recorded for the reviewer.</p>
               <ul className="space-y-2 text-left">
                 {problems.map((p) => (
-                  <li key={p} className="flex items-center gap-3 rounded-md border border-border p-3 text-sm">
+                  <li key={p} className="flex items-center gap-3 bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] p-3 text-sm">
                     <span className="flex-1">{PROBLEM_COPY[p]}</span>
                     {p === "screen" && <Button size="sm" onClick={() => void fix(p)}>Share entire screen</Button>}
                     {p === "camera" && <Button size="sm" onClick={() => void fix(p)}>Turn camera on</Button>}
@@ -256,28 +258,28 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
   return (
     <Ctx.Provider value={noop}>
       <div className="min-h-screen bg-background text-foreground flex items-start justify-center p-4 sm:p-8">
-        <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-5 sm:p-6 space-y-5">
+        <div className="hr-rise w-full max-w-2xl bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] p-5 sm:p-6 space-y-5">
           <header className="flex items-center gap-3">
-            <ShieldCheck className="h-6 w-6 text-primary" aria-hidden />
+            <ShieldCheck className="h-5 w-5 text-[var(--hr-orange)] shrink-0" aria-hidden />
             <div>
-              <h1 className="font-semibold">AI-proctored {kind === "interview" ? "interview" : "test"}</h1>
-              {pre && <p className="text-xs text-muted-foreground">{pre.orgName} · {policyLabel(pre.policy, pre.strictMaxViolations)}</p>}
+              <h1 className="hr-display text-lg">AI-proctored {kind === "interview" ? "interview" : "test"}</h1>
+              {pre && <p className="text-xs text-[var(--hr-muted)] mt-0.5">{pre.orgName} · {policyLabel(pre.policy, pre.strictMaxViolations)}</p>}
             </div>
           </header>
           {stepIndex >= 0 && (
             <ol className="flex gap-2 text-xs" aria-label="Steps">
               {STEPS.map((s, i) => (
                 <li key={s.key} aria-current={i === stepIndex ? "step" : undefined}
-                    className={`rounded-full px-3 py-1 ${i === stepIndex ? "bg-primary text-primary-foreground" : i < stepIndex ? "bg-muted" : "border border-border text-muted-foreground"}`}>
+                    className={`hr-label !text-[10px] px-3 py-1.5 ${i === stepIndex ? "bg-[var(--hr-orange)] !text-[#07090F]" : i < stepIndex ? "bg-[var(--hr-surface-2)]" : "shadow-[inset_0_0_0_1px_var(--hr-rule)]"}`}>
                   {i + 1}. {s.label}
                 </li>
               ))}
             </ol>
           )}
-          {stage === "preflight" && <p className="text-sm text-muted-foreground">Getting things ready…</p>}
+          {stage === "preflight" && <p className="text-sm text-[var(--hr-muted)]">Getting things ready…</p>}
           {stage === "error" && (
             <div role="alert" className="space-y-3">
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-[var(--hr-red-ink)]">{error}</p>
               <Button variant="outline" onClick={() => void runPreflight()}>Try again</Button>
             </div>
           )}

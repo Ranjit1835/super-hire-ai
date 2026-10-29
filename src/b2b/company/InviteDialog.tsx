@@ -79,17 +79,17 @@ export function InviteDialog({ open, onOpenChange, jobRoleId, roleTitle, onDone 
               {result.skipped.length > 0 && ` ${result.skipped.length} skipped.`}
             </p>
             {!result.emailConfigured && result.invited.length > 0 && (
-              <p className="text-muted-foreground">Email isn't set up yet, so send these links yourself (download them as a CSV).</p>
+              <p className="text-[var(--hr-muted)]">Email isn't set up yet, so send these links yourself (download them as a CSV).</p>
             )}
             {result.skipped.length > 0 && (
-              <ul className="list-disc pl-5" aria-label="Skipped">
+              <ul className="list-disc pl-5 text-[var(--hr-muted)]" aria-label="Skipped">
                 {result.skipped.map((s) => <li key={s.email + s.reason}>{s.email}: {SKIP_REASON[s.reason] ?? s.reason}</li>)}
               </ul>
             )}
             {result.invited.length > 0 && (
               <ul className="max-h-48 overflow-auto space-y-1" aria-label="Invite links">
                 {result.invited.map((i) => (
-                  <li key={i.email} className="flex items-center gap-2">
+                  <li key={i.email} className="flex items-center gap-2 hr-rule-b py-1.5">
                     <span className="truncate flex-1">{i.fullName} ({i.email})</span>
                     <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(i.link)}>Copy link</Button>
                   </li>
@@ -123,7 +123,7 @@ export function InviteDialog({ open, onOpenChange, jobRoleId, roleTitle, onDone 
                 <Input id="inv-file" type="file" accept=".csv,.xlsx" onChange={(e) => void onFile(e.target.files?.[0])} />
                 {fileRows && <p role="status" className="text-sm">{fileRows.length} candidate{fileRows.length === 1 ? "" : "s"} ready to invite.</p>}
                 {fileIssues.length > 0 && (
-                  <ul className="text-sm text-muted-foreground list-disc pl-5 max-h-32 overflow-auto" aria-label="File problems">
+                  <ul className="text-sm text-[var(--hr-muted)] list-disc pl-5 max-h-32 overflow-auto" aria-label="File problems">
                     {fileIssues.map((m) => <li key={m}>{m}</li>)}
                   </ul>
                 )}
@@ -132,7 +132,7 @@ export function InviteDialog({ open, onOpenChange, jobRoleId, roleTitle, onDone 
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} /> Email the invite (when email is set up)
             </label>
-            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            {error && <p role="alert" className="text-sm text-[var(--hr-red-ink)]">{error}</p>}
             <Button onClick={submit} disabled={busy}>{busy ? "Inviting…" : "Send invites"}</Button>
           </div>
         )}

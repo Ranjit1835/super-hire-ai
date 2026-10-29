@@ -90,9 +90,11 @@ beforeEach(() => {
 });
 
 describe("start page", () => {
-  it("starts the drive interview with the coding attempt and opens the room", async () => {
+  it("waits for Start interview, then starts the drive interview with the coding attempt and opens the room", async () => {
     serve();
     renderAt(`/interview/v1/start?context=drive&id=${DRIVE}&attempt=${ATT}`);
+    expect(api.call).not.toHaveBeenCalled(); // nothing starts on page load
+    fireEvent.click(await screen.findByRole("button", { name: "Start interview" }));
     await waitFor(() => expect(api.call).toHaveBeenCalledWith("startContext", { kind: "drive", contextId: DRIVE, attemptId: ATT }));
     await waitFor(() => expect(screen.getAllByTestId("where").at(-1)).toHaveTextContent(`/interview/v1/i/${IV}`));
   });
@@ -109,6 +111,7 @@ describe("drive interview step", () => {
     rpc.mockResolvedValue({ data: ATT, error: null });
     serve();
     renderAt(`/learn/v1/drives/${DRIVE}/interview`);
+    fireEvent.click(await screen.findByRole("button", { name: "Start interview" }));
     await waitFor(() => expect(api.call).toHaveBeenCalledWith("startContext", { kind: "drive", contextId: DRIVE, attemptId: ATT }));
     expect(rpc).toHaveBeenCalledWith("b2b_my_context_attempt", { _context: "drive", _context_id: DRIVE });
   });
@@ -117,6 +120,7 @@ describe("drive interview step", () => {
     rpc.mockResolvedValue({ data: null, error: null });
     serve();
     renderAt(`/learn/v1/drives/${DRIVE}/interview`);
+    fireEvent.click(await screen.findByRole("button", { name: "Start interview" }));
     await waitFor(() => expect(api.call).toHaveBeenCalledWith("startContext", { kind: "drive", contextId: DRIVE }));
   });
 });
@@ -135,7 +139,7 @@ describe("interview room", () => {
       .mockImplementationOnce(() => new Promise(() => {}));     // keep listening on the next question
     renderAt(`/interview/v1/i/${IV}`);
     expect(await screen.findByTestId("proctored")).toBeInTheDocument();
-    expect(screen.getByText("beta")).toBeInTheDocument();
+    expect(screen.queryByText("beta")).toBeNull();
     fireEvent.click(await screen.findByRole("button", { name: "Start interview" }));
 
     await waitFor(() => expect(api.call).toHaveBeenCalledWith("turn", expect.objectContaining({ interviewId: IV, turnCount: 0, answer: "I am a CSE student." })));

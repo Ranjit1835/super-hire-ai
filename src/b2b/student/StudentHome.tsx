@@ -1,11 +1,15 @@
+// A student's home (/learn/v1): the drives assigned to them and the practice tests their college has published.
+// Calm, not a broadcast table: one student, their own work, nothing ranked against anyone else.
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { V1Shell, Loading, Empty, Stat } from "../layout/V1Shell";
-import { STATUS_TEXT, useMyDrives, useMyPractice, windowState, windowText } from "./queries";
+import { V1Shell, Loading, Empty } from "../layout/V1Shell";
+import { Chip, type Tone } from "../ui/broadcast";
+import { STATUS_TEXT, useMyDrives, useMyPractice, windowState, windowText, type MyDrive } from "./queries";
 
 /** A practice coding test costs ¼ credit from the college's shared pool (AUDIT.md 9.7). */
 const PRACTICE_TEST_COST = 0.25;
+
+const STATUS_TONE: Record<MyDrive["status"], Tone> = { assigned: "muted", in_progress: "blue", completed: "gold", absent: "muted" };
 
 export default function StudentHome() {
   const drives = useMyDrives();
@@ -13,57 +17,66 @@ export default function StudentHome() {
   const orgName = practice.data?.[0]?.org_name ?? drives.data?.[0]?.org_name;
   return (
     <V1Shell title="My placements" subtitle={orgName}>
-      <div className="space-y-8">
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Drives</h2>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
+        <section className="space-y-3 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="hr-display text-[22px]">Drives</h2>
             <Button variant="outline" size="sm" asChild><a href="/proctor/check">Check my system</a></Button>
           </div>
-          {drives.isLoading ? <Loading /> : drives.error ? <Empty title="Couldn't load your drives" body={(drives.error as Error).message} /> :
-            !drives.data?.length ? (
-              <Empty title="No drives yet" body="When your placement office assigns you a drive, it shows up here with its dates." />
-            ) : (
-              <ul className="grid sm:grid-cols-2 gap-3">
-                {drives.data.map((d) => {
-                  const w = windowState(d);
-                  return (
-                    <li key={d.drive_id} className="rounded-lg border p-4 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <Link to={`/learn/v1/drives/${d.drive_id}`} className="font-medium hover:underline">{d.name}</Link>
-                        <Badge variant={d.status === "completed" ? "default" : "outline"}>{STATUS_TEXT[d.status]}</Badge>
+          {drives.isLoading ? <Loading /> : drives.error ? (
+            <Empty title="Couldn't load your drives" body={(drives.error as Error).message} />
+          ) : !drives.data?.length ? (
+            <Empty stage title="No drives yet" body="When your placement office assigns you a drive, it shows up here with its dates." />
+          ) : (
+            <ul className="bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)]">
+              {drives.data.map((d) => {
+                const w = windowState(d);
+                const action =
+                  w === "open" && d.status === "assigned" ? { label: "Start", variant: "default" as const }
+                  : w === "open" && d.status === "in_progress" ? { label: "Continue", variant: "default" as const }
+                  : d.status === "completed" ? { label: "View results", variant: "outline" as const }
+                  : { label: "Details", variant: "outline" as const };
+                return (
+                  <li key={d.drive_id} className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 px-4 py-3.5 hr-rule-b [&:last-child]:shadow-none">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link to={`/learn/v1/drives/${d.drive_id}`} className="hr-display text-[16px] hover:text-[var(--hr-orange)]">{d.name}</Link>
+                        <Chip tone={STATUS_TONE[d.status]}>{STATUS_TEXT[d.status]}</Chip>
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="hr-data text-xs text-[var(--hr-muted)]">
                         {windowText(d)}{w === "upcoming" ? " · not open yet" : w === "closed" ? " · closed" : ""}
                       </p>
-                      {d.results_visible && d.results?.overall != null && <p className="text-sm">Your overall score: <b>{d.results.overall}%</b></p>}
-                      <Button size="sm" asChild><Link to={`/learn/v1/drives/${d.drive_id}`}>Open</Link></Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                    </div>
+                    <Button size="sm" variant={action.variant} asChild className="shrink-0"><Link to={`/learn/v1/drives/${d.drive_id}`}>{action.label}</Link></Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Practice</h2>
+        <section className="space-y-3 min-w-0">
+          <h2 className="hr-display text-[22px]">Practice</h2>
           {practice.isLoading ? <Loading /> : !practice.data?.length ? (
             <Empty title="Practice isn't available" body="Your account isn't linked to an active college yet." />
           ) : practice.data.map((p) => (
-            <div key={p.org_id} className="space-y-3">
-              <div className="grid sm:grid-cols-3 gap-3">
-                <Stat label="Practice credits left for your college" value={Number(p.credits_balance).toLocaleString("en-IN")}
-                      hint="Shared by all students. A practice test uses ¼ credit; your score shows right after." />
-              </div>
+            <div key={p.org_id} className="space-y-4">
+              <p className="text-sm text-[var(--hr-muted)]">
+                <span className="hr-data text-foreground">{Number(p.credits_balance)}</span> practice credits left for your college, shared by all students. A practice test uses ¼ credit; your score shows right after.
+              </p>
               {p.assessments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Your college hasn't published practice tests yet.</p>
+                <p className="text-sm text-[var(--hr-muted)]">Your college hasn't published practice tests yet.</p>
               ) : (
-                <ul className="grid sm:grid-cols-2 gap-3">
+                <ul className="bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)]">
                   {p.assessments.map((a) => (
-                    <li key={a.id} className="rounded-lg border p-4 flex items-center justify-between gap-2">
-                      <div><p className="font-medium">{a.title}</p><p className="text-xs text-muted-foreground">{a.duration_min} minutes</p></div>
+                    <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-3.5 hr-rule-b [&:last-child]:shadow-none">
+                      <div className="min-w-0">
+                        <p className="hr-display text-[15px] truncate">{a.title}</p>
+                        <p className="hr-data text-xs text-[var(--hr-muted)]">{a.duration_min} min</p>
+                      </div>
                       {Number(p.credits_balance) >= PRACTICE_TEST_COST
-                        ? <Button size="sm" asChild><a href={`/assess/start?context=practice&id=${a.id}`}>Start practice</a></Button>
-                        : <Button size="sm" disabled>No credits left</Button>}
+                        ? <Button size="sm" variant="outline" asChild className="shrink-0"><a href={`/assess/start?context=practice&id=${a.id}`}>Start practice</a></Button>
+                        : <Button size="sm" variant="outline" disabled className="shrink-0">No credits left</Button>}
                     </li>
                   ))}
                 </ul>

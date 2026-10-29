@@ -28,16 +28,20 @@ export function StaffReport({ orgId, rcId, isEditor }: { orgId: string; rcId: st
   if (q.error || !q.data) return <Empty title="Couldn't open this report" body={q.error instanceof Error ? q.error.message : undefined} />;
   const r = q.data.report;
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-6 max-w-[1400px]">
       <div>
-        <Link to={`/co/${orgId}/roles/${r.role.id}`} className="text-sm underline">← {r.role.title}</Link>
-        <h2 className="text-xl font-semibold mt-1">{r.candidate.fullName}</h2>
-        <p className="text-sm text-muted-foreground">{[r.candidate.email, r.candidate.phone].filter(Boolean).join(" · ")}</p>
+        <Link to={`/co/${orgId}/roles/${r.role.id}`} className="text-sm text-[var(--hr-muted)] hover:text-foreground">← {r.role.title}</Link>
+        <h2 className="hr-display text-2xl mt-1.5">{r.candidate.fullName}</h2>
+        <p className="text-sm text-[var(--hr-muted)]">{[r.candidate.email, r.candidate.phone].filter(Boolean).join(" · ")}</p>
       </div>
-      <ReportView report={r} staff />
-      <DecisionPanel report={r} />
-      <Comments orgId={orgId} report={r} />
-      {isEditor && <SharePanel rcId={rcId} />}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
+        <div className="min-w-0"><ReportView report={r} staff /></div>
+        <div className="lg:sticky lg:top-20 space-y-6">
+          <DecisionPanel report={r} />
+          <Comments orgId={orgId} report={r} />
+          {isEditor && <SharePanel rcId={rcId} />}
+        </div>
+      </div>
     </div>
   );
 }
@@ -58,19 +62,20 @@ function DecisionPanel({ report: r }: { report: CandidateReport }) {
     }
   }
   return (
-    <section className="space-y-3">
-      <h3 className="font-semibold">Decision</h3>
+    <section className="space-y-3 hr-rule-t pt-6">
+      <h3 className="hr-display text-lg">Decision</h3>
       <Textarea aria-label="Decision note" placeholder="Why? (optional, visible to your team)" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
       <div className="flex flex-wrap gap-2">
-        {(["advance", "hold", "reject", "hire"] as const).map((d) => (
-          <Button key={d} size="sm" variant={d === "advance" || d === "hire" ? "default" : "outline"} onClick={() => void decide(d)}>{DECISION_TEXT[d]}</Button>
-        ))}
+        {(["advance", "hold", "reject", "hire"] as const).map((d) => {
+          const solidDecision = r.stage === "shortlisted" ? "hire" : "advance";
+          return <Button key={d} size="sm" variant={d === solidDecision ? "default" : "outline"} onClick={() => void decide(d)}>{DECISION_TEXT[d]}</Button>;
+        })}
       </div>
       {msg && <p role="status" className="text-sm">{msg}</p>}
       {r.decisions.length > 0 && (
         <ol className="text-sm space-y-1" aria-label="Decision history">
           {r.decisions.map((d, i) => (
-            <li key={i}>{fmtDateTime(d.createdAt)} · {d.by}: <b>{DECISION_TEXT[d.decision] ?? d.decision}</b>{d.note ? ` (${d.note})` : ""}</li>
+            <li key={i} className="hr-data text-xs text-[var(--hr-muted)]">{fmtDateTime(d.createdAt)} · {d.by}: <b className="text-foreground font-semibold">{DECISION_TEXT[d.decision] ?? d.decision}</b>{d.note ? ` (${d.note})` : ""}</li>
           ))}
         </ol>
       )}
@@ -92,16 +97,21 @@ function Comments({ orgId, report: r }: { orgId: string; report: CandidateReport
     await qc.invalidateQueries({ queryKey: ["b2b-company", "report", r.roleCandidateId] });
   }
   return (
-    <section className="space-y-3">
-      <h3 className="font-semibold">Reviewer comments</h3>
-      {r.comments.length === 0 ? <p className="text-sm text-muted-foreground">No comments yet.</p> : (
-        <ul className="space-y-2">
-          {r.comments.map((c) => <li key={c.id} className="text-sm"><span className="font-medium">{c.author}</span> · {fmtDateTime(c.createdAt)}<p>{c.body}</p></li>)}
+    <section className="space-y-3 hr-rule-t pt-6">
+      <h3 className="hr-display text-lg">Reviewer comments</h3>
+      {r.comments.length === 0 ? <p className="text-sm text-[var(--hr-muted)]">No comments yet.</p> : (
+        <ul className="space-y-3">
+          {r.comments.map((c) => (
+            <li key={c.id} className="text-sm hr-rule-b pb-3">
+              <span className="font-medium">{c.author}</span> <span className="text-xs text-[var(--hr-muted)]">· {fmtDateTime(c.createdAt)}</span>
+              <p className="mt-0.5">{c.body}</p>
+            </li>
+          ))}
         </ul>
       )}
       <Textarea aria-label="New comment" value={body} onChange={(e) => setBody(e.target.value)} rows={2} />
       <Button size="sm" onClick={() => void post()} disabled={!body.trim()}>Add comment</Button>
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-sm text-[var(--hr-red-ink)]">{error}</p>}
     </section>
   );
 }
@@ -133,9 +143,9 @@ function SharePanel({ rcId }: { rcId: string }) {
     }
   }
   return (
-    <section className="space-y-3">
-      <h3 className="font-semibold">Share with an outside hiring manager</h3>
-      <p className="text-sm text-muted-foreground">A view-only link to this report: no comments, no decisions, no other candidates and no evidence images. Anyone with the link can open it until it expires or you revoke it.</p>
+    <section className="space-y-3 hr-rule-t pt-6">
+      <h3 className="hr-display text-lg">Share with an outside hiring manager</h3>
+      <p className="text-sm text-[var(--hr-muted)]">A view-only link to this report: no comments, no decisions, no other candidates and no evidence images. Anyone with the link can open it until it expires or you revoke it.</p>
       <div className="flex items-center gap-2">
         <NativeSelect aria-label="Link expires in" className="w-40" value={days} onChange={(e) => setDays(e.target.value)}>
           {SHARE_DAYS.map((d) => <option key={d} value={d}>{d === 1 ? "1 day" : `${d} days`}</option>)}
@@ -143,7 +153,7 @@ function SharePanel({ rcId }: { rcId: string }) {
         <Button size="sm" onClick={() => void create()}>Create link</Button>
       </div>
       {created && <p role="status" className="text-sm break-all">Link copied: {created}</p>}
-      {msg && <p role="alert" className="text-sm text-destructive">{msg}</p>}
+      {msg && <p role="alert" className="text-sm text-[var(--hr-red-ink)]">{msg}</p>}
       {(links.data ?? []).length > 0 && (
         <ul className="text-sm space-y-1" aria-label="Share links">
           {(links.data ?? []).map((l) => {

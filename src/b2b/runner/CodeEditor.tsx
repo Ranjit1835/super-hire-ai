@@ -9,6 +9,7 @@ import { attachPasteGuard, createTypingMonitor } from "./pasteGuard";
 type MonacoEditor = Parameters<OnMount>[0];
 
 const MONACO_LANG: Record<string, string> = { python: "python", java: "java", cpp: "cpp", c: "c", javascript: "javascript" };
+const LANGUAGE_LABEL: Record<string, string> = { python: "Python 3", java: "Java", cpp: "C++", c: "C", javascript: "JavaScript" };
 
 export interface CodeEditorProps {
   language: string;
@@ -57,21 +58,27 @@ export function CodeEditor({ language, value, onChange, onBlur, onSignal, readOn
   };
 
   return (
-    <div ref={box} className="h-full min-h-[320px] border border-border rounded-md overflow-hidden" data-testid="code-editor">
-      <Editor
-        height="100%"
-        language={MONACO_LANG[language] ?? "plaintext"}
-        defaultValue={value}
-        onMount={onMount}
-        theme="vs-dark"
-        options={{
-          readOnly, minimap: { enabled: false }, fontSize: 14, scrollBeyondLastLine: false, automaticLayout: true,
-          // The context-menu "Paste" reads the clipboard directly (no paste event), and drag-and-drop can carry
-          // outside text in: both off so the paste guard sees every paste.
-          contextmenu: false, dragAndDrop: false, dropIntoEditor: { enabled: false }, pasteAs: { enabled: false },
-          tabSize: 4,
-        }}
-      />
+    <div ref={box} className="h-full min-h-[320px] flex flex-col shadow-[inset_0_0_0_1px_var(--hr-rule)] bg-[var(--hr-surface)]" data-testid="code-editor">
+      <div className="flex items-center gap-2 px-3 h-9 shrink-0 hr-rule-b">
+        <span className="hr-data text-xs text-[var(--hr-muted)]">{LANGUAGE_LABEL[language] ?? language}</span>
+        <span className="ml-auto">{readOnly && <span className="hr-label !text-[10px]">Paused</span>}</span>
+      </div>
+      <div className="flex-1 min-h-0">
+        <Editor
+          height="100%"
+          language={MONACO_LANG[language] ?? "plaintext"}
+          defaultValue={value}
+          onMount={onMount}
+          theme="vs-dark"
+          options={{
+            readOnly, minimap: { enabled: false }, fontSize: 14, scrollBeyondLastLine: false, automaticLayout: true,
+            // The context-menu "Paste" reads the clipboard directly (no paste event), and drag-and-drop can carry
+            // outside text in: both off so the paste guard sees every paste.
+            contextmenu: false, dragAndDrop: false, dropIntoEditor: { enabled: false }, pasteAs: { enabled: false },
+            tabSize: 4,
+          }}
+        />
+      </div>
     </div>
   );
 }

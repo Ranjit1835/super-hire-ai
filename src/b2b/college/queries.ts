@@ -113,6 +113,19 @@ export function useStudentFacets(orgId: string) {
   });
 }
 
+/** How many students sit in each status, for the roster header and status tabs. Real counts over the whole roster, not a page. */
+export function useStudentStatusCounts(orgId: string) {
+  return useQuery({
+    queryKey: ["b2b-college", "student-status-counts", orgId],
+    queryFn: async () => {
+      const data = await rows<{ status: StudentStatus }[]>(b2bDb.from("students").select("status").eq("org_id", orgId).limit(10000));
+      const counts: Record<StudentStatus, number> = { imported: 0, invited: 0, active: 0, deactivated: 0, held_minor: 0 };
+      for (const r of data) counts[r.status] = (counts[r.status] ?? 0) + 1;
+      return counts;
+    },
+  });
+}
+
 export function useDrives(orgId: string) {
   return useQuery({
     queryKey: ["b2b-college", "drives", orgId],
@@ -183,7 +196,7 @@ export function friendly(e: unknown): string {
 }
 
 export const fmtDateTime = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+  iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "–";
 export const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "–";
 export const numOrNull = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? null : Number(v));
