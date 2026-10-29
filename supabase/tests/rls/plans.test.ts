@@ -123,11 +123,11 @@ describe("usage visibility", () => {
     });
   });
 
-  it("plans are visible to staff of an org on that plan, not to students or B2C users", async () => {
-    await asUser(db, u.adminA, async (tx) => {
-      expect((await tx.query<{ id: string }>("SELECT id FROM plans")).rows.map((r) => r.id)).toEqual(["pilot"]);
+  it("plans (with prices) are visible to super admins only, never to staff, students or B2C users", async () => {
+    await asUser(db, u.super, async (tx) => {
+      expect((await tx.query<{ id: string }>("SELECT id FROM plans")).rows.length).toBeGreaterThan(0);
     });
-    for (const who of [u.studentA, u.b2c]) {
+    for (const who of [u.adminA, u.studentA, u.b2c]) {
       await asUser(db, who, async (tx) => expect((await tx.query("SELECT id FROM plans")).rows).toEqual([]));
     }
   });
