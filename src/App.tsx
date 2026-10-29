@@ -65,6 +65,7 @@ const OrgModules = lazy(() => import("./features/b2b/pages/OrgModules"));
 const ModuleEditor = lazy(() => import("./features/b2b/pages/ModuleEditor"));
 const OrgDashboard = lazy(() => import("./features/b2b/pages/OrgDashboard"));
 import { B2CGuard } from "./features/b2b/components/B2CGuard";
+import { MfaGate } from "./features/b2b/components/MfaGate";
 const StudentDetail = lazy(() => import("./features/b2b/pages/StudentDetail"));
 const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
 const InterviewRoom = lazy(() => import("./features/b2b/pages/InterviewRoom"));
@@ -118,14 +119,14 @@ function AppRoutes() {
       <Route path="/studio/:resumeId" element={<B2CGuard><ProtectedRoute><StudioPage /></ProtectedRoute></B2CGuard>} />
       <Route path="/studio/shared/:shareToken" element={<StudioSharedPage />} />
       {/* Institution enquiries come from the B2C college page, so the inbox stays on with B2B off. */}
-      <Route path="/admin/enquiries" element={<ProtectedRoute><SuperAdminEnquiries /></ProtectedRoute>} />
+      <Route path="/admin/enquiries" element={<ProtectedRoute><MfaGate><SuperAdminEnquiries /></MfaGate></ProtectedRoute>} />
       {/* B2B: institutions. Only registered when VITE_B2B_ENABLED=true (off in production). */}
       {B2B_ENABLED && (
         <>
-          <Route path="/admin/orgs" element={<ProtectedRoute><AdminOrgsPage /></ProtectedRoute>} />
-          <Route path="/admin/usage" element={<ProtectedRoute><AdminUsagePage /></ProtectedRoute>} />
+          <Route path="/admin/orgs" element={<ProtectedRoute><MfaGate><AdminOrgsPage /></MfaGate></ProtectedRoute>} />
+          <Route path="/admin/usage" element={<ProtectedRoute><MfaGate><AdminUsagePage /></MfaGate></ProtectedRoute>} />
           {routeElements(v1Routes)}
-          <Route path="/admin/costs" element={<ProtectedRoute><SuperAdminCosts /></ProtectedRoute>} />
+          <Route path="/admin/costs" element={<ProtectedRoute><MfaGate><SuperAdminCosts /></MfaGate></ProtectedRoute>} />
           <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
           <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
             <Route index element={<OrgOverview />} />

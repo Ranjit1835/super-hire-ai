@@ -58,7 +58,10 @@ export async function requireUser(req: Request, opts: { allowAnonymous?: boolean
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new HttpError(401, "UNAUTHENTICATED", "Please sign in again.");
   if (data.user.is_anonymous && !opts.allowAnonymous && !publicTestEnabled()) throw new HttpError(403, "FORBIDDEN", "Please sign in.");
-  if (!data.user.is_anonymous) await checkStudentSession(data.user.id, jwtClaim(authHeader.slice(7), "session_id"));
+  if (!data.user.is_anonymous) {
+    const token = authHeader.slice(7);
+    await checkRequestGate(data.user.id, jwtClaim(token, "session_id"), jwtClaim(token, "aal"));
+  }
   return data.user;
 }
 
@@ -83,12 +86,16 @@ const SESSION_ENDED: Record<string, string> = {
 };
 
 /**
- * R1.6: students get one active session, an idle timeout and an absolute expiry (b2b_session_touch, migration 0021).
- * Non-students pass straight through. If the check itself can't run (database error), the request is allowed and
- * logged rather than locking every student out.
+ * Per-request gate (b2b_request_gate, migration 0022):
+ *  - R3.5: super admins must have signed in with MFA (JWT aal2) to use any B2B function → 403 MFA_REQUIRED.
+ *  - R1.6: students get one active session, an idle timeout and an absolute expiry → 401 SESSION_ENDED.
+ * Everyone else passes straight through. If the check itself can't run (database error), the request is allowed and
+ * logged rather than locking everyone out; the SQL functions still check roles (and is_super_admin needs aal2).
  */
-async function checkStudentSession(userId: string, authSessionId: string | null): Promise<void> {
-  const { data, error } = await serviceClient().rpc("b2b_session_touch", { _user_id: userId, _auth_session_id: authSessionId ?? "" });
+async function checkRequestGate(userId: string, authSessionId: string | null, aal: string | null): Promise<void> {
+  const { data, error } = await serviceClient().rpc("b2b_request_gate", {
+    _user_id: userId, _auth_session_id: authSessionId ?? "", _aal: aal ?? "",
+  });
   if (error) {
     console.error("[B2B-SESSION] check failed, allowing request:", error.message);
     return;
@@ -96,6 +103,9 @@ async function checkStudentSession(userId: string, authSessionId: string | null)
   const r = data as { ok?: boolean; reason?: string } | null;
   if (r && r.ok === false) {
     const reason = r.reason ?? "NO_SESSION";
+    if (reason === "MFA_REQUIRED") {
+      throw new HttpError(403, "MFA_REQUIRED", "Admin access needs two-factor sign-in. Verify with your authenticator app and try again.");
+    }
     throw new HttpError(401, "SESSION_ENDED", SESSION_ENDED[reason] ?? SESSION_ENDED.NO_SESSION);
   }
 }

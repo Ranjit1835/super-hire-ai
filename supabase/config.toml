@@ -107,3 +107,8 @@ enabled = false
 site_url = "http://localhost:8080"
 additional_redirect_urls = ["http://localhost:8080/**", "http://127.0.0.1:8080/**"]
 enable_anonymous_sign_ins = true
+
+# R3.5: super admins verify with an authenticator app. TOTP is on by default in hosted projects; local needs it here.
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
