@@ -10,7 +10,7 @@ import { Chip } from "../ui/broadcast";
 import { adminApi } from "../lib/api";
 import type { OrgRow } from "../types";
 import { CreateOrgDialog } from "./CreateOrgDialog";
-import { CreditsDialog, InviteStaffDialog } from "./OrgActions";
+import { CreditsDialog, InviteStaffDialog, SettingsDialog } from "./OrgActions";
 import { ORG_TYPE_LABEL, ROLE_LABEL, alertText, fmtDate, friendly, num, useIsSuperAdmin, useOrgAlerts, useOrgs, usePlans, useStaffInvites } from "./queries";
 
 export const ADMIN_TABS = [
@@ -33,6 +33,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
   const [creating, setCreating] = useState(false);
   const [inviting, setInviting] = useState<OrgRow | null>(null);
   const [crediting, setCrediting] = useState<OrgRow | null>(null);
+  const [configuring, setConfiguring] = useState<OrgRow | null>(null);
   const [lastLink, setLastLink] = useState<{ email: string; link: string } | null>(demoInviteLink ?? null);
 
   if (isSuper.isLoading) return <V1Shell title="Super admin"><Loading /></V1Shell>;
@@ -131,6 +132,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
                   <TableCell className="py-2.5 text-right whitespace-nowrap">
                     <Button size="sm" variant="ghost" onClick={() => setInviting(o)}>Invite</Button>
                     <Button size="sm" variant="ghost" onClick={() => setCrediting(o)}>Credits</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfiguring(o)}>Costs &amp; limits</Button>
                     <Button size="sm" variant="ghost" onClick={() => setStatus(o, o.status === "active" ? "suspended" : "active")}>
                       {o.status === "active" ? "Suspend" : "Reactivate"}
                     </Button>
@@ -150,6 +152,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
       <InviteStaffDialog org={inviting} onClose={() => setInviting(null)}
         onInvited={(r) => { toast({ title: r.emailed ? `Invite emailed to ${r.email}` : "Invite created" }); if (!r.emailed) setLastLink(r); refresh(); }} />
       <CreditsDialog org={crediting} onClose={() => setCrediting(null)} onChanged={refresh} />
+      {configuring && <SettingsDialog key={configuring.id} org={configuring} onClose={() => setConfiguring(null)} onSaved={refresh} />}
     </V1Shell>
   );
 }

@@ -123,3 +123,69 @@ export function CreditsDialog({ org, onClose, onChanged }: { org: OrgRow | null;
     </Dialog>
   );
 }
+
+/** R1.8 and the per-org limits added in Phase 1. Empty = use the platform default. Super admins only. */
+export const SETTING_FIELDS = [
+  { key: "practice_credits", label: "Credits per practice run", hint: "Default 0.25; 0 makes practice free", min: 0, max: 100, step: 0.05 },
+  { key: "candidate_session_credits", label: "Credits per candidate (companies)", hint: "Default 1", min: 0.01, max: 100, step: 0.05 },
+  { key: "low_credit_alert", label: "Low-credit alert below", hint: "Default 50 credits", min: 0, max: 1_000_000, step: 1 },
+  { key: "expiry_alert_days", label: "Plan expiry alert (days before)", hint: "Default 14", min: 1, max: 90, step: 1 },
+  { key: "retention_days", label: "Keep evidence for (days)", hint: "Default 90; consent text uses this", min: 7, max: 730, step: 1 },
+  { key: "session_idle_min", label: "Student idle sign-out (minutes)", hint: "Default 30", min: 5, max: 240, step: 1 },
+  { key: "session_max_hours", label: "Student session length (hours)", hint: "Default 8", min: 1, max: 24, step: 1 },
+] as const;
+type SettingKey = (typeof SETTING_FIELDS)[number]["key"];
+
+export function SettingsDialog({ org, onClose, onSaved }: { org: OrgRow | null; onClose: () => void; onSaved: () => void }) {
+  const current = (org?.settings ?? {}) as Record<string, unknown>;
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(SETTING_FIELDS.map((f) => [f.key, current[f.key] === undefined || current[f.key] === null ? "" : String(current[f.key])])));
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!org) return null;
+  const submit = async () => {
+    setError(null);
+    const settings: Partial<Record<SettingKey, number>> = {};
+    for (const f of SETTING_FIELDS) {
+      const raw = values[f.key].trim();
+      if (raw === "") continue;
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < f.min || n > f.max) { setError(`${f.label}: enter a number from ${f.min} to ${f.max}.`); return; }
+      settings[f.key] = n;
+    }
+    setBusy(true);
+    try {
+      // updateOrg's optional fields come from Object.fromEntries, so TS only sees orgId/status; the contract still
+      // validates settings at runtime (OrgSettings, strict, with the bounds above).
+      await adminApi("updateOrg", { orgId: org.id, settings } as never);
+      onSaved();
+      onClose();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : friendly(e));
+    } finally { setBusy(false); }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Costs and limits: {org.name}</DialogTitle>
+          <DialogDescription>Credits each activity uses, alerts, evidence retention and student sessions. Leave a field empty for the default.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {SETTING_FIELDS.map((f) => (
+            <div key={f.key}>
+              <Label htmlFor={`set-${f.key}`}>{f.label}</Label>
+              <Input id={`set-${f.key}`} type="number" inputMode="decimal" min={f.min} max={f.max} step={f.step} placeholder={f.hint}
+                     value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} />
+            </div>
+          ))}
+        </div>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

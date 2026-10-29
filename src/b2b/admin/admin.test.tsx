@@ -179,3 +179,20 @@ describe("super admin: AI cost breakdown (R6.1)", () => {
     expect(state.costBy).toContain("student");
   });
 });
+
+describe("super admin: costs and limits (R1.8)", () => {
+  it("saves only the fields filled in, within bounds; refuses out-of-range values", async () => {
+    api.adminApi.mockResolvedValue({ ok: true });
+    renderAt("/admin/orgs");
+    const rows = screen.getAllByRole("row");
+    fireEvent.click(within(rows[1]).getByRole("button", { name: "Costs & limits" }));
+    fireEvent.change(screen.getByLabelText("Credits per practice run"), { target: { value: "500" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/from 0 to 100/);
+    expect(api.adminApi).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Credits per practice run"), { target: { value: "0" } });
+    fireEvent.change(screen.getByLabelText("Student idle sign-out (minutes)"), { target: { value: "45" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.adminApi).toHaveBeenCalledWith("updateOrg", { orgId: "o1", settings: { practice_credits: 0, session_idle_min: 45 } }));
+  });
+});
