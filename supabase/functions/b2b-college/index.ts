@@ -132,7 +132,7 @@ serve(serveContract("B2B-COLLEGE", collegeContract, {
 
   async inviteStaff(input, ctx) {
     const token = randomToken();
-    // b2b_invite_staff lets super admins and the org's admins through; it refuses trainers and outsiders.
+    // b2b_invite_staff lets super admins only through (R3.3, migration 0017).
     const r = await rpc<{ ok: boolean; reason?: string; invite_id?: string }>("b2b_invite_staff", {
       _actor: ctx.user.id, _org_id: input.orgId, _email: input.email, _full_name: input.fullName ?? null,
       _role: input.role, _token_hash: await sha256Hex(token),
