@@ -5,14 +5,36 @@
 
 _Last updated: 2026-10-29_
 
-## Current: `HIRESUME_B2B_SPEC.md` — Phase 0 done, waiting for approval
+## Current: `HIRESUME_B2B_SPEC.md`, Phase 1 in progress (branch `feat/b2b-hardening`)
 
-- Spec: `HIRESUME_B2B_SPEC.md` (requirement IDs R1–R6). Branch **`feat/b2b-hardening`** (from `design/b2b-redesign`, PR #5).
-- **Phase 0 audit:** `docs/b2b/PHASE0_AUDIT.md`: baseline, traceability matrix, P0/P1/P2 issues, decisions D1–D8, verdict **NO-GO** for B2B in production.
-- **IDs done (with evidence in the audit):** R1.7 (per activity), R1.10 (LLM), R2.4, R3.4, R3.6, R4.1, R4.2, R6.5, R6.8.
-- **Open decisions:** D1 LLM provider · D2 staging environment · D3 sessions on the Free plan · D4 voice stack · D5 email collision · D6 plagiarism engine · D7 who grants org admin · D8 hotfix for the live price leak.
-- **Next step:** your answers to D1–D8, then Phase 1 (R4.1 B2C baseline, R3.3–R3.6, R1, R3.1–R3.2, R6.1). No deploys and no production migrations (spec §0).
-- 2026-10-29 already shipped to prod (before this spec): PR #6, the pilot transcript-forging fix (functions b2b-interview v6, b2b-evaluate v7, b2b-public-test v6).
+**Decisions (2026-10-29):**
+- **D1:** Claude in production; Gemini for now to keep costs down. The gateway gets a Claude provider and a per-environment switch.
+- **D2:** Docker. It's installed; local Supabase runs with `supabase start -x vector,logflare,imgproxy,studio`.
+- **D3:** sessions built in the app.
+- **D4:** researched in `docs/b2b/VOICE_STACK_RESEARCH.md`. Recommendation: Sarvam plus Pipecat with Smart Turn v3, pending a 1-day bake-off.
+- **D5:** B2B and B2C kept separate on one login.
+- **D6:** Dolos.
+- **D7:** super admin has full access; TPOs manage students only.
+- **D8:** hotfix PR #7, plans readable by super admins only. You apply it.
+
+**Phase 1, done (evidence in the commits and tests):**
+- **R3.1:** the plans table is super-admin only (#7, cherry-picked here). The plan tier (`plan_id`) is hidden from everyone except super admins through column privileges plus `super_orgs()`, and `org_usage_summary` no longer returns the tier to staff (migration 0016, `plans.test.ts`).
+- **R3.3 / D7:** staff invites are super-admin only, and org admins can update or delete student memberships only (migration 0017, `v1-isolation.test.ts`).
+- **R1.3 / R1.4:** the seat cap applies on every path with a per-org lock, a used seat is never recycled, and `super_free_seat()` frees one (migration 0018, `seats.test.ts`, plus a real-Postgres race on local Supabase).
+
+**Phase 1, next:**
+- R1.5 / R1.6 session ledger: a counted session per login, 30-minute idle and 8-hour absolute expiry, newest login wins, and it stamps `seat_locked_at`.
+- R1.8 per-activity costs and quotas.
+- R3.2 no B2C pages from B2B.
+- R3.5 MFA and admin audit.
+- R1.9 alerts.
+- R6.1 cost views.
+- R5.5 retention job (P1).
+
+**Deploy notes:**
+- Hotfix migration `20261029100001` (in #7) sorts after 0006–0018. When the batch goes to production, use `supabase db push --include-all`; the CLI skips older-numbered migrations otherwise, as it did locally.
+- Migrations 0006–0018 and the V1 functions are not in production. Never deploy B2B functions from this branch until they are.
+- Local test runs: use `--maxWorkers=2`. With Docker running, the 8 GB machine times out under full parallelism.
 
 ---
 
