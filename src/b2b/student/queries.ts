@@ -14,7 +14,8 @@ export interface MyDrive {
 }
 export interface MyPractice {
   org_id: string; org_name: string; credits_balance: number;
-  assessments: { id: string; title: string; duration_min: number }[];
+  /** state: one practice run per test (migration 0020); "done" can't be started again. */
+  assessments: { id: string; title: string; duration_min: number; state?: "available" | "in_progress" | "done" }[];
 }
 
 async function rpc<T>(fn: string): Promise<T> {

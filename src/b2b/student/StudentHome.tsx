@@ -62,7 +62,7 @@ export default function StudentHome() {
           ) : practice.data.map((p) => (
             <div key={p.org_id} className="space-y-4">
               <p className="text-sm text-[var(--hr-muted)]">
-                <span className="hr-data text-foreground">{Number(p.credits_balance)}</span> practice credits left for your college, shared by all students. A practice test uses ¼ credit; your score shows right after.
+                <span className="hr-data text-foreground">{Number(p.credits_balance)}</span> practice credits left for your college, shared by all students. You get one practice run per test; it uses ¼ credit and your score shows right after.
               </p>
               {p.assessments.length === 0 ? (
                 <p className="text-sm text-[var(--hr-muted)]">Your college hasn't published practice tests yet.</p>
@@ -74,8 +74,12 @@ export default function StudentHome() {
                         <p className="hr-display text-[15px] truncate">{a.title}</p>
                         <p className="hr-data text-xs text-[var(--hr-muted)]">{a.duration_min} min</p>
                       </div>
-                      {Number(p.credits_balance) >= PRACTICE_TEST_COST
-                        ? <Button size="sm" variant="outline" asChild className="shrink-0"><a href={`/assess/start?context=practice&id=${a.id}`}>Start practice</a></Button>
+                      {/* One practice run per test (migration 0020): resume an open one; a finished one can't restart. */}
+                      {a.state === "done" ? <Chip tone="gold" className="shrink-0">Practice done</Chip>
+                        : a.state === "in_progress"
+                          ? <Button size="sm" asChild className="shrink-0"><a href={`/assess/start?context=practice&id=${a.id}`}>Continue practice</a></Button>
+                        : Number(p.credits_balance) >= PRACTICE_TEST_COST
+                          ? <Button size="sm" variant="outline" asChild className="shrink-0"><a href={`/assess/start?context=practice&id=${a.id}`}>Start practice</a></Button>
                         : <Button size="sm" variant="outline" disabled className="shrink-0">No credits left</Button>}
                     </li>
                   ))}

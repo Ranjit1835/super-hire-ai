@@ -26,6 +26,7 @@ const REASONS: Record<string, [number, string]> = {
   NOT_FOUND: [404, "That test doesn't exist."],
   NOT_ELIGIBLE: [403, "This test isn't assigned to you."],
   NOT_AVAILABLE: [403, "This test isn't open for practice."],
+  PRACTICE_USED: [409, "You've already used your practice run for this test."],
   NOT_OPEN: [403, "This test isn't open."],
   NOT_OPEN_YET: [403, "This test hasn't opened yet. Please come back at the start time."],
   WINDOW_CLOSED: [403, "The time window for this test has closed."],

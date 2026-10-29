@@ -312,6 +312,26 @@ describe("runner: practice", () => {
   });
 });
 
+describe("runner: one practice run per test (migration 0020)", () => {
+  it("resumes the open run, refuses a second run once it ended, and reports the state", async () => {
+    await db.query("DELETE FROM attempts WHERE subject_user_id = $1 AND context_type = 'practice'", [u.studentA3]);
+    const myState = () => asUser(db, u.studentA3, async (tx) => {
+      const p = (await tx.query<{ r: { assessments: { id: string; state: string }[] }[] }>("SELECT public.b2b_my_practice() AS r")).rows[0].r;
+      return p[0].assessments.find((x) => x.id === r.asA)?.state;
+    });
+    expect(await myState()).toBe("available");
+    const s = await start(u.studentA3, "practice", null, r.asA);
+    expect(s).toMatchObject({ ok: true, resumed: false });
+    expect(await myState()).toBe("in_progress");
+    expect(await start(u.studentA3, "practice", null, r.asA, s.session_id as string)).toMatchObject({ ok: true, resumed: true, attempt_id: s.attempt_id });
+    await finish(u.studentA3, s.attempt_id as string, s.session_id as string);
+    expect(await start(u.studentA3, "practice", null, r.asA)).toMatchObject({ ok: false, reason: "PRACTICE_USED" });
+    expect(await myState()).toBe("done");
+    const runs = await one<{ n: number }>("SELECT count(*)::int AS n FROM attempts WHERE subject_user_id = $1 AND context_type = 'practice'", [u.studentA3]);
+    expect(runs.n).toBe(1);
+  });
+});
+
 describe("runner: deadline", () => {
   it("expires lazily past the deadline, queues coding finals and grades them later", async () => {
     const s = await start(u.studentA2, "practice", null, r.asA);
@@ -333,6 +353,8 @@ describe("runner: deadline", () => {
   });
 
   it("the sweep ends overdue attempts (and only those)", async () => {
+    // These students used their one practice run earlier in the file (migration 0020); reset the fixture.
+    await db.query("DELETE FROM attempts WHERE subject_user_id = ANY($1) AND context_type = 'practice'", [[u.studentA2, u.studentA3]]);
     const s = await start(u.studentA2, "practice", null, r.asA);
     const keep = await start(u.studentA3, "practice", null, r.asA);
     await db.query("UPDATE attempts SET deadline_at = now() - interval '1 minute' WHERE id = $1", [s.attempt_id]);
