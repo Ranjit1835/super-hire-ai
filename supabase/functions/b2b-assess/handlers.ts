@@ -51,6 +51,8 @@ const REASONS: Record<string, [number, string]> = {
   ANSWER_NOT_AN_OPTION: [400, "The correct answer must be one of the options."],
   CHANGED: [409, "The question changed while it was being checked. Please verify again."],
   RETIRED: [409, "Retired questions can't be verified."],
+  LOCKED: [409, "That question is closed: this test goes one question at a time, with no going back."],
+  NOT_LINEAR: [400, "This test lets you move between questions freely."],
 };
 
 export function refuse(reason: string | undefined): never {
@@ -112,6 +114,10 @@ export function toAttemptState(r: Json): AttemptState {
       })),
     } : null,
     proctoring: { policy: String(r.policy ?? "standard"), sessionId: (r.proctoring_session_id as string | null) ?? null },
+    ...(r.navigation && typeof r.navigation === "object" ? { navigation: {
+      mode: (r.navigation as Json).mode === "linear" ? "linear" as const : "free" as const,
+      index: num((r.navigation as Json).index), total: num((r.navigation as Json).total),
+    } } : {}),
   };
 }
 
@@ -412,6 +418,12 @@ export function makeHandlers(deps: Deps) {
       });
       if (!r.ok) refuse(r.reason as string);
       return { ok: true as const, seq: num(r.seq), deadline_at: String(r.deadline_at), server_now: String(r.server_now) };
+    },
+
+    async advance(input: { attemptId: string; sessionId: string; fromIndex: number }, actor: string) {
+      const r = await rpc("b2b_advance_question", { _actor: actor, _attempt_id: input.attemptId, _session: input.sessionId, _from_index: input.fromIndex });
+      if (!r.ok) refuse(r.reason as string);
+      return state(actor, input.attemptId, input.sessionId);
     },
 
     async heartbeat(input: { attemptId: string; sessionId: string }, actor: string) {

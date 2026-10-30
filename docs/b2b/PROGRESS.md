@@ -72,6 +72,15 @@ _Last updated: 2026-10-29_
   - Generated MCQs are checked straight away. The bank explains what the check chose and why.
   - For stronger independence once the Claude provider exists (D1), point `mcq.validate` at a different model via `B2B_AI_CONFIG`.
   - Evidence: migration 0033, `mcq-check.test.ts` (5), handler unit tests (17), and bank UI tests.
+- **R2.4 one question at a time:**
+  - A per-test option ("one question at a time"). The server sends only the current question, refuses saves, runs or submits for any other question (`LOCKED`), and moves forward only with `advance` (idempotent on retry).
+  - The runner hides the question list, shows "Question n of N", saves before moving on, and asks for confirmation ("you can't come back").
+  - A late autosave for a question already left is dropped, not treated as an ended test.
+  - Evidence: migration 0034, `linear-navigation.test.ts` (4), runner, autosave and handler tests.
+- **R2.6 warning ladder (strict proctoring):**
+  - Each serious violation shows "Serious violation n of N". The one before the limit is a full-screen final warning the student must acknowledge, and reaching the limit auto-submits, as before.
+  - The server decides and returns `max_violations`.
+  - Evidence: migration 0035, `proctoring.test.ts` (limit 2 and limit 3 ladders), and the monitor test.
 
 **Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
 

@@ -157,7 +157,12 @@ export default function BuilderPage() {
             </label>
             <label className="flex items-center gap-2">
               <Checkbox aria-label="Allow practice" checked={f.practice_enabled} onCheckedChange={(c) => set("practice_enabled", c === true)} />
-              Students may take this as practice (uses ¼ credit per practice attempt; they see their score)
+              Students may take this as practice (they see their score)
+            </label>
+            <label className="flex items-center gap-2">
+              <Checkbox aria-label="One question at a time" checked={f.navigation === "linear"}
+                        onCheckedChange={(c) => set("navigation", c === true ? "linear" : "free")} />
+              One question at a time: students can't go back, and later questions aren't shown until they get there
             </label>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

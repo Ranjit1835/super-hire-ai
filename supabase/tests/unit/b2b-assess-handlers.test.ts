@@ -147,6 +147,18 @@ describe("runner", () => {
     expect(calls.find((c) => c.fn === "b2b_record_judge_result")!.args).toMatchObject({ _score: 10 });
   });
 
+  it("advance moves on, then returns the fresh state; LOCKED is refused with a clear message (R2.4)", async () => {
+    const { h, calls } = setup({ db: {
+      b2b_advance_question: () => ({ ok: true, index: 1, total: 3 }),
+      b2b_attempt_state: () => ({ ok: true, attempt_id: A, status: "in_progress", deadline_at: null, server_now: "now", paused: false, session_id: S,
+                                  questions: [], navigation: { mode: "linear", index: 1, total: 3 } }),
+    } });
+    expect(await h.advance({ attemptId: A, sessionId: S, fromIndex: 0 }, ACTOR)).toMatchObject({ navigation: { mode: "linear", index: 1, total: 3 } });
+    expect(calls.find((c) => c.fn === "b2b_advance_question")!.args).toMatchObject({ _from_index: 0 });
+    const locked = setup({ db: { b2b_advance_question: () => ({ ok: false, reason: "LOCKED" }) } });
+    await expect(locked.h.advance({ attemptId: A, sessionId: S, fromIndex: 0 }, ACTOR)).rejects.toMatchObject({ status: 409, code: "LOCKED" });
+  });
+
   it("heartbeat passes OTHER_SESSION through", async () => {
     const { h } = setup({ db: { b2b_attempt_heartbeat: () => ({ ok: false, reason: "OTHER_SESSION", status: "in_progress", deadline_at: null, server_now: "now", paused: false }) } });
     const r = await h.heartbeat({ attemptId: A, sessionId: S }, ACTOR);

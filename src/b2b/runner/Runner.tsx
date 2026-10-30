@@ -68,7 +68,11 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
   const proctor = useProctor();
   const attemptId = state.attemptId;
   const sessionId = state.sessionId;
-  const questions = state.questions;
+  // One question at a time (R2.4): the server sends only the current question; moving on swaps in the next one.
+  const [live, setLive] = useState(state);
+  const questions = live.questions;
+  const nav = live.navigation;
+  const linear = nav?.mode === "linear";
   const storage = safeLocalStorage();
 
   const init = useMemo(() => initialAnswers(questions, storedSaves(storage, queueKey(attemptId))),
@@ -93,6 +97,8 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
   const [useCustom, setUseCustom] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [confirmNext, setConfirmNext] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const finishingRef = useRef(false);
   const cbs = useRef({ onEnded, onConflict });
@@ -218,6 +224,28 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
 
   const go = (i: number) => { void saveDirty(); setIndex(i); setNotice(null); };
 
+  /** Linear mode: save, then leave this question for good (the server refuses changes after this). */
+  const advance = async () => {
+    if (!nav) return;
+    setConfirmNext(false);
+    setAdvancing(true);
+    try {
+      await saveDirty();
+      const next = await assessApi("advance", { attemptId, sessionId, fromIndex: nav.index });
+      const fresh = initialAnswers(next.questions, []);
+      setAnswers((prev) => { const merged = { ...fresh.answers, ...prev }; answersRef.current = merged; return merged; });
+      seqs.current = { ...fresh.seqs, ...seqs.current };
+      setLive(next);
+      setIndex(0);
+      setNotice(null);
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "OTHER_SESSION") { cbs.current.onConflict(); return; }
+      setNotice(e instanceof Error ? e.message : "Couldn't move to the next question.");
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
   const run = async () => {
     if (!q || q.type !== "coding") return;
     const a = answers[q.id];
@@ -242,7 +270,7 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
       await assessApi("submitQuestion", q.type === "coding"
         ? { attemptId, sessionId, questionId: q.id, language: a.language as Language, code: a.codeByLang[a.language] ?? "" }
         : { attemptId, sessionId, questionId: q.id, mcq_choice: a.mcq }, { timeoutMs: 90_000 });
-      setNotice("Answer submitted. You can still change it until you finish the test.");
+      setNotice(linear ? "Answer submitted. You can still change it until you move on." : "Answer submitted. You can still change it until you finish the test.");
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Couldn't submit this answer.");
     }
@@ -278,7 +306,7 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
       </header>
 
       <div className="flex flex-1 min-h-0">
-        <nav aria-label="Questions" className="w-16 sm:w-36 shrink-0 shadow-[inset_-1px_0_0_var(--hr-rule)] p-2 flex flex-col gap-1 overflow-y-auto">
+        {!linear && <nav aria-label="Questions" className="w-16 sm:w-36 shrink-0 shadow-[inset_-1px_0_0_var(--hr-rule)] p-2 flex flex-col gap-1 overflow-y-auto">
           {questions.map((qq, i) => {
             const done = answered(qq);
             const current = i === index;
@@ -297,7 +325,7 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
               </button>
             );
           })}
-        </nav>
+        </nav>}
 
         <main className="flex-1 min-w-0 grid lg:grid-cols-2 gap-px lg:gap-0 lg:divide-x lg:divide-[var(--hr-rule)] bg-[var(--hr-rule)] lg:bg-transparent">
           <section aria-label="Question" className="min-w-0 overflow-y-auto bg-background px-4 py-4">
@@ -306,7 +334,8 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
               <Chip tone="muted">{q.difficulty}</Chip>
               <span className="hr-data text-xs text-[var(--hr-muted)]">{q.points} {q.points === 1 ? "point" : "points"}</span>
             </div>
-            <h2 className="hr-display text-xl mb-3">{index + 1}. {q.title}</h2>
+            {linear && nav && <p className="hr-label mb-1">Question {nav.index + 1} of {nav.total} · one at a time</p>}
+            <h2 className="hr-display text-xl mb-3">{(linear && nav ? nav.index : index) + 1}. {q.title}</h2>
             <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--hr-floodlight)]">{q.statement}</div>
             {q.constraints && (
               <div className="mt-4 text-sm">
@@ -377,7 +406,12 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
             )}
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={() => { void submitQuestion(); }} disabled={paused}><Send className="h-4 w-4 mr-1" />Submit answer</Button>
-              {index < questions.length - 1 && <Button size="sm" variant="ghost" onClick={() => go(index + 1)}>Next question</Button>}
+              {linear && nav
+                ? nav.index < nav.total - 1 && (
+                    <Button size="sm" variant="outline" onClick={() => setConfirmNext(true)} disabled={paused || advancing}>
+                      {advancing ? "Moving on…" : "Next question"}
+                    </Button>)
+                : index < questions.length - 1 && <Button size="sm" variant="ghost" onClick={() => go(index + 1)}>Next question</Button>}
             </div>
             {notice && <p role="status" className="text-sm text-[var(--hr-muted)]">{notice}</p>}
           </section>
@@ -393,7 +427,22 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
         </div>
       )}
 
-      <FinishConfirmDialog open={confirmFinish} onOpenChange={setConfirmFinish} answeredCount={answeredCount} total={questions.length}
+      <AlertDialog open={confirmNext} onOpenChange={setConfirmNext}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="hr-display">Move to the next question?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This test goes one question at a time. You can't come back to this question or change its answer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay here</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { void advance(); }}>Next question</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <FinishConfirmDialog open={confirmFinish} onOpenChange={setConfirmFinish} answeredCount={answeredCount} total={nav?.total ?? questions.length}
         onConfirm={() => { void finish("submitted"); }} />
     </div>
   );

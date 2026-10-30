@@ -169,6 +169,22 @@ describe("proctor monitor: policies", () => {
     await m.stop();
   });
 
+  it("strict: numbered warnings and the final warning reach the page (R2.6)", async () => {
+    const onStrike = vi.fn();
+    const { m } = setup("strict", { onStrike });
+    reply = { accepted: 1, violations: 1, action: "warn", maxViolations: 3 };
+    fullscreen = null;
+    document.dispatchEvent(new Event("fullscreenchange"));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onStrike).toHaveBeenLastCalledWith({ violations: 1, max: 3, final: false });
+    reply = { accepted: 1, violations: 2, action: "final_warning", maxViolations: 3 };
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onStrike).toHaveBeenLastCalledWith({ violations: 2, max: 3, final: true });
+    await m.stop();
+  });
+
   it("flags a virtual camera by its label (a hint for the reviewer)", async () => {
     const t = new FakeTrack("", "OBS Virtual Camera");
     const { m } = setup("standard", { camera: stream(t) });

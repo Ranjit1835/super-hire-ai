@@ -84,6 +84,8 @@ export const AttemptState = z.object({
   result: z.object({ score: z.number().nullable(), max_score: z.number().nullable(), grading: z.enum(["pending", "complete"]),
                      section_scores: z.array(z.object({ title: z.string(), type: z.string(), score: z.number(), max_score: z.number() })) }).nullable().optional(),
   proctoring: z.object({ policy: z.string(), sessionId: Uuid.nullable() }),
+  /** R2.4: "linear" sends only the current question; index is 0-based. */
+  navigation: z.object({ mode: z.enum(["free", "linear"]), index: z.number(), total: z.number() }).optional(),
 });
 export type AttemptState = z.infer<typeof AttemptState>;
 
@@ -138,6 +140,11 @@ export const assessContract = {
   },
   // reason "violations": the strict proctoring policy hit its limit (ProctoredSession onAutoSubmit).
   finish: { input: z.object({ attemptId: Uuid, sessionId: Uuid, reason: z.enum(["submitted", "violations"]).optional() }), output: Ok },
+  /** R2.4 one question at a time: leave question fromIndex for the next (no way back). Returns the new state. */
+  advance: {
+    input: z.object({ attemptId: Uuid, sessionId: Uuid, fromIndex: z.number().int().min(0) }),
+    output: AttemptState,
+  },
   heartbeat: {
     input: z.object({ attemptId: Uuid, sessionId: Uuid }),
     output: z.object({ ok: z.boolean(), deadline_at: z.string().nullable(), server_now: z.string(), paused: z.boolean(),

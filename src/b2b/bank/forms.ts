@@ -164,6 +164,8 @@ export const AssessmentForm = z.object({
   late_join_min: z.union([z.coerce.number().int().min(0).max(600), z.literal("")]),
   /** R2.1: the most of a paper any two students in the same drive may share (percent). */
   max_overlap_pct: z.coerce.number().int().min(1, "Overlap target: 1 to 100").max(100, "Overlap target: 1 to 100"),
+  /** R2.4: "linear" = one question at a time, no going back. */
+  navigation: z.enum(["free", "linear"]),
   status: z.enum(["draft", "ready", "archived"]),
   sections: z.array(SectionForm).min(1, "Add at least one section"),
 });
@@ -174,13 +176,14 @@ export interface AssessmentRow {
   negative_marking: number | string; proctoring_policy: string; strict_max_violations: number; practice_enabled: boolean;
   late_join_min: number | null; status: "draft" | "ready" | "archived"; created_at: string; updated_at: string;
   max_overlap_pct?: number;
+  navigation?: "free" | "linear";
   sections: { type: "coding" | "mcq"; title: string; pick?: { difficulty?: string; topics?: string[]; count: number }[]; question_ids?: string[] }[];
 }
 
 export function emptyAssessment(): AssessmentForm {
   return { title: "", duration_min: 60, languages: ["python", "java", "cpp", "javascript"], randomize: true, shuffle_options: true,
            negative_marking: 0, proctoring_policy: "standard", strict_max_violations: 3, practice_enabled: false, late_join_min: "",
-           max_overlap_pct: 10, status: "draft", sections: [{ type: "coding", title: "Coding", pick: [{ difficulty: "easy", topics: "", count: 1 }], question_ids: [] }] };
+           max_overlap_pct: 10, navigation: "free", status: "draft", sections: [{ type: "coding", title: "Coding", pick: [{ difficulty: "easy", topics: "", count: 1 }], question_ids: [] }] };
 }
 
 export function assessmentFromRow(r: AssessmentRow): AssessmentForm {
@@ -189,7 +192,8 @@ export function assessmentFromRow(r: AssessmentRow): AssessmentForm {
     languages: r.languages.filter((l): l is AssessmentForm["languages"][number] => (LANGUAGES as readonly string[]).includes(l)),
     randomize: r.randomize, shuffle_options: r.shuffle_options, negative_marking: Number(r.negative_marking),
     proctoring_policy: r.proctoring_policy as AssessmentForm["proctoring_policy"], strict_max_violations: r.strict_max_violations,
-    practice_enabled: r.practice_enabled, late_join_min: r.late_join_min ?? "", max_overlap_pct: r.max_overlap_pct ?? 10, status: r.status,
+    practice_enabled: r.practice_enabled, late_join_min: r.late_join_min ?? "", max_overlap_pct: r.max_overlap_pct ?? 10,
+    navigation: r.navigation === "linear" ? "linear" : "free", status: r.status,
     sections: r.sections.map((s) => ({
       type: s.type, title: s.title, question_ids: s.question_ids ?? [],
       pick: (s.pick ?? []).map((p) => ({ difficulty: (p.difficulty as PoolRule["difficulty"]) ?? "", topics: (p.topics ?? []).join(", "), count: p.count })),
@@ -202,7 +206,8 @@ export function assessmentRow(orgId: string, f: AssessmentForm) {
     org_id: orgId, title: f.title.trim(), duration_min: f.duration_min, languages: f.languages, randomize: f.randomize,
     shuffle_options: f.shuffle_options, negative_marking: f.negative_marking, proctoring_policy: f.proctoring_policy,
     strict_max_violations: f.strict_max_violations, practice_enabled: f.practice_enabled,
-    late_join_min: f.late_join_min === "" ? null : f.late_join_min, max_overlap_pct: f.max_overlap_pct, status: f.status,
+    late_join_min: f.late_join_min === "" ? null : f.late_join_min, max_overlap_pct: f.max_overlap_pct,
+    navigation: f.navigation, status: f.status,
     sections: f.sections.map((s) => ({
       type: s.type, title: s.title.trim(),
       ...(s.pick.length ? { pick: s.pick.map((p) => ({ ...(p.difficulty ? { difficulty: p.difficulty } : {}), topics: splitTopics(p.topics), count: p.count })) } : {}),
