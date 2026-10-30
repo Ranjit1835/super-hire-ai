@@ -152,6 +152,13 @@ export function RoomView({ room, phase, error, issue, voiceTranscript, level, re
                   <p className="text-sm text-[var(--hr-muted)]">
                     {room.turnCount > 0 ? "Your interview is where you left it." : `About ${room.durationMin} minutes, answered by voice. Use headphones if you can, and speak after the question finishes.`}
                   </p>
+                  {room.voice && room.voice.stt !== "browser" && (
+                    <p className="text-xs text-[var(--hr-muted)]">
+                      {room.voice.stt === "groq"
+                        ? "Each spoken answer is sent to a speech-to-text service (Groq, in the United States) to be written down. HiResume keeps the text, not the recording."
+                        : "Each spoken answer is sent to a speech-to-text service (Sarvam, in India) to be written down. HiResume keeps the text, not the recording."}
+                    </p>
+                  )}
                   <Button onClick={begin}>{room.turnCount > 0 ? "Resume interview" : "Start interview"}</Button>
                 </div>
               )}

@@ -11,7 +11,41 @@ The V1 room and the pilot both use the **browser Web Speech API**: `SpeechRecogn
 
 Past voice bugs in this repo point to the same thing: speech silent on mobile until unlocked by a tap (`b499622`), and an interview looping and ending itself (`857c330`). These are timing and turn-detection problems that a vendor's streaming events and voice-activity detection solve properly.
 
-## Options compared
+## Decision (2026-10-30): the cheaper, turn-based option, now built
+
+Owner chose the cheaper option. An interview is turn-by-turn, so the room records **one answer at a time** and the server transcribes it. Nothing is streamed, and there is no always-on voice server; it all runs in the existing `b2b-interview` edge function.
+
+| Setup (voice only; interviewer LLM separate) | ≈ per 20-min interview |
+|---|---|
+| Previous recommendation: Sarvam streaming STT + Bulbul V3 | ₹31 |
+| Sarvam STT (speech only) + **Bulbul V4 Flash** (₹1 per 1K characters, new) | ₹13 |
+| **Groq Whisper large-v3-turbo per answer** ($0.04/hour, 10 s minimum) **+ Google WaveNet en-IN** ($4/M characters; 4M free a month) | **≈ ₹0 for the first ~550 interviews a month, then ≈ ₹3**: **default** |
+| Groq Whisper + Sarvam Bulbul V4 Flash (more natural Indian voice) | ≈ ₹8 |
+
+How it works:
+- **Room:** the browser detects speech from the microphone level (it learns the room noise, and an answer ends after 5 s of silence or on "Done answering"), then records the answer with `MediaRecorder` (webm/opus, 32 kbps). If nothing was said, nothing is sent.
+- **`transcribe`:** the server sends the recording to Groq Whisper (`language=en`, a context prompt, and segments Whisper itself marks as non-speech dropped, so silence doesn't come back as "Thank you.").
+- **`turn` with `speak: true`:** the server voices the next question or closing line in the same request (Google WaveNet `en-IN-Wavenet-D`, MP3), which saves a round trip.
+- **`speak`:** voices only this interview's own interviewer lines, so it can't be used as a free speech service.
+- **Usage and limits:** each use is logged to `b2b_usage_log` at the provider's rate (migration 0037) and appears in the super-admin cost breakdown. Per-interview caps: 200 transcriptions and 90 minutes of audio, 250 spoken lines and 60K characters.
+- **Fallback:** without keys, or when a vendor fails, the room uses the browser's own speech, as before. Nothing breaks.
+
+To switch it on, set these edge-function secrets (owner):
+- **`GROQ_API_KEY`:** transcription.
+- **`GOOGLE_TTS_API_KEY`:** an API key restricted to the Cloud Text-to-Speech API.
+
+Optional:
+- `B2B_VOICE_STT=sarvam` and/or `B2B_VOICE_TTS=sarvam` with `SARVAM_API_KEY`.
+- `B2B_VOICE_GOOGLE_VOICE` (e.g. `en-IN-Wavenet-B` for a male voice).
+- `B2B_VOICE_SARVAM_SPEAKER`.
+
+Trade-offs, accepted:
+- **Speed:** about 1.3–1.8 s from the end of an answer to the interviewer speaking, against about 1 s for streaming.
+- **Interrupting:** there is no barge-in; the candidate answers after the question.
+- **Data residency:** **Groq processes candidates' voice in the US.** That's personal data under DPDP, so tell candidates in the consent text, or use `B2B_VOICE_STT=sarvam` (India-hosted) for organisations that need data kept in India. Google only receives the interviewer's text.
+- **Still to verify in the bake-off:** Whisper's accuracy on Indian accents and Hindi-English mixing, against Sarvam, on the same recordings (step 1 below), and Google's free tier on the account's billing page.
+
+
 
 Cost per **interview minute**, under these assumptions:
 - **Listening:** the candidate's microphone is streamed to speech-to-text (STT) for the whole minute. Gating it with voice-activity detection (sending audio only while the candidate speaks) would roughly halve STT cost.

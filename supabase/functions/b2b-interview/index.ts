@@ -351,6 +351,8 @@ function wrap<I, O>(fn: (input: I, actor: string) => Promise<O>) {
       return await fn(input, ctx.user.id);
     } catch (e) {
       if (e instanceof V1Error) throw new HttpError(e.status, e.code, e.message);
+      // The SQL ownership checks raise FORBIDDEN; that's a refusal, not a server error.
+      if (e instanceof Error && /: FORBIDDEN\b/.test(e.message)) throw new HttpError(403, "FORBIDDEN", "Not allowed.");
       throw e;
     }
   };
@@ -364,6 +366,8 @@ const v1Contract = serveContract("B2B-INTERVIEW", interviewContract, {
   finish: wrap(v1.finish),
   audioIssue: wrap(v1.audioIssue),
   latency: wrap(v1.latency),
+  transcribe: wrap(v1.transcribe),
+  speak: wrap(v1.speak),
   liveToken: wrap(v1.liveToken),
 }, { allowAnonymous: (a) => a !== "liveToken" });
 

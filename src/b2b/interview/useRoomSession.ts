@@ -3,13 +3,14 @@
 // Voice failures never switch to typing (owner decision 2026-09-29): they open an audio re-check, are logged, and
 // "Resume" re-asks the current question from the server's state.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isEchoOfPrompt, primeSpeech, waitForSpeechEnd, type SpeakOutcome } from "@/lib/speech";
+import { isEchoOfPrompt, waitForSpeechEnd, type SpeakOutcome } from "@/lib/speech";
 import { createTurnTimer } from "@/lib/turn-latency";
-import { MicError, SILENCE_MS, useVoiceAnswer } from "@/features/b2b/hooks/useVoiceAnswer";
+import { MicError, SILENCE_MS } from "@/features/b2b/hooks/useVoiceAnswer";
 import { detectInjection } from "../../../supabase/functions/_shared/interview-v1/injection";
 import { latencyStats, type LatencyStats } from "../../../supabase/functions/_shared/interview-v1/stats";
 import { useProctor } from "../proctor";
 import { ApiError, interviewV1Api, type RoomState } from "./api";
+import { useRoomVoice } from "./cloudVoice";
 
 export type RoomPhase = "loading" | "ready" | "asking" | "listening" | "submitting" | "empty" | "retry" | "audio_check" | "finished" | "error";
 export type AudioIssue =
@@ -35,10 +36,11 @@ function micIssue(e: unknown): AudioIssue {
 }
 
 export function useRoomSession(interviewId: string) {
-  const voice = useVoiceAnswer();
   const proctor = useProctor();
   const [phase, setPhase] = useState<RoomPhase>("loading");
   const [room, setRoom] = useState<RoomState | null>(null);
+  // Cloud voice when the server offers it (Phase 3: Groq Whisper + Google WaveNet), else the browser's speech.
+  const voice = useRoomVoice(interviewId, room?.voice);
   const [error, setError] = useState<string | null>(null);
   const [issue, setIssue] = useState<AudioIssue | null>(null);
   const [samples, setSamples] = useState<number[]>([]);
@@ -99,9 +101,10 @@ export function useRoomSession(interviewId: string) {
         setSamples(samplesRef.current);
       }
       timer.sent();
-      const next = await interviewV1Api("turn", { interviewId, ...p, meta: p.meta, clientLatency });
+      const next = await interviewV1Api("turn", { interviewId, ...p, meta: p.meta, clientLatency, speak: voice.cloud.tts });
       timer.replied();
       pending.current = null;
+      voice.preload(next.speech);
       await presentRef.current(next);
     } catch (e) {
       if (!alive.current) return;
@@ -115,7 +118,7 @@ export function useRoomSession(interviewId: string) {
         : e instanceof Error ? e.message : "Something went wrong.");
       setPhase("retry");
     }
-  }, [interviewId, timer]);
+  }, [interviewId, timer, voice]);
 
   const listen = useCallback(async (s: RoomState) => {
     setPhase("listening");
@@ -123,7 +126,7 @@ export function useRoomSession(interviewId: string) {
     try {
       await waitForSpeechEnd();
       if (!alive.current) return;
-      const a = await voice.listen();
+      const a = await voice.listen({ onRecorded: () => setPhase("submitting") });
       if (!alive.current) return;
       if (!a.text) { setPhase("empty"); return; }
       if (isEchoOfPrompt(a.text, s.question ?? "")) {
@@ -138,6 +141,12 @@ export function useRoomSession(interviewId: string) {
       await submit({ clientTurnId: newTurnId(), turnCount: s.turnCount, answer: a.text, meta: a.meta as unknown as Record<string, unknown> });
     } catch (e) {
       if (!alive.current) return;
+      // The server couldn't transcribe this answer (network or vendor): ask again, it isn't a microphone problem.
+      if (e instanceof ApiError) {
+        setError(e.status === 0 ? "Connection lost while sending your answer. Please answer again." : e.message);
+        setPhase("empty");
+        return;
+      }
       toAudioCheck(micIssue(e), e instanceof Error ? e.message : undefined);
     }
   }, [voice, submit, timer, toAudioCheck]);
@@ -169,13 +178,13 @@ export function useRoomSession(interviewId: string) {
 
   /** Start / resume (from a tap: unlocks speech on phones before the first await). */
   const begin = useCallback(() => {
-    primeSpeech();
+    voice.prime();
     if (room) void presentRef.current(room);
-  }, [room]);
+  }, [room, voice]);
 
   /** After the audio re-check: fetch the server's state and re-ask the current question. */
   const resume = useCallback(async () => {
-    primeSpeech();
+    voice.prime();
     setIssue(null);
     flagAudio("resumed");
     setPhase("loading");
@@ -185,7 +194,7 @@ export function useRoomSession(interviewId: string) {
       setError(e instanceof Error ? e.message : "Couldn't resume.");
       setPhase("retry");
     }
-  }, [interviewId, flagAudio]);
+  }, [interviewId, flagAudio, voice]);
 
   const end = useCallback(async () => {
     voice.cancel();

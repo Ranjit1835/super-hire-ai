@@ -5,7 +5,7 @@
 
 _Last updated: 2026-10-29_
 
-## Current: `HIRESUME_B2B_SPEC.md`, Phases 1–2 done, Phase 3 (voice) next (branch `feat/b2b-hardening`, PR #8)
+## Current: `HIRESUME_B2B_SPEC.md`, Phases 1–2 done, Phase 3 voice pipeline built (branch `feat/b2b-hardening`, PR #8)
 
 **Decisions (2026-10-29):**
 - **D1:** Claude in production; Gemini for now to keep costs down. The gateway gets a Claude provider and a per-environment switch.
@@ -90,6 +90,18 @@ _Last updated: 2026-10-29_
   - Evidence: migration 0036, `mcq-template.test.ts` (7), `mcq-templates.test.ts` (3), handler tests (3), and the dialog test.
 
 **Phase 2 complete (2026-10-30)** except R2.5 (Judge0 in production is owner ops). Full suite: 925 tests pass. Migrations 0029–0036 run in PGlite. They aren't applied to local Supabase yet because Docker is unresponsive.
+
+**Phase 3 voice (cheaper option, owner decision 2026-10-30), built:**
+- **How it works:** the room records one answer at a time (speech detection from the mic level, 5 s silence or "Done answering"), and `b2b-interview transcribe` sends it to Groq Whisper large-v3-turbo. `turn` with `speak: true` voices the next line with Google WaveNet `en-IN` in the same request; `speak` voices only this interview's own lines.
+- **Cost:** about ₹0 per 20-minute interview within Google's free tier, then about ₹3, against ₹31 for the earlier streaming plan. Usage is logged per use at the provider's rate (migration 0037) and shows in the R6.1 breakdown.
+- **Limits and fallback:** per-interview caps. No always-on server. Without keys, or when a vendor fails, the room falls back to browser speech.
+- **Data residency:** the room tells candidates their answers go to Groq in the US. Sarvam (India) is one env switch away.
+- Details and trade-offs: `docs/b2b/VOICE_STACK_RESEARCH.md`.
+- Evidence: `interview-voice.test.ts` (10, on real SQL with faked vendors), `cloudVoice.test.ts` (speech detection, 4), and room tests for cloud TTS and cloud STT. Full suite: 941 tests pass.
+- **Owner, to switch it on:** set the `GROQ_API_KEY` and `GOOGLE_TTS_API_KEY` secrets (Google key restricted to the Text-to-Speech API).
+- **Not yet verified with real vendors:**
+  - Whisper accuracy on Indian accents and latency: run the bake-off with real keys.
+  - A consent item for interview voice processing. Today there's only a notice; adding a consent purpose means changing `b2b_record_consent`.
 
 **Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
 
