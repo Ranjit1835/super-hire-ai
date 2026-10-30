@@ -36,6 +36,7 @@ const RUNNER = new Set(["start", "state", "autosave", "run", "submitQuestion", "
 const contract = serveContract("B2B-ASSESS", assessContract, {
   generateQuestions: wrap(handlers.generateQuestions),
   verifyQuestion: wrap(handlers.verifyQuestion),
+  generateVariants: wrap(handlers.generateVariants),
   start: wrap(handlers.start),
   state: wrap(handlers.state),
   autosave: wrap(handlers.autosave),

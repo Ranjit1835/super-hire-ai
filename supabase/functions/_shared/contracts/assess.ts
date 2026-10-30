@@ -42,6 +42,21 @@ export const McqCheck = z.object({
 });
 export type McqCheck = z.infer<typeof McqCheck>;
 
+/** R2.2: a parameterised MCQ template (see ../mcq-template.ts). */
+export const McqTemplateInput = z.object({
+  title: z.string().trim().min(3).max(160),
+  statement: z.string().trim().min(10).max(4000),
+  params: z.array(z.object({
+    name: z.string().min(1).max(31), min: z.number().optional(), max: z.number().optional(), step: z.number().positive().optional(),
+    choices: z.array(z.number()).max(1000).optional(),
+  })).min(1).max(8),
+  answer: z.string().min(1).max(500),
+  distractors: z.array(z.string().min(1).max(500)).min(3).max(5),
+  decimals: z.number().int().min(0).max(4),
+  unit: z.string().max(20).optional(),
+  constraints: z.array(z.string().min(1).max(500)).max(8).optional(),
+});
+
 /** Why an MCQ stayed a draft after its check, in words for the bank. */
 export function mcqCheckReason(c: McqCheck | undefined): string {
   if (!c) return "the answer hasn't been checked yet.";
@@ -108,6 +123,13 @@ export const assessContract = {
     input: z.object({ orgId: Uuid.nullable(), type: z.enum(["coding", "mcq"]), topic: z.string().min(2).max(80),
                       difficulty: Difficulty, role: z.string().max(80).optional(), count: z.number().int().min(1).max(10) }),
     output: z.object({ created: z.array(z.object({ questionId: Uuid, status: z.enum(["verified", "draft"]), reason: z.string().optional() })) }),
+  },
+  /** R2.2: make up to 50 MCQs from a template, ahead of time. Two are solved blind; if both agree, all are verified. */
+  generateVariants: {
+    input: z.object({ orgId: Uuid.nullable(), template: McqTemplateInput, count: z.number().int().min(1).max(50),
+                      difficulty: Difficulty, category: z.enum(["aptitude", "cs_fundamentals", "technical"]).optional(),
+                      topics: z.array(z.string().min(1).max(40)).max(10) }),
+    output: z.object({ familyId: Uuid, created: z.number(), verified: z.number(), reason: z.string().optional() }),
   },
   verifyQuestion: {
     input: z.object({ questionId: Uuid }),

@@ -5,7 +5,7 @@
 
 _Last updated: 2026-10-29_
 
-## Current: `HIRESUME_B2B_SPEC.md`, Phase 1 done, Phase 2 in progress (branch `feat/b2b-hardening`)
+## Current: `HIRESUME_B2B_SPEC.md`, Phases 1–2 done, Phase 3 (voice) next (branch `feat/b2b-hardening`, PR #8)
 
 **Decisions (2026-10-29):**
 - **D1:** Claude in production; Gemini for now to keep costs down. The gateway gets a Claude provider and a per-environment switch.
@@ -81,6 +81,15 @@ _Last updated: 2026-10-29_
   - Each serious violation shows "Serious violation n of N". The one before the limit is a full-screen final warning the student must acknowledge, and reaching the limit auto-submits, as before.
   - The server decides and returns `max_violations`.
   - Evidence: migration 0035, `proctoring.test.ts` (limit 2 and limit 3 ladders), and the monitor test.
+- **R2.2 parameterised MCQ templates:**
+  - Editors write one question with numbers that change (`{{d}}`, `{{= formula}}`), formulas for the answer and the wrong options, and conditions. They see a live preview, and the server makes up to 50 versions ahead of time. There's no AI at exam time.
+  - Formulas use a small parser (no `eval`).
+  - Two versions are solved blind (R2.3). If both agree, the rest are verified on the server's own computation, recorded as `method: "template"`. If either doesn't, all stay drafts.
+  - Papers take at most one version per template family.
+  - Coding variants: AI generation already makes a fresh problem per variant seed, verified in the sandbox. No template engine for code.
+  - Evidence: migration 0036, `mcq-template.test.ts` (7), `mcq-templates.test.ts` (3), handler tests (3), and the dialog test.
+
+**Phase 2 complete (2026-10-30)** except R2.5 (Judge0 in production is owner ops). Full suite: 925 tests pass. Migrations 0029–0036 run in PGlite. They aren't applied to local Supabase yet because Docker is unresponsive.
 
 **Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
 

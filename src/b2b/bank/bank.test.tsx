@@ -35,6 +35,7 @@ vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/ap
 import BankPage from "./BankPage";
 import BuilderPage from "../assessments/BuilderPage";
 import { McqDialog } from "./McqDialog";
+import { TemplateDialog } from "./TemplateDialog";
 
 const ORG = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const Q1 = "11111111-1111-4111-8111-111111111111";
@@ -349,5 +350,29 @@ describe("test builder", () => {
     expect(screen.getByDisplayValue("90")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save test" }));
     await waitFor(() => expect(fns.saveAssessment).toHaveBeenCalledWith(Q2, expect.objectContaining({ title: "Existing test", status: "ready" })));
+  });
+});
+
+describe("template dialog (R2.2)", () => {
+  it("previews versions, explains a broken formula, and asks the server to make them", async () => {
+    const onDone = vi.fn();
+    fns.assessApi.mockResolvedValue({ familyId: Q2, created: 20, verified: 20 });
+    render(<TemplateDialog open onOpenChange={vi.fn()} orgId={ORG} onDone={onDone} />);
+    const preview = screen.getByRole("region", { name: "Preview" });
+    expect(within(preview).getAllByRole("listitem").length).toBeGreaterThan(3);
+    expect(within(preview).getAllByText(/^A train covers \d+ km in \d hours\. What is its average speed\?$/)).toHaveLength(3);
+
+    fireEvent.change(screen.getByLabelText("Correct answer formula"), { target: { value: "d / speed" } });
+    expect(within(preview).getByText('Answer: "speed" isn\'t a parameter.')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Make 20 questions/ })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Correct answer formula"), { target: { value: "d / t" } });
+    fireEvent.click(screen.getByRole("button", { name: /Make 20 questions/ }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith({ familyId: Q2, created: 20, verified: 20 }));
+    expect(fns.assessApi).toHaveBeenCalledWith("generateVariants", expect.objectContaining({
+      orgId: ORG, count: 20, difficulty: "easy", topics: ["speed", "aptitude"],
+      template: expect.objectContaining({ answer: "d / t", constraints: ["d % t == 0", "d % (t + 1) == 0"],
+        params: [{ name: "d", min: 60, max: 600, step: 30 }, { name: "t", min: 2, max: 6, step: 1 }] }),
+    }), expect.anything());
   });
 });

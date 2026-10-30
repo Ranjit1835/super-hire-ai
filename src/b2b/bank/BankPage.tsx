@@ -16,6 +16,7 @@ import { CodingDialog } from "./CodingDialog";
 import { GenerateDialog, type GenerateResult } from "./GenerateDialog";
 import { McqDialog } from "./McqDialog";
 import { OverrideDialog } from "./OverrideDialog";
+import { TemplateDialog } from "./TemplateDialog";
 import { mcqCheckReason, type McqCheck } from "../../../supabase/functions/_shared/contracts/assess";
 import { LANGUAGE_LABEL, type QuestionRow } from "./forms";
 import { BANK_PAGE, friendly, orgOf, setQuestionStatus, useBankPage, useCanEdit, type BankOwner, type BankType } from "./queries";
@@ -46,6 +47,7 @@ export default function BankPage() {
   const bank = useBankPage(orgId, { type, owner, search: query, page }, canEdit.data === true);
   const [editing, setEditing] = useState<{ kind: "mcq" | "coding"; row: QuestionRow | null } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [templating, setTemplating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   /** The last MCQ check that disagreed, so the editor can keep their key with a reason. */
@@ -119,6 +121,7 @@ export default function BankPage() {
              actions={<div className="hidden sm:flex gap-2">
                <Button size="sm" variant="outline" onClick={() => setGenerating(true)}>Generate with AI</Button>
                <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "mcq", row: null })}>New MCQ</Button>
+               <Button size="sm" variant="outline" onClick={() => setTemplating(true)}>MCQs from a template</Button>
                <Button size="sm" onClick={() => setEditing({ kind: "coding", row: null })}>New coding question</Button>
              </div>}>
       <div className="space-y-4">
@@ -135,6 +138,7 @@ export default function BankPage() {
         <div className="flex sm:hidden flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => setGenerating(true)}>Generate with AI</Button>
           <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "mcq", row: null })}>New MCQ</Button>
+               <Button size="sm" variant="outline" onClick={() => setTemplating(true)}>MCQs from a template</Button>
           <Button size="sm" onClick={() => setEditing({ kind: "coding", row: null })}>New coding question</Button>
         </div>
 
@@ -249,6 +253,12 @@ export default function BankPage() {
       <CodingDialog open={editing?.kind === "coding"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
                     onSaved={(id) => { void verify(id); }} />
       <GenerateDialog open={generating} onOpenChange={setGenerating} orgId={orgId} onDone={onGenerated} />
+      <TemplateDialog open={templating} onOpenChange={setTemplating} orgId={orgId} onDone={(r) => {
+        setNotice(r.reason
+          ? { tone: "error", text: `Made ${r.created} questions. ${r.reason}` }
+          : { tone: "ok", text: `Made ${r.created} questions from the template; ${r.verified} verified and ready for tests.` });
+        void refresh();
+      }} />
     </V1Shell>
   );
 }

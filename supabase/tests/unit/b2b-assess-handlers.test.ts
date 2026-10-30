@@ -219,6 +219,68 @@ describe("bank", () => {
       expect(ai).not.toHaveBeenCalled();
     });
 
+    describe("templates (R2.2)", () => {
+      const template = { title: "Train speed", statement: "A train covers {{d}} km in {{t}} hours. Its speed?",
+        params: [{ name: "d", min: 60, max: 600, step: 30 }, { name: "t", min: 2, max: 6 }], answer: "d / t",
+        distractors: ["d * t", "d / t + 10", "d / (t + 1)"], decimals: 0, unit: "km/h", constraints: ["d % t == 0", "d % (t + 1) == 0"] };
+      const harness = (solve: (q: { options: { id: string }[]; answer: string[] }) => string[]) => {
+        const rows = new Map<string, { options: { id: string; text: string }[]; answer: string[]; statement: string; check?: unknown; status: string }>();
+        let n = 0;
+        const db = {
+          actor_is_org_editor: () => true,
+          b2b_save_question_as: (a: Record<string, unknown>) => {
+            const q = a._q as { options: { id: string; text: string }[]; answer: string[]; statement: string; source: string; family_id: string };
+            const id = `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`;
+            rows.set(id, { ...q, status: "draft" });
+            return { ok: true, question_id: id };
+          },
+          b2b_question_for_verify: (a: Record<string, unknown>) => {
+            const q = rows.get(a._question_id as string)!;
+            return { ok: true, type: "mcq", version: 1, org_id: A, statement: q.statement, options: q.options, answer: q.answer, multi_select: false, mcq_check: null };
+          },
+          b2b_record_mcq_check: (a: Record<string, unknown>) => { rows.get(a._question_id as string)!.check = a._check; return { ok: true }; },
+          b2b_record_verification: (a: Record<string, unknown>) => {
+            const q = rows.get(a._question_id as string)!;
+            const c = q.check as { agrees: boolean; ambiguous: boolean; confidence: number } | undefined;
+            q.status = c && c.agrees && !c.ambiguous && c.confidence >= 0.8 ? "verified" : "draft";
+            return { ok: true, status: q.status };
+          },
+        };
+        const ai = vi.fn(async (req: { messages: { content: string }[]; parse: (x: unknown) => { data?: unknown } }) => {
+          const text = req.messages[0].content;
+          const q = [...rows.values()].find((r) => text.includes(r.statement))!;
+          return { ok: true, data: req.parse({ answer: solve(q), confidence: 0.95, ambiguous: false, note: "" }).data, cacheHit: false };
+        });
+        return { rows, ...setup({ ai: ai as unknown as Deps["ai"], db }), ai };
+      };
+
+      it("makes the variants on the server, spot-checks two, and verifies the family when they agree", async () => {
+        const { h, rows, ai } = harness((q) => q.answer);
+        const r = await h.generateVariants({ orgId: A, template, count: 8, difficulty: "easy", topics: ["speed"] }, ACTOR);
+        expect(r).toMatchObject({ created: 8, verified: 8 });
+        expect(ai).toHaveBeenCalledTimes(2);                                   // only the spot check uses the model
+        const all = [...rows.values()];
+        expect(new Set(all.map((q) => (q as unknown as { family_id: string }).family_id))).toEqual(new Set([r.familyId]));
+        expect(all.every((q) => (q as unknown as { source: string }).source === "template" && q.status === "verified")).toBe(true);
+        expect((all[5].check as { method: string }).method).toBe("template");
+      });
+
+      it("leaves the whole family as drafts when a spot check disagrees", async () => {
+        const { h, rows } = harness((q) => [q.options.find((o) => o.id !== q.answer[0])!.id]);
+        const r = await h.generateVariants({ orgId: A, template, count: 5, difficulty: "easy", topics: [] }, ACTOR);
+        expect(r).toMatchObject({ created: 5, verified: 0 });
+        expect(r.reason).toMatch(/All saved as drafts: in a spot check, an independent check chose/);
+        expect([...rows.values()].every((q) => q.status === "draft")).toBe(true);
+      });
+
+      it("refuses a broken template before saving anything", async () => {
+        const { h, rows } = harness((q) => q.answer);
+        await expect(h.generateVariants({ orgId: A, template: { ...template, answer: "d / speed" }, count: 3, difficulty: "easy", topics: [] }, ACTOR))
+          .rejects.toMatchObject({ status: 400, code: "TEMPLATE_INVALID" });
+        expect(rows.size).toBe(0);
+      });
+    });
+
     it("option ids outside the question are ignored when comparing", () => {
       expect(optionSet(["b", "a", "a", "z"], ["a", "b"])).toEqual(["a", "b"]);
     });

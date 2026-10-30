@@ -6,6 +6,7 @@ import {
 } from "../_shared/contracts/assess.ts";
 export { mcqCheckReason } from "../_shared/contracts/assess.ts";
 import type { GatewayRequest, GatewayResult } from "../_shared/ai-gateway/core.ts";
+import { generateVariants as makeVariants, templateErrors, type McqTemplate } from "../_shared/mcq-template.ts";
 import {
   Judge0Error, codingScore, judgeTests, summarize, type Judge0Client, type Language, type TestCase,
 } from "../_shared/judge0.ts";
@@ -393,6 +394,54 @@ export function makeHandlers(deps: Deps) {
 
     async verifyQuestion(input: { questionId: string }, actor: string) {
       return verify(actor, input.questionId);
+    },
+
+    async generateVariants(input: { orgId: string | null; template: McqTemplate; count: number; difficulty: "easy" | "medium" | "hard";
+                                     category?: "aptitude" | "cs_fundamentals" | "technical"; topics: string[] }, actor: string) {
+      if (!(await canEdit(actor, input.orgId))) throw new AssessError(403, "FORBIDDEN", "You can't add questions here.");
+      const errs = templateErrors(input.template);
+      if (errs.length) throw new AssessError(400, "TEMPLATE_INVALID", errs[0]);
+      const familyId = crypto.randomUUID();
+      // The server computes every variant (and its key); the browser's preview is only a preview.
+      const { variants } = makeVariants(input.template, input.count, familyId);
+      if (!variants.length) {
+        throw new AssessError(400, "NO_VARIANTS", "None of the number combinations gave four different options. Widen the ranges or relax the conditions.");
+      }
+      const saved: { id: string; answer: string[] }[] = [];
+      for (const [i, v] of variants.entries()) {
+        const r = await rpc("b2b_save_question_as", { _actor: actor, _q: {
+          org_id: input.orgId, type: "mcq", title: `${input.template.title} (${i + 1})`, statement: v.statement,
+          difficulty: input.difficulty, category: input.category ?? "aptitude", topics: input.topics, options: v.options,
+          answer: v.answer, multi_select: false, points: POINTS[input.difficulty] ?? 10, status: "draft", source: "template",
+          family_id: familyId, params: { values: v.params, template: input.template },
+        } });
+        if (!r.ok) refuse(r.reason as string);
+        saved.push({ id: String(r.question_id), answer: v.answer });
+      }
+      // Spot check: two variants solved blind. A template is one formula, so if both agree the rest are verified on
+      // the strength of the server's own computation; if either doesn't, none are.
+      const sample = saved.slice(0, Math.min(2, saved.length));
+      const checks: McqCheck[] = [];
+      for (const s of sample) checks.push((await verify(actor, s.id)).check!);
+      const ok = checks.every((c) => c.agrees && !c.ambiguous && c.confidence >= 0.8);
+      if (!ok) {
+        const bad = checks.find((c) => !(c.agrees && !c.ambiguous && c.confidence >= 0.8));
+        return { familyId, created: saved.length, verified: 0,
+                 reason: `All saved as drafts: in a spot check, ${mcqCheckReason(bad)} Check the formulas and the wording.` };
+      }
+      let verified = sample.length;
+      for (const s of saved.slice(sample.length)) {
+        const q = await rpc("b2b_question_for_verify", { _actor: actor, _question_id: s.id });
+        if (!q.ok) continue;
+        const rec = await rpc("b2b_record_mcq_check", { _actor: actor, _question_id: s.id, _version: q.version, _check: {
+          answer: s.answer, agrees: true, ambiguous: false, confidence: 1, method: "template", sampled: sample.map((x) => x.id),
+          note: `Computed from the template; ${sample.length} variant(s) of it were solved independently and agreed.`,
+        } });
+        if (!rec.ok) continue;
+        const v = await rpc("b2b_record_verification", { _actor: actor, _question_id: s.id, _version: q.version, _passed: null });
+        if (v.ok && v.status === "verified") verified++;
+      }
+      return { familyId, created: saved.length, verified };
     },
 
     async start(input: { context: "practice" | "drive" | "job_role"; contextId: string | null; assessmentId?: string; sessionId?: string }, actor: string) {
