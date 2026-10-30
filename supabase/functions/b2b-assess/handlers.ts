@@ -2,8 +2,9 @@
 // so it is unit-tested in Node with fakes (supabase/tests/unit/b2b-assess-handlers.test.ts).
 // Authorization lives in the SQL functions (supabase/migrations/20261021000006_b2b_v1_assessment.sql): every call passes the actor.
 import {
-  GeneratedMcq, GeneratedQuestion, type AttemptState, type JudgeResult, type RunnerQuestion,
+  GeneratedMcq, GeneratedQuestion, McqSolution, mcqCheckReason, type AttemptState, type JudgeResult, type McqCheck, type RunnerQuestion,
 } from "../_shared/contracts/assess.ts";
+export { mcqCheckReason } from "../_shared/contracts/assess.ts";
 import type { GatewayRequest, GatewayResult } from "../_shared/ai-gateway/core.ts";
 import {
   Judge0Error, codingScore, judgeTests, summarize, type Judge0Client, type Language, type TestCase,
@@ -178,6 +179,31 @@ Rules:
 - explanation: one short paragraph explaining why the answer is right.
 - Unambiguous, plain English.`;
 
+// R2.3: the independent check solves the question without the key; the server compares.
+const MCQ_SOLUTION_SCHEMA = {
+  type: "object",
+  required: ["answer", "confidence", "ambiguous", "note"],
+  properties: {
+    answer: { type: "array", items: { type: "string" }, description: "ids of the option(s) you believe are correct" },
+    confidence: { type: "number", description: "0 to 1: how sure you are that your answer is the only correct one" },
+    ambiguous: { type: "boolean", description: "true if the question is unclear, has no correct option, or more than one defensible answer" },
+    note: { type: "string", description: "one or two sentences: your working, or what is wrong with the question" },
+  },
+};
+
+const MCQ_VALIDATE_SYSTEM = `You check multiple-choice questions for a hiring test before students see them.
+Solve the question yourself, carefully and step by step in your head, then report:
+- answer: the id(s) of the correct option(s). If it says exactly one option is correct, give one id.
+- confidence: how sure you are (0 to 1).
+- ambiguous: true if the wording is unclear, no option is correct, or more than one option is defensible.
+- note: your short working, or the problem with the question.
+You are NOT told the intended answer. Do not guess what the author wanted; answer what is actually correct.`;
+
+/** Normalised set of option ids, for comparing the check with the key. */
+export function optionSet(ids: unknown, valid: string[]): string[] {
+  return Array.from(new Set((Array.isArray(ids) ? ids : []).map(String).filter((x) => valid.includes(x)))).sort();
+}
+
 const POINTS: Record<string, number> = { easy: 10, medium: 20, hard: 30 };
 
 export function codingPayload(orgId: string | null, g: GeneratedQuestion, nonce: string): Json {
@@ -242,13 +268,45 @@ export function makeHandlers(deps: Deps) {
     return !!(await deps.rpc("actor_is_org_editor", { _actor: actor, _org_id: orgId }));
   }
 
+  /** R2.3: solve the MCQ blind with a separate model call, compare with the key, store the result for this version. */
+  async function checkMcq(actor: string, questionId: string, q: Json): Promise<McqCheck> {
+    const options = (Array.isArray(q.options) ? q.options : []) as { id: string; text: string }[];
+    const ids = options.map((o) => String(o.id));
+    const brief = `Question:\n${String(q.statement)}\n\nOptions:\n${options.map((o) => `${o.id}) ${o.text}`).join("\n")}\n\n`
+      + (q.multi_select ? "Select ALL correct options." : "Exactly one option is correct.");
+    const g = await deps.ai({
+      feature: "mcq.validate", orgId: (q.org_id as string | null) ?? null, userId: actor, system: MCQ_VALIDATE_SYSTEM,
+      messages: [{ role: "user", content: brief }], cacheInput: { statement: q.statement, options, multi: !!q.multi_select },
+      jsonSchema: MCQ_SOLUTION_SCHEMA, schemaName: "mcq_solution", parse: McqSolution.safeParse,
+    });
+    if (!g.ok) {
+      if (g.code === "QUOTA_EXCEEDED") throw new AssessError(429, "QUOTA_EXCEEDED", "This month's question-check limit is used up.");
+      throw new AssessError(502, "CHECK_FAILED", "Couldn't check the answer right now. Please try again.");
+    }
+    const answer = optionSet(g.data.answer, ids);
+    const key = optionSet(q.answer, ids);
+    const check: McqCheck = {
+      answer, agrees: answer.length > 0 && answer.join() === key.join(), ambiguous: g.data.ambiguous,
+      confidence: g.data.confidence, note: g.data.note,
+    };
+    const r = await rpc("b2b_record_mcq_check", { _actor: actor, _question_id: questionId, _version: q.version,
+                                                  _check: { ...check, model: "mcq-validate-v1" } });
+    if (!r.ok) refuse(r.reason as string);
+    return check;
+  }
+
   async function verify(actor: string, questionId: string) {
     const q = await rpc("b2b_question_for_verify", { _actor: actor, _question_id: questionId });
     if (!q.ok) refuse(q.reason as string);
     if (q.type === "mcq") {
-      const v = await rpc("b2b_record_verification", { _actor: actor, _question_id: questionId, _version: q.version, _passed: true });
+      const stored = q.mcq_check as Json | null;
+      const check: McqCheck = stored && Number(stored.version) === Number(q.version)
+        ? { answer: (stored.answer as string[]) ?? [], agrees: !!stored.agrees, ambiguous: !!stored.ambiguous,
+            confidence: Number(stored.confidence ?? 0), note: String(stored.note ?? "") }
+        : await checkMcq(actor, questionId, q);
+      const v = await rpc("b2b_record_verification", { _actor: actor, _question_id: questionId, _version: q.version, _passed: null });
       if (!v.ok) refuse(v.reason as string);
-      return { status: "verified" as const, failures: [] };
+      return { status: v.status as "verified" | "draft", failures: [], check, version: Number(q.version) };
     }
     if (!deps.judge0) throw JUDGE0_MISSING();
     const ref = (q.references as Json[] | undefined)?.[0];
@@ -309,7 +367,15 @@ export function makeHandlers(deps: Deps) {
           }
           const saved = await rpc("b2b_save_question_as", { _actor: actor, _q: mcqPayload(input.orgId, g.data) });
           if (!saved.ok) { lastError = String(saved.reason); continue; }
-          created.push({ questionId: String(saved.question_id), status: "draft", reason: "Review the answer, then verify it." });
+          const qid = String(saved.question_id);
+          try {
+            const v = await verify(actor, qid);
+            created.push(v.status === "verified" ? { questionId: qid, status: "verified" }
+              : { questionId: qid, status: "draft", reason: `Saved as a draft: ${mcqCheckReason(v.check)}` });
+          } catch (e) {
+            if (!(e instanceof AssessError)) throw e;
+            created.push({ questionId: qid, status: "draft", reason: `Saved as a draft: ${e.message}` });
+          }
         }
       }
       if (created.length === 0) {

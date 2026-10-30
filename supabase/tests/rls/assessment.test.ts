@@ -132,7 +132,7 @@ describe("question bank", () => {
     const mcq = { org_id: o.A, type: "mcq", title: "Bad MCQ", statement: "Which one is right here?", difficulty: "easy",
                   options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], answer: ["z"], status: "verified" };
     expect(await save(u.adminA, mcq)).toMatchObject({ reason: "ANSWER_NOT_AN_OPTION" });
-    expect(await save(u.adminA, { ...mcq, answer: ["b"] })).toMatchObject({ ok: true, status: "verified" });
+    expect(await save(u.adminA, { ...mcq, answer: ["b"] })).toMatchObject({ ok: true, status: "draft" });   // R2.3: verified only by the answer check (mcq-check.test.ts)
   });
 
   it("coding verification: only the sandbox result for the current version verifies", async () => {

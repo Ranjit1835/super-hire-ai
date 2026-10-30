@@ -62,9 +62,16 @@ _Last updated: 2026-10-29_
   - The drive's Similarity page shows check status, pairs ranked by similarity, and a side-by-side compare with matched lines highlighted. It also lists MCQ pairs with 3+ identical wrong choices; matching right answers don't count.
   - Staff of the drive only; queue functions are service-role only.
   - Evidence: migrations 0031–0032, `similarity.test.ts` (6), `similarity.test.tsx` (5), and the worker's `node --test` suite (6, plus a real-Dolos test that needs Linux parsers). A new CI job, `plagiarism-worker`, runs that test with `DOLOS_REQUIRED=1`, and so does the Docker build.
-  - Not yet verified here: real Dolos scoring. Windows has no C++ toolchain for tree-sitter, and Docker is hung. It will be verified in CI on the next PR, or in Docker.
+  - **Real Dolos verified in CI on PR #8** (job `plagiarism worker (Dolos)`: 7 of 7 pass, 0 skipped). A renamed-variable copy scores high, and a different approach scores lower. Starter code is ignored.
   - Deploy steps are in the worker README (owner runs them). They need Vault secrets `b2b_similarity_worker_url` and `b2b_similarity_worker_token`.
   - Full suite: 892 tests pass.
+- **R2.3 independent MCQ check:**
+  - A separate model call (`mcq.validate`: temperature 0, high reasoning, never sees the key or explanation) solves each MCQ, and the server compares its answer with the key.
+  - An MCQ becomes verified only when the check agrees, is confident (0.8 or more) and finds the question clear. Otherwise an editor can keep their key with a written reason, which is audited.
+  - Saving can't mark an MCQ verified. Editing a verified MCQ's content sends it back to draft. The browser can't write the check or set "verified" directly.
+  - Generated MCQs are checked straight away. The bank explains what the check chose and why.
+  - For stronger independence once the Claude provider exists (D1), point `mcq.validate` at a different model via `B2B_AI_CONFIG`.
+  - Evidence: migration 0033, `mcq-check.test.ts` (5), handler unit tests (17), and bank UI tests.
 
 **Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
 

@@ -29,6 +29,27 @@ export const GeneratedMcq = z.object({
 });
 export type GeneratedMcq = z.infer<typeof GeneratedMcq>;
 
+/** R2.3: the independent check's answer to an MCQ it solved without the key. */
+export const McqSolution = z.object({
+  answer: z.array(z.string().max(4)).min(1).max(6),
+  confidence: z.number().min(0).max(1),
+  ambiguous: z.boolean(),
+  note: z.string().max(1000),
+});
+export type McqSolution = z.infer<typeof McqSolution>;
+export const McqCheck = z.object({
+  answer: z.array(z.string()), agrees: z.boolean(), ambiguous: z.boolean(), confidence: z.number(), note: z.string(),
+});
+export type McqCheck = z.infer<typeof McqCheck>;
+
+/** Why an MCQ stayed a draft after its check, in words for the bank. */
+export function mcqCheckReason(c: McqCheck | undefined): string {
+  if (!c) return "the answer hasn't been checked yet.";
+  if (!c.agrees) return `an independent check chose ${c.answer.map((x) => x.toUpperCase()).join(", ") || "no option"}, not the key.`;
+  if (c.ambiguous) return "an independent check found the question unclear.";
+  return "an independent check agreed, but wasn't confident enough.";
+}
+
 /** What the runner shows: never answers, hidden tests or reference solutions. */
 export const RunnerQuestion = z.object({
   id: Uuid,
@@ -88,7 +109,9 @@ export const assessContract = {
   },
   verifyQuestion: {
     input: z.object({ questionId: Uuid }),
-    output: z.object({ status: z.enum(["verified", "draft"]), failures: z.array(z.object({ testId: Uuid, status: z.string() })) }),
+    output: z.object({ status: z.enum(["verified", "draft"]), failures: z.array(z.object({ testId: Uuid, status: z.string() })),
+                       /** MCQs: what the independent check concluded, and the version it applies to (for an override). */
+                       check: McqCheck.optional(), version: z.number().optional() }),
   },
   // ── Runner (subject) ──
   start: {

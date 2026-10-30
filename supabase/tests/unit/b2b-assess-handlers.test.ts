@@ -1,7 +1,7 @@
 // @vitest-environment node
 // b2b-assess handlers with a fake database, fake Judge0 and fake AI gateway (no network).
 import { describe, it, expect, vi } from "vitest";
-import { makeHandlers, toAttemptState, type Deps } from "../../functions/b2b-assess/handlers";
+import { makeHandlers, mcqCheckReason, optionSet, toAttemptState, type Deps } from "../../functions/b2b-assess/handlers";
 import { assessContract } from "../../functions/_shared/contracts/assess";
 import type { Judge0Client, RunOutcome, RunRequest } from "../../functions/_shared/judge0";
 
@@ -171,10 +171,45 @@ describe("bank", () => {
     await expect(none.h.verifyQuestion({ questionId: Q }, ACTOR)).rejects.toMatchObject({ status: 503, code: "JUDGE0_NOT_CONFIGURED" });
   });
 
-  it("MCQs verify without the sandbox", async () => {
-    const { h, calls } = setup({ judge0: null, db: { b2b_question_for_verify: () => ({ ok: true, type: "mcq", version: 1 }), b2b_record_verification: () => ({ ok: true, status: "verified" }) } });
-    expect(await h.verifyQuestion({ questionId: Q }, ACTOR)).toMatchObject({ status: "verified" });
-    expect(calls.at(-1)!.args).toMatchObject({ _passed: true });
+  describe("MCQs: independent answer check (R2.3)", () => {
+    const mcqQ = { ok: true, type: "mcq", version: 3, org_id: A, statement: "A train covers 120 km in 2 hours. Speed?",
+                   options: [{ id: "a", text: "60 km/h" }, { id: "b", text: "40 km/h" }], answer: ["a"], multi_select: false, mcq_check: null };
+    const solver = (answer: string[], extra = {}) => vi.fn(async (req: { parse: (x: unknown) => { success: boolean; data?: unknown } }) =>
+      ({ ok: true, data: req.parse({ answer, confidence: 0.95, ambiguous: false, note: "120/2 = 60", ...extra }).data, cacheHit: false }));
+
+    it("solves blind (the key is never sent), records the check, and verifies when it agrees", async () => {
+      const ai = solver(["a"]);
+      const { h, calls } = setup({ judge0: null, ai: ai as unknown as Deps["ai"], db: {
+        b2b_question_for_verify: () => mcqQ, b2b_record_mcq_check: () => ({ ok: true }), b2b_record_verification: () => ({ ok: true, status: "verified" }) } });
+      expect(await h.verifyQuestion({ questionId: Q }, ACTOR)).toMatchObject({ status: "verified", version: 3, check: { answer: ["a"], agrees: true } });
+      const req = ai.mock.calls[0][0] as unknown as { feature: string; messages: { content: string }[]; system: string };
+      expect(req.feature).toBe("mcq.validate");
+      expect(JSON.stringify(req.messages)).toContain("60 km/h");
+      expect(JSON.stringify(req)).not.toMatch(/"answer":\["a"\]/);
+      expect(calls.find((c) => c.fn === "b2b_record_mcq_check")!.args).toMatchObject({ _version: 3, _check: { answer: ["a"], agrees: true } });
+      expect(calls.at(-1)!.args).toMatchObject({ _passed: null });
+    });
+
+    it("a different answer stays a draft and says what the check chose", async () => {
+      const { h } = setup({ judge0: null, ai: solver(["b"]) as unknown as Deps["ai"], db: {
+        b2b_question_for_verify: () => mcqQ, b2b_record_mcq_check: () => ({ ok: true }), b2b_record_verification: () => ({ ok: true, status: "draft" }) } });
+      const r = await h.verifyQuestion({ questionId: Q }, ACTOR);
+      expect(r).toMatchObject({ status: "draft", check: { answer: ["b"], agrees: false } });
+      expect(mcqCheckReason(r.check)).toBe("an independent check chose B, not the key.");
+    });
+
+    it("reuses a check already stored for this version (no model call)", async () => {
+      const ai = solver(["a"]);
+      const { h } = setup({ judge0: null, ai: ai as unknown as Deps["ai"], db: {
+        b2b_question_for_verify: () => ({ ...mcqQ, mcq_check: { version: 3, answer: ["a"], agrees: true, ambiguous: false, confidence: 0.9, note: "" } }),
+        b2b_record_verification: () => ({ ok: true, status: "verified" }) } });
+      expect(await h.verifyQuestion({ questionId: Q }, ACTOR)).toMatchObject({ status: "verified" });
+      expect(ai).not.toHaveBeenCalled();
+    });
+
+    it("option ids outside the question are ignored when comparing", () => {
+      expect(optionSet(["b", "a", "a", "z"], ["a", "b"])).toEqual(["a", "b"]);
+    });
   });
 
   const generated = {
@@ -201,7 +236,7 @@ describe("bank", () => {
     expect(assessContract.generateQuestions.output.safeParse(out).success).toBe(true);
   });
 
-  it("generateQuestions: drafts without Judge0, MCQs as drafts, forbidden for non-editors, errors surfaced", async () => {
+  it("generateQuestions: drafts without Judge0, MCQs checked, forbidden for non-editors, errors surfaced", async () => {
     const ai = vi.fn(async (req: { parse: (x: unknown) => { success: boolean; data?: unknown } }) => ({ ok: true, data: req.parse(generated).data, cacheHit: false }));
     const noJudge = setup({ judge0: null, ai: ai as unknown as Deps["ai"], db: { actor_is_org_editor: () => true, b2b_save_question_as: () => ({ ok: true, question_id: Q }) } });
     expect((await noJudge.h.generateQuestions({ orgId: A, type: "coding", topic: "arrays", difficulty: "easy", count: 2 }, ACTOR)).created)
@@ -209,11 +244,23 @@ describe("bank", () => {
 
     const mcq = { title: "Train speed", statement: "A train covers 120 km in 2 hours. Speed?", difficulty: "easy", category: "aptitude",
                   topics: ["speed"], options: [{ id: "a", text: "60" }, { id: "b", text: "40" }], answer: ["a"], explanation: "120/2" };
-    const mcqAi = vi.fn(async (req: { parse: (x: unknown) => { success: boolean; data?: unknown } }) => ({ ok: true, data: req.parse(mcq).data, cacheHit: false }));
+    // Generated MCQs are checked straight away: verified when the blind check agrees, a draft with the reason when not.
+    const mcqAi = (solved: string[]) => vi.fn(async (req: { feature: string; parse: (x: unknown) => { success: boolean; data?: unknown } }) =>
+      ({ ok: true, data: req.parse(req.feature === "mcq.validate" ? { answer: solved, confidence: 0.9, ambiguous: false, note: "" } : mcq).data, cacheHit: false }));
     const savedMcq: Record<string, unknown>[] = [];
-    const m = setup({ ai: mcqAi as unknown as Deps["ai"], db: { actor_is_super_admin: () => true, b2b_save_question_as: (a) => { savedMcq.push(a._q as Record<string, unknown>); return { ok: true, question_id: Q }; } } });
-    expect((await m.h.generateQuestions({ orgId: null, type: "mcq", topic: "speed", difficulty: "easy", count: 1 }, ACTOR)).created[0].status).toBe("draft");
+    const mcqDb = (status: string) => ({
+      actor_is_super_admin: () => true,
+      b2b_save_question_as: (a: Record<string, unknown>) => { savedMcq.push(a._q as Record<string, unknown>); return { ok: true, question_id: Q }; },
+      b2b_question_for_verify: () => ({ ok: true, type: "mcq", version: 1, org_id: null, statement: mcq.statement, options: mcq.options, answer: mcq.answer, multi_select: false, mcq_check: null }),
+      b2b_record_mcq_check: () => ({ ok: true }),
+      b2b_record_verification: () => ({ ok: true, status }),
+    });
+    const m = setup({ ai: mcqAi(["a"]) as unknown as Deps["ai"], db: mcqDb("verified") });
+    expect((await m.h.generateQuestions({ orgId: null, type: "mcq", topic: "speed", difficulty: "easy", count: 1 }, ACTOR)).created[0].status).toBe("verified");
     expect(savedMcq[0]).toMatchObject({ org_id: null, multi_select: false, category: "aptitude", status: "draft" });
+    const m2 = setup({ ai: mcqAi(["b"]) as unknown as Deps["ai"], db: mcqDb("draft") });
+    expect((await m2.h.generateQuestions({ orgId: null, type: "mcq", topic: "speed", difficulty: "easy", count: 1 }, ACTOR)).created[0])
+      .toMatchObject({ status: "draft", reason: "Saved as a draft: an independent check chose B, not the key." });
 
     const no = setup({ db: { actor_is_org_editor: () => false } });
     await expect(no.h.generateQuestions({ orgId: A, type: "mcq", topic: "x", difficulty: "easy", count: 1 }, ACTOR)).rejects.toMatchObject({ status: 403 });

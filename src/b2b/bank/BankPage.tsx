@@ -15,6 +15,8 @@ import { ApiError, assessApi } from "../lib/api";
 import { CodingDialog } from "./CodingDialog";
 import { GenerateDialog, type GenerateResult } from "./GenerateDialog";
 import { McqDialog } from "./McqDialog";
+import { OverrideDialog } from "./OverrideDialog";
+import { mcqCheckReason, type McqCheck } from "../../../supabase/functions/_shared/contracts/assess";
 import { LANGUAGE_LABEL, type QuestionRow } from "./forms";
 import { BANK_PAGE, friendly, orgOf, setQuestionStatus, useBankPage, useCanEdit, type BankOwner, type BankType } from "./queries";
 
@@ -46,6 +48,9 @@ export default function BankPage() {
   const [generating, setGenerating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  /** The last MCQ check that disagreed, so the editor can keep their key with a reason. */
+  const [disputed, setDisputed] = useState<{ questionId: string; version: number; check: McqCheck } | null>(null);
+  const [overriding, setOverriding] = useState(false);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["b2b-assess", "bank", orgId] });
 
@@ -57,7 +62,17 @@ export default function BankPage() {
     setBusyId(id);
     setNotice(null);
     try {
+      setDisputed(null);
       const r = await assessApi("verifyQuestion", { questionId: id }, { timeoutMs: 120_000 });
+      if (r.check) {
+        // MCQ: an independent model solved it without the key (R2.3).
+        const c = r.check;
+        setNotice(r.status === "verified"
+          ? { tone: "ok", text: "Verified: an independent check reached the same answer. The question can now be used in tests." }
+          : { tone: "error", text: `Not verified: ${mcqCheckReason(c)}${c.note ? ` Its working: “${c.note}”` : ""} Fix the question, or keep your key with a reason.` });
+        if (r.status !== "verified" && r.version != null) setDisputed({ questionId: id, version: r.version, check: c });
+        return;
+      }
       setNotice(r.status === "verified"
         ? { tone: "ok", text: "Verified: the reference solution passed every test. The question can now be used in tests." }
         : { tone: "error", text: `Not verified: the reference solution failed ${r.failures.length} test${r.failures.length === 1 ? "" : "s"} (${Array.from(new Set(r.failures.map((f) => f.status))).join(", ") || "no tests ran"}). Fix the tests or the solution and try again.` });
@@ -161,6 +176,9 @@ export default function BankPage() {
             {notice.text}
           </p>
         )}
+        {disputed && (
+          <Button size="sm" variant="outline" className="self-start" onClick={() => setOverriding(true)}>Keep my key…</Button>
+        )}
 
         {bank.isLoading ? <Loading /> : bank.error ? <p role="alert" className="text-sm text-destructive">{friendly(bank.error)}</p>
           : empty ? (
@@ -225,7 +243,9 @@ export default function BankPage() {
         )}
       </div>
       <McqDialog open={editing?.kind === "mcq"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
-                 onSaved={() => { setNotice({ tone: "ok", text: "Question saved." }); void refresh(); }} />
+                 onSaved={(id, ready) => { if (ready) void verify(id); else { setNotice({ tone: "ok", text: "Question saved." }); void refresh(); } }} />
+      <OverrideDialog target={overriding ? disputed : null} onClose={() => setOverriding(false)}
+                      onDone={() => { setOverriding(false); setDisputed(null); setNotice({ tone: "ok", text: "Verified with your reason. The override is recorded in the audit log." }); void refresh(); }} />
       <CodingDialog open={editing?.kind === "coding"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
                     onSaved={(id) => { void verify(id); }} />
       <GenerateDialog open={generating} onOpenChange={setGenerating} orgId={orgId} onDone={onGenerated} />

@@ -10,6 +10,9 @@ const FAST = "gemini-3.6-flash";
 export const FEATURES: Record<string, FeatureConfig> = {
   "jd.skills_matrix":     { provider: "gemini", model: FAST, promptVersion: "jd-skills-v1", cache: "org", ttlSeconds: 30 * 86400, maxTokens: 6000, temperature: 0.2, reasoningEffort: "low", timeoutMs: 45_000, quotaKey: "jd.skills_matrix" },
   "question.generate":    { provider: "gemini", model: FAST, promptVersion: "qgen-v1", cache: "global", ttlSeconds: null, maxTokens: 16000, temperature: 0.7, reasoningEffort: "medium", timeoutMs: 90_000, quotaKey: "question.generate" },
+  // R2.3: solves an MCQ blind (never sees the key). Deterministic and cached per question text. For more independence
+  // from the generator, point it at a different model with B2B_AI_CONFIG {"mcq.validate":{...}}.
+  "mcq.validate":         { provider: "gemini", model: FAST, promptVersion: "mcq-validate-v1", cache: "global", ttlSeconds: null, maxTokens: 4000, temperature: 0, reasoningEffort: "high", timeoutMs: 60_000, quotaKey: "question.generate" },
   "mcq.explain":          { provider: "gemini", model: FAST, promptVersion: "mcq-explain-v1", cache: "global", ttlSeconds: null, maxTokens: 2000, temperature: 0.2, reasoningEffort: "low", timeoutMs: 30_000 },
   "code.quality_review":  { provider: "gemini", model: FAST, promptVersion: "code-review-v1", cache: "none", ttlSeconds: null, maxTokens: 4000, temperature: 0.2, reasoningEffort: "low", timeoutMs: 45_000 },
   "resume.screen":        { provider: "gemini", model: FAST, promptVersion: "resume-screen-v1", cache: "org", ttlSeconds: 30 * 86400, maxTokens: 6000, temperature: 0.2, reasoningEffort: "low", timeoutMs: 45_000, quotaKey: "resume.screen" },
