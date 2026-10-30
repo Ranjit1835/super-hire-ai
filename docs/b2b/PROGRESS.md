@@ -48,6 +48,13 @@ _Last updated: 2026-10-29_
   - At draw time, up to 25 seeded draws are tried under a per-drive lock, and the one with the least overlap against the drive's existing papers is kept. If it still breaks the target, that's audited (`paper.overlap_exceeded`).
   - Each question records how many papers it has been in. The bank shows this as "Papers", and editors can retire over-exposed questions.
   - Evidence: migration 0029, `paper-uniqueness.test.ts` (12 students, 60-question pool: worst pair ≤ 40%, all papers distinct, exposure = 120), and calculator tests in `bank.test.tsx`. Full suite: 866 tests pass.
+- **R2.7 code playback:**
+  - TPOs open "Code replay" from a student's card on the drive results page. They can watch each coding answer being written at 1×, 4× or 16×, scrub to any moment, and switch questions. Long pauses are shortened in playback.
+  - The replay is rebuilt from the edit log (`b2b_drive_code_replay` / `b2b_attempt_code_replay`, staff of the context only; the student and other colleges get `FORBIDDEN`). It's checked against the saved answer and says so when they differ.
+  - Flags to watch, not verdicts: code appearing at once that wasn't copied from the student's own code (≥ 80 characters); typing faster than people type (≥ 300 characters in 10 s); answers mostly not typed; blocked pastes. "Watch from here" jumps to the moment.
+  - Language switches are now logged by the runner, so edits replay into the right language.
+  - Evidence: migration 0030, `code-replay.test.ts`, `replay.test.ts`, `CodeReplay.test.tsx`. Full suite: 881 tests pass.
+  - Local Supabase apply is pending: Docker stopped responding on 2026-10-30. The migration runs in PGlite in the tests.
 
 **Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
 

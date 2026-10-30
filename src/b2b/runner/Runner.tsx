@@ -341,7 +341,11 @@ export function Runner({ state, onEnded, onConflict, finishRef, heartbeatMs = 15
                   <label className="hr-label" htmlFor="lang">Language</label>
                   <select id="lang" aria-label="Language"
                     className="shadow-[inset_0_0_0_1px_var(--hr-rule)] bg-[var(--hr-surface)] px-2 py-1 text-sm hr-data" value={a.language}
-                    onChange={(e) => { update(q.id, { language: e.target.value }); }}>
+                    onChange={(e) => {
+                      // Logged so the code replay knows which language's buffer later edits belong to.
+                      (edits.current[q.id] ??= []).push({ t: Date.now(), op: "lang", text: e.target.value });
+                      update(q.id, { language: e.target.value });
+                    }}>
                     {(q.languages ?? []).map((l) => <option key={l} value={l}>{LANGUAGE_LABEL[l] ?? l}</option>)}
                   </select>
                 </div>
