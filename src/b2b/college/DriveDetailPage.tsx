@@ -144,6 +144,7 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
         <Button onClick={() => void assign()} disabled={busy || drive.status === "closed"}>Assign eligible students</Button>
         {canRelease && <Button variant="outline" onClick={() => setConfirmRelease(true)} disabled={busy}>Release results</Button>}
         <Button variant="outline" asChild><Link to={`/c/${orgId}/analytics?drive=${drive.id}`}>Analytics</Link></Button>
+        <Button variant="outline" asChild><Link to={`/c/${orgId}/drives/${drive.id}/similarity`}>Similarity</Link></Button>
         <Button variant="outline" asChild><Link to={`/c/${orgId}/drives/${drive.id}/edit`}>Edit</Link></Button>
       </div>
 

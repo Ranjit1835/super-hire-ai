@@ -55,6 +55,16 @@ _Last updated: 2026-10-29_
   - Language switches are now logged by the runner, so edits replay into the right language.
   - Evidence: migration 0030, `code-replay.test.ts`, `replay.test.ts`, `CodeReplay.test.tsx`. Full suite: 881 tests pass.
   - Local Supabase apply is pending: Docker stopped responding on 2026-10-30. The migration runs in PGlite in the tests.
+- **R2.8 plagiarism (D6: Dolos):**
+  - When a drive's window ends, a cron every 10 minutes queues one similarity run per coding question and language. TPOs can also press "Check now".
+  - A stateless worker (`services/plagiarism-worker`, Node with dolos-lib 3.6.0, Cloud Run asia-south1, scales to zero) claims runs from the database queue and compares the answers. The question's starter code is ignored as a template. It reports pairs at 30% similarity or more.
+  - Failed runs are retried 3 times; stuck runs are reclaimed after 15 minutes. A new check replaces the old pairs.
+  - The drive's Similarity page shows check status, pairs ranked by similarity, and a side-by-side compare with matched lines highlighted. It also lists MCQ pairs with 3+ identical wrong choices; matching right answers don't count.
+  - Staff of the drive only; queue functions are service-role only.
+  - Evidence: migrations 0031–0032, `similarity.test.ts` (6), `similarity.test.tsx` (5), and the worker's `node --test` suite (6, plus a real-Dolos test that needs Linux parsers). A new CI job, `plagiarism-worker`, runs that test with `DOLOS_REQUIRED=1`, and so does the Docker build.
+  - Not yet verified here: real Dolos scoring. Windows has no C++ toolchain for tree-sitter, and Docker is hung. It will be verified in CI on the next PR, or in Docker.
+  - Deploy steps are in the worker README (owner runs them). They need Vault secrets `b2b_similarity_worker_url` and `b2b_similarity_worker_token`.
+  - Full suite: 892 tests pass.
 
 **Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
 

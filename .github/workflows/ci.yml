@@ -43,6 +43,22 @@ jobs:
       - name: Pricing secrecy (R3.1) with B2B on
         run: VITE_B2B_ENABLED=true npx vite build --outDir dist && npm run check:price-secrecy
 
+  plagiarism-worker:
+    name: plagiarism worker (Dolos)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/plagiarism-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Worker tests with real Dolos parsers (a missing parser fails, not skips)
+        run: DOLOS_REQUIRED=1 npm test
+
   e2e:
     name: e2e
     runs-on: ubuntu-latest

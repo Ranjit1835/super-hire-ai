@@ -1,0 +1,16 @@
+{
+  "name": "hiresume-plagiarism-worker",
+  "private": true,
+  "version": "1.0.0",
+  "description": "R2.8 code similarity worker (Dolos) for HiResume B2B drives. Deployed to Cloud Run asia-south1.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "@dodona/dolos-core": "1.2.2",
+    "@dodona/dolos-lib": "3.6.0"
+  }
+}
