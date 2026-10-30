@@ -284,3 +284,12 @@ describe("drive status label", () => {
   });
 });
 
+
+describe("friendly seat errors (R1.3/R1.4)", () => {
+  it("explains seat limits and used seats without money or tiers", async () => {
+    const { friendly } = await import("./queries");
+    expect(friendly(new Error("SEAT_LIMIT: all seats are in use"))).toMatch(/All your seats are in use/);
+    expect(friendly(new Error("SEAT_LOCKED: only HiResume can free a used seat"))).toMatch(/already used their seat/);
+    expect(friendly(new Error("permission denied for table x"))).toBe("You don't have permission to do that.");
+  });
+});

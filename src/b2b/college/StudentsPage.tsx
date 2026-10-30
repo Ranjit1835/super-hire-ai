@@ -16,7 +16,7 @@ import { collegeApi, ApiError } from "../lib/api";
 import { CollegeShell, NativeSelect } from "./CollegeShell";
 import { InviteLinks, type InviteLinkRow } from "./InviteLinks";
 import { parseDob } from "./lib/import";
-import { STATUS_TEXT, STUDENT_PAGE, friendly, numOrNull, useStudentFacets, useStudentStatusCounts, useStudents, type StudentQuery, type StudentRecord, type StudentStatus } from "./queries";
+import { STATUS_TEXT, STUDENT_PAGE, fmtDate, friendly, numOrNull, useStudentFacets, useStudentActivity, useStudentStatusCounts, useStudents, type StudentQuery, type StudentRecord, type StudentStatus } from "./queries";
 
 export default function StudentsPage() {
   return <CollegeShell>{({ orgId, isAdmin }) => <Students orgId={orgId} isAdmin={isAdmin} />}</CollegeShell>;
@@ -36,6 +36,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
   const students = useStudents(orgId, q);
   const facets = useStudentFacets(orgId);
   const counts = useStudentStatusCounts(orgId);
+  const activity = useStudentActivity(orgId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<StudentRecord | "new" | null>(null);
   const [links, setLinks] = useState<{ links: InviteLinkRow[]; emailed: number } | null>(null);
@@ -172,7 +173,9 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
                   <TableHead className="hr-label">Branch</TableHead><TableHead className="hr-label">Batch</TableHead>
                   <TableHead className="hr-label">Sec</TableHead><TableHead className="hr-label text-right">CGPA</TableHead>
                   <TableHead className="hr-label text-right">Backlogs</TableHead>
-                  <TableHead className="hr-label">Status</TableHead>{isAdmin && <TableHead className="hr-label text-right">Actions</TableHead>}
+                  <TableHead className="hr-label">Status</TableHead>
+                  <TableHead className="hr-label text-right" title="Drives completed out of drives assigned">Drives</TableHead>
+                  <TableHead className="hr-label">Last active</TableHead>{isAdmin && <TableHead className="hr-label text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -190,6 +193,8 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
                     <TableCell className="hr-data text-right">{numOrNull(s.cgpa) ?? "–"}</TableCell>
                     <TableCell className="hr-data text-right">{s.active_backlogs ?? "–"}</TableCell>
                     <TableCell><Chip tone={STATUS_TONE[s.status]}>{STATUS_TEXT[s.status]}</Chip></TableCell>
+                    <TableCell className="hr-data text-right">{activity.data?.[s.id] ? `${activity.data[s.id].completed}/${activity.data[s.id].assigned}` : "–"}</TableCell>
+                    <TableCell className="hr-data text-xs text-[var(--hr-muted)]">{fmtDate(activity.data?.[s.id]?.last_active_at ?? null)}</TableCell>
                     {isAdmin && (
                       <TableCell className="text-right whitespace-nowrap">
                         <Button size="sm" variant="ghost" onClick={() => setEditing(s)}>Edit</Button>

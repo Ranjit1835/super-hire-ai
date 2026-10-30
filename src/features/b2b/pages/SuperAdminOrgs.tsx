@@ -18,7 +18,7 @@ import { b2bDb } from "../lib/db";
 import { SLUG_RE, daysLeft, formatDate, friendlyDbError, slugify } from "../lib/format";
 import type { OrgMemberRole, OrgType, Plan } from "../types";
 
-const TYPE_LABEL: Record<OrgType, string> = { college: "College", coaching_institute: "Coaching institute" };
+const TYPE_LABEL: Record<OrgType, string> = { college: "College", coaching_institute: "Coaching institute", company: "Company" };
 
 function toDateInput(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";

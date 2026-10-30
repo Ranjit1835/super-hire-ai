@@ -16,6 +16,7 @@ import { turnSignals } from "../_shared/interview-v1/signals.ts";
 import { latencyStats } from "../_shared/interview-v1/stats.ts";
 import { mmss } from "../_shared/interview-v1/quotes.ts";
 import { V1_DIMENSION_LABEL, type V1Dimension } from "../_shared/interview-v1/evaluation.ts";
+import { decodeBase64, synthesize, transcribe, voiceConfig, VoiceError, type VoiceConfig } from "../_shared/voice.ts";
 
 export class V1Error extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
@@ -47,6 +48,7 @@ const REASONS: Record<string, [number, string]> = {
   OTHER_IN_PROGRESS: [409, "You have another interview in progress. Finish or end it first."],
   NOT_IN_PROGRESS: [409, "This interview has already finished."],
   TURN_CONFLICT: [409, "Out of sync. Showing the latest question."],
+  VOICE_LIMIT: [429, "This interview has reached its voice limit. Please finish the interview."],
 };
 
 export function refuse(reason: string | undefined): never {
@@ -66,6 +68,29 @@ interface Loaded {
 export function makeV1Handlers(deps: V1Deps) {
   const now = deps.now ?? Date.now;
   const rpc = async <T>(fn: string, args: Json) => (await deps.rpc(fn, args)) as T;
+  const voice: VoiceConfig = voiceConfig(deps.env);
+
+  /** Check (and then log) one voice use against the interview's caps; refuses outside a live interview. */
+  async function voiceUse(actor: string, interviewId: string, kind: "stt" | "tts", providerKey: string, units: number, checkOnly: boolean) {
+    const r = await rpc<{ ok: boolean; reason?: string }>("b2b_iv_voice_use", {
+      _actor: actor, _interview_id: interviewId, _kind: kind, _provider_key: providerKey, _units: units, _check_only: checkOnly,
+    });
+    if (!r.ok) refuse(r.reason);
+  }
+
+  /** Voice one interviewer line with the cloud voice; null on any failure (the room falls back to browser speech). */
+  async function voiceLine(actor: string, interviewId: string, text: string): Promise<{ text: string; audio: string; mime: string } | null> {
+    if (voice.tts === "browser" || !text) return null;
+    try {
+      await voiceUse(actor, interviewId, "tts", `tts:${voice.tts}`, text.length, true);
+      const r = await synthesize(voice, deps.env, deps.fetch, text);
+      await voiceUse(actor, interviewId, "tts", r.providerKey, r.chars, false);
+      return { text, audio: r.audio, mime: r.mime };
+    } catch (e) {
+      console.error(`[b2b-interview] speech failed: ${e instanceof Error ? e.message : String(e)}`);
+      return null;
+    }
+  }
 
   async function load(actor: string, interviewId: string): Promise<Loaded> {
     const r = await rpc<Loaded>("b2b_iv_load", { _actor: actor, _interview_id: interviewId });
@@ -99,6 +124,7 @@ export function makeV1Handlers(deps: V1Deps) {
         overall: iv.result.overall_score === null ? null : Number(iv.result.overall_score),
         dimensions: (iv.result.dimensions ?? []).map((d) => ({ label: V1_DIMENSION_LABEL[d.key] ?? String(d.key), score: d.score })),
       } : null,
+      voice,
       ...extra,
     };
   }
@@ -171,7 +197,7 @@ export function makeV1Handlers(deps: V1Deps) {
 
     async turn(input: {
       interviewId: string; clientTurnId: string; turnCount: number; answer: string; meta: Json;
-      clientLatency?: { turn_end_to_first_audio_ms: number } | null;
+      clientLatency?: { turn_end_to_first_audio_ms: number } | null; speak?: boolean;
     }, actor: string): Promise<RoomState> {
       let iv = await load(actor, input.interviewId);
       if (iv.turns.some((x) => x.client_turn_id === input.clientTurnId)) return toRoom(iv, { duplicate: true });
@@ -237,7 +263,44 @@ export function makeV1Handlers(deps: V1Deps) {
       if (!r.ok) refuse(r.reason);
       if (out.endReason && !r.duplicate) deps.evaluateLater(iv.id);
       if (input.clientLatency) console.log(`[VOICE-LATENCY] ${JSON.stringify({ source: "b2b-interview-v1", session: iv.id, ...input.clientLatency })}`);
-      return toRoom(await load(actor, iv.id), { duplicate: !!r.duplicate });
+      const room = toRoom(await load(actor, iv.id), { duplicate: !!r.duplicate });
+      // Voice the next line in the same request (saves a round trip). The closing line is voiced while the interview
+      // is still live, so it is checked against the caps before the finish.
+      if (input.speak && !r.duplicate) {
+        const line = room.question ?? room.closing;
+        const speech = line ? await voiceLine(actor, iv.id, line).catch(() => null) : null;
+        if (speech) room.speech = speech;
+      }
+      return room;
+    },
+
+    async transcribe(input: { interviewId: string; audio: string; mime: string; durationMs: number }, actor: string) {
+      if (voice.stt === "browser") throw new V1Error(503, "VOICE_NOT_CONFIGURED", "Cloud transcription isn't set up on this server.");
+      const seconds = Math.max(0.1, input.durationMs / 1000);
+      await voiceUse(actor, input.interviewId, "stt", `stt:${voice.stt}`, seconds, true);
+      let bytes: Uint8Array;
+      try { bytes = decodeBase64(input.audio); } catch { throw new V1Error(400, "BAD_AUDIO", "The recording couldn't be read."); }
+      try {
+        const r = await transcribe(voice, deps.env, deps.fetch, bytes, input.mime, seconds);
+        await voiceUse(actor, input.interviewId, "stt", r.providerKey, Math.max(r.seconds, 10), false);   // providers bill at least 10 s
+        return { text: r.text };
+      } catch (e) {
+        if (e instanceof VoiceError && e.code === "BAD_AUDIO") throw new V1Error(400, "BAD_AUDIO", e.message);
+        console.error(`[b2b-interview] transcription failed: ${e instanceof Error ? e.message : String(e)}`);
+        throw new V1Error(502, "STT_FAILED", "We couldn't process that answer. Please answer again.");
+      }
+    },
+
+    async speak(input: { interviewId: string; text: string }, actor: string) {
+      if (voice.tts === "browser") throw new V1Error(503, "VOICE_NOT_CONFIGURED", "Cloud speech isn't set up on this server.");
+      const iv = await load(actor, input.interviewId);
+      // Only this interview's own interviewer lines: the endpoint is not a general speech service.
+      const lines = iv.turns.filter((x) => x.role === "interviewer").map((x) => x.content.replace(/\s+/g, " ").trim());
+      const want = input.text.replace(/\s+/g, " ").trim();
+      if (!lines.slice(-2).includes(want)) throw new V1Error(400, "NOT_INTERVIEW_TEXT", "Only the interviewer's current line can be spoken.");
+      const s = await voiceLine(actor, iv.id, want);
+      if (!s) throw new V1Error(502, "TTS_FAILED", "The interviewer's voice isn't available right now.");
+      return { audio: s.audio, mime: s.mime };
     },
 
     async finish(input: { interviewId: string }, actor: string): Promise<RoomState> {

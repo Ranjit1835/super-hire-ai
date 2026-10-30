@@ -58,7 +58,56 @@ export async function requireUser(req: Request, opts: { allowAnonymous?: boolean
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new HttpError(401, "UNAUTHENTICATED", "Please sign in again.");
   if (data.user.is_anonymous && !opts.allowAnonymous && !publicTestEnabled()) throw new HttpError(403, "FORBIDDEN", "Please sign in.");
+  if (!data.user.is_anonymous) {
+    const token = authHeader.slice(7);
+    await checkRequestGate(data.user.id, jwtClaim(token, "session_id"), jwtClaim(token, "aal"));
+  }
   return data.user;
+}
+
+/** A claim from a JWT's payload (already verified by auth.getUser above). */
+export function jwtClaim(token: string, claim: string): string | null {
+  try {
+    const part = token.split(".")[1] ?? "";
+    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=")));
+    const v = json?.[claim];
+    return typeof v === "string" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+const SESSION_ENDED: Record<string, string> = {
+  REPLACED: "You signed in on another device, so this session ended. Please sign in again here to continue.",
+  IDLE: "You were inactive for a while, so you were signed out. Please sign in again.",
+  EXPIRED: "Your session has expired. Please sign in again.",
+  LOGOUT: "You signed out. Please sign in again.",
+  NO_SESSION: "Please sign in again.",
+};
+
+/**
+ * Per-request gate (b2b_request_gate, migration 0022):
+ *  - R3.5: super admins must have signed in with MFA (JWT aal2) to use any B2B function → 403 MFA_REQUIRED.
+ *  - R1.6: students get one active session, an idle timeout and an absolute expiry → 401 SESSION_ENDED.
+ * Everyone else passes straight through. If the check itself can't run (database error), the request is allowed and
+ * logged rather than locking everyone out; the SQL functions still check roles (and is_super_admin needs aal2).
+ */
+async function checkRequestGate(userId: string, authSessionId: string | null, aal: string | null): Promise<void> {
+  const { data, error } = await serviceClient().rpc("b2b_request_gate", {
+    _user_id: userId, _auth_session_id: authSessionId ?? "", _aal: aal ?? "",
+  });
+  if (error) {
+    console.error("[B2B-SESSION] check failed, allowing request:", error.message);
+    return;
+  }
+  const r = data as { ok?: boolean; reason?: string } | null;
+  if (r && r.ok === false) {
+    const reason = r.reason ?? "NO_SESSION";
+    if (reason === "MFA_REQUIRED") {
+      throw new HttpError(403, "MFA_REQUIRED", "Admin access needs two-factor sign-in. Verify with your authenticator app and try again.");
+    }
+    throw new HttpError(401, "SESSION_ENDED", SESSION_ENDED[reason] ?? SESSION_ENDED.NO_SESSION);
+  }
 }
 
 /** Wrap a handler: CORS preflight, JSON body parsing, uniform error responses. */

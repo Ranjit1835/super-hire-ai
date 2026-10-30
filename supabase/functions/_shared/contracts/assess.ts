@@ -29,6 +29,42 @@ export const GeneratedMcq = z.object({
 });
 export type GeneratedMcq = z.infer<typeof GeneratedMcq>;
 
+/** R2.3: the independent check's answer to an MCQ it solved without the key. */
+export const McqSolution = z.object({
+  answer: z.array(z.string().max(4)).min(1).max(6),
+  confidence: z.number().min(0).max(1),
+  ambiguous: z.boolean(),
+  note: z.string().max(1000),
+});
+export type McqSolution = z.infer<typeof McqSolution>;
+export const McqCheck = z.object({
+  answer: z.array(z.string()), agrees: z.boolean(), ambiguous: z.boolean(), confidence: z.number(), note: z.string(),
+});
+export type McqCheck = z.infer<typeof McqCheck>;
+
+/** R2.2: a parameterised MCQ template (see ../mcq-template.ts). */
+export const McqTemplateInput = z.object({
+  title: z.string().trim().min(3).max(160),
+  statement: z.string().trim().min(10).max(4000),
+  params: z.array(z.object({
+    name: z.string().min(1).max(31), min: z.number().optional(), max: z.number().optional(), step: z.number().positive().optional(),
+    choices: z.array(z.number()).max(1000).optional(),
+  })).min(1).max(8),
+  answer: z.string().min(1).max(500),
+  distractors: z.array(z.string().min(1).max(500)).min(3).max(5),
+  decimals: z.number().int().min(0).max(4),
+  unit: z.string().max(20).optional(),
+  constraints: z.array(z.string().min(1).max(500)).max(8).optional(),
+});
+
+/** Why an MCQ stayed a draft after its check, in words for the bank. */
+export function mcqCheckReason(c: McqCheck | undefined): string {
+  if (!c) return "the answer hasn't been checked yet.";
+  if (!c.agrees) return `an independent check chose ${c.answer.map((x) => x.toUpperCase()).join(", ") || "no option"}, not the key.`;
+  if (c.ambiguous) return "an independent check found the question unclear.";
+  return "an independent check agreed, but wasn't confident enough.";
+}
+
 /** What the runner shows: never answers, hidden tests or reference solutions. */
 export const RunnerQuestion = z.object({
   id: Uuid,
@@ -63,6 +99,8 @@ export const AttemptState = z.object({
   result: z.object({ score: z.number().nullable(), max_score: z.number().nullable(), grading: z.enum(["pending", "complete"]),
                      section_scores: z.array(z.object({ title: z.string(), type: z.string(), score: z.number(), max_score: z.number() })) }).nullable().optional(),
   proctoring: z.object({ policy: z.string(), sessionId: Uuid.nullable() }),
+  /** R2.4: "linear" sends only the current question; index is 0-based. */
+  navigation: z.object({ mode: z.enum(["free", "linear"]), index: z.number(), total: z.number() }).optional(),
 });
 export type AttemptState = z.infer<typeof AttemptState>;
 
@@ -86,9 +124,18 @@ export const assessContract = {
                       difficulty: Difficulty, role: z.string().max(80).optional(), count: z.number().int().min(1).max(10) }),
     output: z.object({ created: z.array(z.object({ questionId: Uuid, status: z.enum(["verified", "draft"]), reason: z.string().optional() })) }),
   },
+  /** R2.2: make up to 50 MCQs from a template, ahead of time. Two are solved blind; if both agree, all are verified. */
+  generateVariants: {
+    input: z.object({ orgId: Uuid.nullable(), template: McqTemplateInput, count: z.number().int().min(1).max(50),
+                      difficulty: Difficulty, category: z.enum(["aptitude", "cs_fundamentals", "technical"]).optional(),
+                      topics: z.array(z.string().min(1).max(40)).max(10) }),
+    output: z.object({ familyId: Uuid, created: z.number(), verified: z.number(), reason: z.string().optional() }),
+  },
   verifyQuestion: {
     input: z.object({ questionId: Uuid }),
-    output: z.object({ status: z.enum(["verified", "draft"]), failures: z.array(z.object({ testId: Uuid, status: z.string() })) }),
+    output: z.object({ status: z.enum(["verified", "draft"]), failures: z.array(z.object({ testId: Uuid, status: z.string() })),
+                       /** MCQs: what the independent check concluded, and the version it applies to (for an override). */
+                       check: McqCheck.optional(), version: z.number().optional() }),
   },
   // ── Runner (subject) ──
   start: {
@@ -115,6 +162,11 @@ export const assessContract = {
   },
   // reason "violations": the strict proctoring policy hit its limit (ProctoredSession onAutoSubmit).
   finish: { input: z.object({ attemptId: Uuid, sessionId: Uuid, reason: z.enum(["submitted", "violations"]).optional() }), output: Ok },
+  /** R2.4 one question at a time: leave question fromIndex for the next (no way back). Returns the new state. */
+  advance: {
+    input: z.object({ attemptId: Uuid, sessionId: Uuid, fromIndex: z.number().int().min(0) }),
+    output: AttemptState,
+  },
   heartbeat: {
     input: z.object({ attemptId: Uuid, sessionId: Uuid }),
     output: z.object({ ok: z.boolean(), deadline_at: z.string().nullable(), server_now: z.string(), paused: z.boolean(),

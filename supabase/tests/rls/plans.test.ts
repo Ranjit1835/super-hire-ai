@@ -127,20 +127,42 @@ describe("usage visibility", () => {
     for (const who of [u.adminA, u.trainerA]) {
       await asUser(db, who, async (tx) => {
         const s = (await tx.query<{ s: Record<string, unknown> }>("SELECT public.org_usage_summary($1) AS s", [org.a])).rows[0].s;
-        expect(s).toMatchObject({ students: 3, students_exhausted: 1, plan: { id: "pilot", max_students: 150 } });
+        expect(s).toMatchObject({ students: 3, students_exhausted: 1, plan: { max_students: 150 } });
+        // R3.1: the tier (plan id / name) never reaches org staff.
+        expect((s.plan as Record<string, unknown>).id).toBeUndefined();
+        expect((s.plan as Record<string, unknown>).name).toBeUndefined();
         expect(await expectRejected(tx, "SELECT public.org_usage_summary($1)", [org.b])).toMatch(/FORBIDDEN/);
       });
     }
+    await asUser(db, u.super, async (tx) => {
+      const s = (await tx.query<{ s: Record<string, unknown> }>("SELECT public.org_usage_summary($1) AS s", [org.a])).rows[0].s;
+      expect(s).toMatchObject({ plan: { id: "pilot" } });
+    });
     await asUser(db, u.studentA, async (tx) => {
       expect(await expectRejected(tx, "SELECT public.org_usage_summary($1)", [org.a])).toMatch(/FORBIDDEN/);
     });
   });
 
-  it("plans are visible to staff of an org on that plan, not to students or B2C users", async () => {
-    await asUser(db, u.adminA, async (tx) => {
-      expect((await tx.query<{ id: string }>("SELECT id FROM plans")).rows.map((r) => r.id)).toEqual(["pilot"]);
+  it("an org's plan tier (plan_id) is readable by super admins only, through super_orgs() (R3.1)", async () => {
+    for (const who of [u.adminA, u.trainerA, u.studentA]) {
+      await asUser(db, who, async (tx) => {
+        expect(await expectRejected(tx, "SELECT plan_id FROM organizations WHERE id = $1", [org.a])).toMatch(/permission denied/);
+        expect(await expectRejected(tx, "SELECT * FROM organizations WHERE id = $1", [org.a])).toMatch(/permission denied/);
+        expect((await tx.query<{ name: string }>("SELECT name FROM organizations WHERE id = $1", [org.a])).rows).toHaveLength(1);
+        expect(await expectRejected(tx, "SELECT * FROM public.super_orgs()")).toMatch(/FORBIDDEN/);
+      });
+    }
+    await asUser(db, u.super, async (tx) => {
+      const rows = (await tx.query<{ id: string; plan_id: string }>("SELECT id, plan_id FROM public.super_orgs()")).rows;
+      expect(rows.find((r) => r.id === org.a)?.plan_id).toBe("pilot");
     });
-    for (const who of [u.studentA, u.b2c]) {
+  });
+
+  it("plans (with prices) are visible to super admins only, never to staff, students or B2C users", async () => {
+    await asUser(db, u.super, async (tx) => {
+      expect((await tx.query<{ id: string }>("SELECT id FROM plans")).rows.length).toBeGreaterThan(0);
+    });
+    for (const who of [u.adminA, u.studentA, u.b2c]) {
       await asUser(db, who, async (tx) => expect((await tx.query("SELECT id FROM plans")).rows).toEqual([]));
     }
   });

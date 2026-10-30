@@ -4,11 +4,11 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   assessmentFromRow, assessmentRow, checkDraw, CodingForm, codingPayload, describeRule, emptyAssessment, emptyCoding, McqForm, mcqPayload,
-  poolMatches, type AssessmentRow, type QuestionRow,
+  paperCapacity, poolMatches, type AssessmentRow, type QuestionRow,
 } from "./forms";
 
 const state = vi.hoisted(() => ({ canEdit: true as boolean | undefined, bank: [] as unknown[], assessment: null as unknown, queries: [] as unknown[] }));
-const fns = vi.hoisted(() => ({ saveQuestion: vi.fn(), saveAssessment: vi.fn(), setQuestionStatus: vi.fn(), assessApi: vi.fn() }));
+const fns = vi.hoisted(() => ({ saveQuestion: vi.fn(), saveAssessment: vi.fn(), setQuestionStatus: vi.fn(), assessApi: vi.fn(), rpc: vi.fn() }));
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" }, signOut: vi.fn() }) }));
 vi.mock("./queries", async (orig) => ({
@@ -29,11 +29,13 @@ vi.mock("./queries", async (orig) => ({
   saveAssessment: fns.saveAssessment,
   setQuestionStatus: fns.setQuestionStatus,
 }));
+vi.mock("@/features/b2b/lib/db", () => ({ b2bDb: { rpc: fns.rpc } }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), assessApi: fns.assessApi }));
 
 import BankPage from "./BankPage";
 import BuilderPage from "../assessments/BuilderPage";
 import { McqDialog } from "./McqDialog";
+import { TemplateDialog } from "./TemplateDialog";
 
 const ORG = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const Q1 = "11111111-1111-4111-8111-111111111111";
@@ -152,6 +154,26 @@ describe("bank forms (pure)", () => {
   });
 });
 
+describe("paper uniqueness calculator (R2.1/R2.2, same rule as b2b_paper_capacity)", () => {
+  const pool = Array.from({ length: 60 }, (_, i) => question({ id: `q${i}`, type: "mcq", topics: ["aptitude"], languages: [] }));
+  const sections = (fixed: string[] = []) => [{ type: "mcq" as const, pick: [{ difficulty: "" as const, topics: "aptitude", count: 10 }], question_ids: fixed }];
+
+  it("10 per paper from 60 at a 10% limit: about 200 needed, not feasible; at 40% it is", () => {
+    const c = paperCapacity(pool, sections(), ["python"], 10, 30);
+    expect(c).toMatchObject({ feasible: false, paperSize: 10, expectedOverlapPct: 16.7 });
+    expect(c.rules[0]).toMatchObject({ pool: 60, needed: 200, ok: false });
+    expect(paperCapacity(pool, sections(), ["python"], 40, 30).feasible).toBe(true);
+    expect(paperCapacity(pool, sections(), ["python"], 10, 1).feasible).toBe(true);
+  });
+
+  it("hand-picked questions are in every paper; a fixed order (no randomising) can't be unique", () => {
+    const c = paperCapacity(pool, sections(["q0", "q1", "q2", "q3", "q4"]), ["python"], 40, 30);
+    expect(c.fixed).toEqual({ count: 5, sharedPct: 33.3, ok: true });
+    expect(paperCapacity(pool, sections(["q0", "q1", "q2", "q3", "q4", "q5"]), ["python"], 30, 30).fixed.ok).toBe(false);
+    expect(paperCapacity(pool, sections(), ["python"], 40, 30, false).feasible).toBe(false);
+  });
+});
+
 describe("question bank page", () => {
   it("only editors get in", () => {
     state.canEdit = false;
@@ -170,6 +192,35 @@ describe("question bank page", () => {
     fireEvent.click(within(rows[1]).getByRole("button", { name: "Verify" }));
     await waitFor(() => expect(fns.assessApi).toHaveBeenCalledWith("verifyQuestion", { questionId: Q1 }, expect.anything()));
     expect(await screen.findByText(/Not verified: the reference solution failed 1 test \(wrong_answer\)/)).toBeInTheDocument();
+  });
+
+  it("MCQ: a disagreeing check explains itself, and the editor can keep the key with a reason (R2.3)", async () => {
+    state.bank = [question({ type: "mcq", status: "draft", title: "Train speed" })];
+    fns.assessApi.mockResolvedValue({ status: "draft", failures: [], version: 4,
+      check: { answer: ["b"], agrees: false, ambiguous: false, confidence: 0.9, note: "Average speed is 40" } });
+    fns.rpc.mockResolvedValue({ data: { ok: true, status: "verified" }, error: null });
+    renderAt(`/assess/bank/${ORG}`);
+    fireEvent.click(screen.getByRole("button", { name: "Verify" }));
+    expect(await screen.findByText(/Not verified: an independent check chose B, not the key\. Its working: “Average speed is 40”/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Keep my key…" }));
+    expect(await screen.findByText(/An independent check chose B, not the key\./)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Why the key is right"), { target: { value: "short" } });
+    fireEvent.click(screen.getByRole("button", { name: "Keep my key" }));
+    expect(await screen.findByText("Please explain in a sentence why your key is right.")).toBeInTheDocument();
+    expect(fns.rpc.mock.calls.filter(([fn]) => fn === "b2b_override_mcq_check")).toEqual([]);
+    fireEvent.change(screen.getByLabelText("Why the key is right"), { target: { value: "120 km in 2 hours is 60 km/h." } });
+    fireEvent.click(screen.getByRole("button", { name: "Keep my key" }));
+    await waitFor(() => expect(fns.rpc).toHaveBeenCalledWith("b2b_override_mcq_check", { _question_id: Q1, _version: 4, _note: "120 km in 2 hours is 60 km/h." }));
+    expect(await screen.findByText(/Verified with your reason/)).toBeInTheDocument();
+  });
+
+  it("MCQ: an agreeing check verifies it", async () => {
+    state.bank = [question({ type: "mcq", status: "draft", title: "Train speed" })];
+    fns.assessApi.mockResolvedValue({ status: "verified", failures: [], version: 1, check: { answer: ["a"], agrees: true, ambiguous: false, confidence: 0.95, note: "" } });
+    renderAt(`/assess/bank/${ORG}`);
+    fireEvent.click(screen.getByRole("button", { name: "Verify" }));
+    expect(await screen.findByText(/Verified: an independent check reached the same answer/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Keep my key…" })).toBeNull();
   });
 
   it("shows the code runner's message when Judge0 isn't set up", async () => {
@@ -299,5 +350,29 @@ describe("test builder", () => {
     expect(screen.getByDisplayValue("90")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save test" }));
     await waitFor(() => expect(fns.saveAssessment).toHaveBeenCalledWith(Q2, expect.objectContaining({ title: "Existing test", status: "ready" })));
+  });
+});
+
+describe("template dialog (R2.2)", () => {
+  it("previews versions, explains a broken formula, and asks the server to make them", async () => {
+    const onDone = vi.fn();
+    fns.assessApi.mockResolvedValue({ familyId: Q2, created: 20, verified: 20 });
+    render(<TemplateDialog open onOpenChange={vi.fn()} orgId={ORG} onDone={onDone} />);
+    const preview = screen.getByRole("region", { name: "Preview" });
+    expect(within(preview).getAllByRole("listitem").length).toBeGreaterThan(3);
+    expect(within(preview).getAllByText(/^A train covers \d+ km in \d hours\. What is its average speed\?$/)).toHaveLength(3);
+
+    fireEvent.change(screen.getByLabelText("Correct answer formula"), { target: { value: "d / speed" } });
+    expect(within(preview).getByText('Answer: "speed" isn\'t a parameter.')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Make 20 questions/ })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Correct answer formula"), { target: { value: "d / t" } });
+    fireEvent.click(screen.getByRole("button", { name: /Make 20 questions/ }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith({ familyId: Q2, created: 20, verified: 20 }));
+    expect(fns.assessApi).toHaveBeenCalledWith("generateVariants", expect.objectContaining({
+      orgId: ORG, count: 20, difficulty: "easy", topics: ["speed", "aptitude"],
+      template: expect.objectContaining({ answer: "d / t", constraints: ["d % t == 0", "d % (t + 1) == 0"],
+        params: [{ name: "d", min: 60, max: 600, step: 30 }, { name: "t", min: 2, max: 6, step: 1 }] }),
+    }), expect.anything());
   });
 });

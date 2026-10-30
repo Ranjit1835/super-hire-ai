@@ -54,6 +54,8 @@ export interface MonitorDeps {
   loadDetector?: () => Promise<FaceDetectorLike>;
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
   onWarning?: (w: { type: string; message: string }) => void;
+  /** Strict policy (R2.6): a serious violation was counted; `final` = the next one submits the test. */
+  onStrike?: (s: { violations: number; max: number; final: boolean }) => void;
   onPausedChange?: (paused: boolean) => void;
   onProblemsChange?: (problems: Problem[]) => void;
   onAutoSubmit?: () => void;
@@ -271,6 +273,9 @@ export class ProctorMonitor {
   }
 
   private onServer(r: SendResult) {
+    if ((r.action === "warn" || r.action === "final_warning") && r.maxViolations) {
+      this.d.onStrike?.({ violations: r.violations, max: r.maxViolations, final: r.action === "final_warning" });
+    }
     if (r.action === "submit" && !this.submitted) {
       this.submitted = true;
       this.d.onAutoSubmit?.();

@@ -18,6 +18,7 @@ import { describeEligibility } from "./lib/filters";
 import { BAND_LABEL, STATUS_LABEL } from "../../../supabase/functions/_shared/college-table";
 import { driveStatusLabel, RELEASE_TEXT } from "./DrivesPage";
 import { fmtDateTime, friendly, useDrive, type DriveRecord } from "./queries";
+import { DriveReplayDialog } from "../replay/CodeReplay";
 
 const PAGE = 50;
 
@@ -40,6 +41,7 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
   const [confirmRelease, setConfirmRelease] = useState(false);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [replayOpen, setReplayOpen] = useState(false);
   const [statuses, setStatuses] = useState<StatusKey[]>([]);
   const [bands, setBands] = useState<BandKey[]>([]);
   const [search, setSearch] = useState("");
@@ -142,6 +144,7 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
         <Button onClick={() => void assign()} disabled={busy || drive.status === "closed"}>Assign eligible students</Button>
         {canRelease && <Button variant="outline" onClick={() => setConfirmRelease(true)} disabled={busy}>Release results</Button>}
         <Button variant="outline" asChild><Link to={`/c/${orgId}/analytics?drive=${drive.id}`}>Analytics</Link></Button>
+        <Button variant="outline" asChild><Link to={`/c/${orgId}/drives/${drive.id}/similarity`}>Similarity</Link></Button>
         <Button variant="outline" asChild><Link to={`/c/${orgId}/drives/${drive.id}/edit`}>Edit</Link></Button>
       </div>
 
@@ -261,7 +264,14 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
                 ]}
                 onClose={() => setSelected(null)} closeLabel={`Close ${picked.full_name} summary`}>
                 <p className="text-xs text-[var(--hr-muted)]">Status: {STATUS_LABEL[picked.status] ?? picked.status}. Scores are evidence for your decision; AI suggests, people decide.</p>
+                {picked.status !== "assigned" && (
+                  <Button size="sm" variant="outline" className="mt-2" onClick={() => setReplayOpen(true)}>Code replay</Button>
+                )}
               </PlayerCard>
+            )}
+            {picked && (
+              <DriveReplayDialog driveId={drive.id} studentId={picked.student_id} name={picked.full_name}
+                                 open={replayOpen} onOpenChange={setReplayOpen} />
             )}
           </div>
         )}

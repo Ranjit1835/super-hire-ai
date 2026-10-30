@@ -4,6 +4,9 @@ import type { TurnLatency } from "@/lib/turn-latency";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+/** Fired on window when any B2B call answers SESSION_ENDED (detail: the message to show). */
+export const SESSION_ENDED_EVENT = "b2b:session-ended";
+
 export class ApiError extends Error {
   status: number;
   code: string;
@@ -40,6 +43,10 @@ export async function callB2B<T>(
   if (!res.ok) {
     const err = new ApiError(res.status, data?.code ?? "ERROR", data?.error ?? `Request failed (${res.status})`);
     err.data = data;
+    // R1.6: the server ended this student's session (another device, idle, expired). useStudentSession signs out.
+    if (err.code === "SESSION_ENDED" && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT, { detail: err.message }));
+    }
     throw err;
   }
   return data as T;

@@ -38,6 +38,11 @@ const noop: ProctorApi = { report: () => {}, sessionId: null, paused: false };
 const Ctx = createContext<ProctorApi>(noop);
 
 /** Inside a proctored screen: how the host reports signals and learns about pauses. */
+/** R2.6: "Serious violation 1 of 3. At 3 the test is submitted automatically." */
+export function strikeText(violations: number, max: number): string {
+  return `Serious violation ${violations} of ${max}. At ${max} your test is submitted automatically.`;
+}
+
 export function useProctor(): ProctorApi {
   return useContext(Ctx);
 }
@@ -81,6 +86,8 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
   const [paused, setPaused] = useState(false);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [warning, setWarning] = useState<string | null>(null);
+  /** R2.6: the final warning before auto-submit; stays until the student acknowledges it. */
+  const [finalWarning, setFinalWarning] = useState<{ violations: number; max: number } | null>(null);
   const check = useRef<CheckResult | null>(null);
   const consents = useRef<AcceptedConsent[]>([]);
   const monitor = useRef<ProctorMonitor | null>(null);
@@ -156,6 +163,10 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
         loadDetector: () => loadLandmarker(c.tier === "full"),
         storage: typeof sessionStorage !== "undefined" ? sessionStorage : null,
         onWarning: (w) => setWarning(w.message),
+        onStrike: (s) => {
+          if (s.final) setFinalWarning({ violations: s.violations, max: s.max });
+          else setWarning(strikeText(s.violations, s.max));
+        },
         onPausedChange: setPaused,
         onProblemsChange: setProblems,
         onAutoSubmit: () => cb.current.onAutoSubmit?.(),
@@ -218,6 +229,20 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
         {warning && !paused && (
           <div role="status" className="hr-rise fixed top-3 left-1/2 -translate-x-1/2 z-50 max-w-md bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] px-4 py-2.5 text-sm text-foreground">
             <AlertTriangle className="inline h-4 w-4 mr-2 -mt-0.5 text-[var(--hr-orange)]" aria-hidden />{warning}
+          </div>
+        )}
+        {finalWarning && !paused && (
+          <div role="alertdialog" aria-modal="true" aria-labelledby="final-warning-title" aria-describedby="final-warning-body"
+               className="fixed inset-0 z-[55] bg-background/95 flex items-center justify-center p-6">
+            <div className="hr-rise max-w-md w-full space-y-4 text-center">
+              <AlertTriangle className="h-9 w-9 mx-auto text-[var(--hr-red)]" aria-hidden />
+              <h2 id="final-warning-title" className="hr-display text-xl">Final warning</h2>
+              <p id="final-warning-body" className="text-sm text-[var(--hr-muted)]">
+                That was serious violation {finalWarning.violations} of {finalWarning.max}. One more and your test is submitted
+                automatically with the answers saved so far. Stay in full screen, keep this tab open and keep your face in view.
+              </p>
+              <Button onClick={() => setFinalWarning(null)}>I understand</Button>
+            </div>
           </div>
         )}
         {!paused && problems.length > 0 && (

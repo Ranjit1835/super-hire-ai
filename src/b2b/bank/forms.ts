@@ -13,6 +13,8 @@ export const splitTopics = (s: string) => Array.from(new Set(s.split(",").map((t
 // ── Question rows (as read from the bank) ────────────────────────────────────
 export interface QuestionRow {
   id: string;
+  /** R2.3: papers this question has been in (b2b_bank_page, migration 0029). */
+  exposure_count?: number;
   org_id: string | null;
   type: "coding" | "mcq";
   title: string;
@@ -160,6 +162,10 @@ export const AssessmentForm = z.object({
   strict_max_violations: z.coerce.number().int().min(1).max(50),
   practice_enabled: z.boolean(),
   late_join_min: z.union([z.coerce.number().int().min(0).max(600), z.literal("")]),
+  /** R2.1: the most of a paper any two students in the same drive may share (percent). */
+  max_overlap_pct: z.coerce.number().int().min(1, "Overlap target: 1 to 100").max(100, "Overlap target: 1 to 100"),
+  /** R2.4: "linear" = one question at a time, no going back. */
+  navigation: z.enum(["free", "linear"]),
   status: z.enum(["draft", "ready", "archived"]),
   sections: z.array(SectionForm).min(1, "Add at least one section"),
 });
@@ -169,13 +175,15 @@ export interface AssessmentRow {
   id: string; org_id: string; title: string; duration_min: number; languages: string[]; randomize: boolean; shuffle_options: boolean;
   negative_marking: number | string; proctoring_policy: string; strict_max_violations: number; practice_enabled: boolean;
   late_join_min: number | null; status: "draft" | "ready" | "archived"; created_at: string; updated_at: string;
+  max_overlap_pct?: number;
+  navigation?: "free" | "linear";
   sections: { type: "coding" | "mcq"; title: string; pick?: { difficulty?: string; topics?: string[]; count: number }[]; question_ids?: string[] }[];
 }
 
 export function emptyAssessment(): AssessmentForm {
   return { title: "", duration_min: 60, languages: ["python", "java", "cpp", "javascript"], randomize: true, shuffle_options: true,
            negative_marking: 0, proctoring_policy: "standard", strict_max_violations: 3, practice_enabled: false, late_join_min: "",
-           status: "draft", sections: [{ type: "coding", title: "Coding", pick: [{ difficulty: "easy", topics: "", count: 1 }], question_ids: [] }] };
+           max_overlap_pct: 10, navigation: "free", status: "draft", sections: [{ type: "coding", title: "Coding", pick: [{ difficulty: "easy", topics: "", count: 1 }], question_ids: [] }] };
 }
 
 export function assessmentFromRow(r: AssessmentRow): AssessmentForm {
@@ -184,7 +192,8 @@ export function assessmentFromRow(r: AssessmentRow): AssessmentForm {
     languages: r.languages.filter((l): l is AssessmentForm["languages"][number] => (LANGUAGES as readonly string[]).includes(l)),
     randomize: r.randomize, shuffle_options: r.shuffle_options, negative_marking: Number(r.negative_marking),
     proctoring_policy: r.proctoring_policy as AssessmentForm["proctoring_policy"], strict_max_violations: r.strict_max_violations,
-    practice_enabled: r.practice_enabled, late_join_min: r.late_join_min ?? "", status: r.status,
+    practice_enabled: r.practice_enabled, late_join_min: r.late_join_min ?? "", max_overlap_pct: r.max_overlap_pct ?? 10,
+    navigation: r.navigation === "linear" ? "linear" : "free", status: r.status,
     sections: r.sections.map((s) => ({
       type: s.type, title: s.title, question_ids: s.question_ids ?? [],
       pick: (s.pick ?? []).map((p) => ({ difficulty: (p.difficulty as PoolRule["difficulty"]) ?? "", topics: (p.topics ?? []).join(", "), count: p.count })),
@@ -197,7 +206,8 @@ export function assessmentRow(orgId: string, f: AssessmentForm) {
     org_id: orgId, title: f.title.trim(), duration_min: f.duration_min, languages: f.languages, randomize: f.randomize,
     shuffle_options: f.shuffle_options, negative_marking: f.negative_marking, proctoring_policy: f.proctoring_policy,
     strict_max_violations: f.strict_max_violations, practice_enabled: f.practice_enabled,
-    late_join_min: f.late_join_min === "" ? null : f.late_join_min, status: f.status,
+    late_join_min: f.late_join_min === "" ? null : f.late_join_min, max_overlap_pct: f.max_overlap_pct,
+    navigation: f.navigation, status: f.status,
     sections: f.sections.map((s) => ({
       type: s.type, title: s.title.trim(),
       ...(s.pick.length ? { pick: s.pick.map((p) => ({ ...(p.difficulty ? { difficulty: p.difficulty } : {}), topics: splitTopics(p.topics), count: p.count })) } : {}),
@@ -273,4 +283,42 @@ export function checkDraw(bank: PoolQuestion[], sections: Pick<SectionForm, "typ
   }
   const short = fixedAtRisk.length > 0 || unavailable.length > 0 || guaranteed.some((g, si) => g.some((n, ri) => n < sections[si].pick[ri].count));
   return { guaranteed, fixedAtRisk, unavailable, short };
+}
+
+/** R2.1/R2.2 pool calculator, the same rule as b2b_paper_capacity in SQL (migration 0029): each pick rule's own
+ *  expected overlap (count / pool) is held to half the target, and hand-picked questions (shared by everyone) must
+ *  stay within the target. One student can't overlap with anyone. */
+export interface PaperCapacity {
+  feasible: boolean; paperSize: number; expectedOverlapPct: number;
+  fixed: { count: number; sharedPct: number; ok: boolean };
+  rules: { section: number; rule: number; label: string; count: number; pool: number; needed: number; ok: boolean }[];
+}
+export function paperCapacity(bank: PoolQuestion[], sections: Pick<SectionForm, "type" | "pick" | "question_ids">[], languages: string[],
+  targetPct: number, batch: number, randomize = true): PaperCapacity {
+  const t = Math.min(Math.max(targetPct, 1), 100) / 100;
+  const byId = new Map(bank.map((q) => [q.id, q]));
+  const fixed = new Set<string>();
+  sections.forEach((s) => s.question_ids.forEach((id) => { const q = byId.get(id); if (q && q.status === "verified" && q.type === s.type) fixed.add(id); }));
+  const pool = bank.filter((q) => !fixed.has(q.id));
+  let total = fixed.size;
+  let expected = fixed.size;
+  let ok = true;
+  const rules: PaperCapacity["rules"] = [];
+  sections.forEach((s, si) => s.pick.forEach((r, ri) => {
+    const n = poolMatches(pool, s.type, r, languages);
+    const k = Math.max(0, r.count);
+    const needed = k === 0 ? 0 : Math.max(k, Math.ceil(k / (t / 2)));
+    const ruleOk = n >= k && (batch <= 1 || n >= needed);
+    if (!ruleOk) ok = false;
+    total += k;
+    if (n > 0) expected += (k * Math.min(k, n)) / n;
+    rules.push({ section: si, rule: ri, label: describeRule(r), count: k, pool: n, needed, ok: ruleOk });
+  }));
+  const sharedPct = total ? (fixed.size / total) * 100 : 0;
+  const fixedOk = batch <= 1 || sharedPct <= targetPct;
+  if (!fixedOk || (batch > 1 && !randomize)) ok = false;
+  return {
+    feasible: ok, paperSize: total, expectedOverlapPct: total ? Math.round((expected / total) * 1000) / 10 : 0,
+    fixed: { count: fixed.size, sharedPct: Math.round(sharedPct * 10) / 10, ok: fixedOk }, rules,
+  };
 }

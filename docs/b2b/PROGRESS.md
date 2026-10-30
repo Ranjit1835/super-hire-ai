@@ -3,7 +3,124 @@
 > Read this first at the start of every session; update it at the end.
 > Spec + **Decisions log**: `docs/b2b/hiresume-b2b-build-prompt.md` · Evidence and numbers: `docs/b2b/AUDIT.md`
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-29_
+
+## Current: `HIRESUME_B2B_SPEC.md`, Phases 1–2 done, Phase 3 voice pipeline built (branch `feat/b2b-hardening`, PR #8)
+
+**Decisions (2026-10-29):**
+- **D1:** Claude in production; Gemini for now to keep costs down. The gateway gets a Claude provider and a per-environment switch.
+- **D2:** Docker. It's installed; local Supabase runs with `supabase start -x vector,logflare,imgproxy,studio`.
+- **D3:** sessions built in the app.
+- **D4:** researched in `docs/b2b/VOICE_STACK_RESEARCH.md`. Recommendation: Sarvam plus Pipecat with Smart Turn v3, pending a 1-day bake-off.
+- **D5:** B2B and B2C kept separate on one login.
+- **D6:** Dolos.
+- **D7:** super admin has full access; TPOs manage students only.
+- **D8:** hotfix PR #7, plans readable by super admins only. You apply it.
+
+**Phase 1, done (evidence in the commits and tests):**
+- **R3.1:** the plans table is super-admin only (#7, cherry-picked here). The plan tier (`plan_id`) is hidden from everyone except super admins through column privileges plus `super_orgs()`, and `org_usage_summary` no longer returns the tier to staff (migration 0016, `plans.test.ts`).
+- **R3.3 / D7:** staff invites are super-admin only, and org admins can update or delete student memberships only (migration 0017, `v1-isolation.test.ts`).
+- **R1.3 / R1.4:** the seat cap applies on every path with a per-org lock, a used seat is never recycled, and `super_free_seat()` frees one (migration 0018, `seats.test.ts`, plus a real-Postgres race on local Supabase).
+
+- **R1.5 / R1.6, changed by owner decision (2026-10-29): no credits are charged for logging in.** What's recorded instead is what each student was given and did: activated, then assigned, started, and completed / absent / removed. This lives in the append-only `student_activity` table, written only by triggers. A student sees only the drives their TPO assigned, gets one attempt per drive (unique per drive and student; attempts are reused), and a finished drive stays "Completed" until the TPO assigns another. The seat counts as used once the student activates their account (R1.4). The TPO roster shows drives done / assigned and last active (migration 0019, `student-activity.test.ts`).
+
+- **Practice (owner decision):** practice stays self-serve when a TPO enables it on a test, limited to one run per student per test. An open run can be resumed; once a run exists a new start returns `PRACTICE_USED`. The student home shows "Practice done" (migration 0020, `assessment.test.ts`).
+- **R1.6 sessions (no credits):** one active session per student, 30-minute idle timeout and 8-hour absolute expiry. Orgs can override these with `settings.session_idle_min` / `session_max_hours`. A session is identified by the JWT's `session_id`, so refresh, reload and extra tabs don't count as new logins. Enforcement is server-side in every B2B edge call (`requireUser` → `b2b_session_touch`). The browser sends a heartbeat on activity, a new login signs other devices out (`signOut({scope:"others"})`), and an ended session shows the reason (migration 0021, `sessions.test.ts`, `src/b2b/session.test.ts`). Staff, candidates and B2C users aren't affected. If the session check itself errors, requests are allowed and logged.
+
+- **R3.2:** `B2CGuard` sends signed-in B2B members from B2C pricing, paywall and checkout pages to their portal. B2C users, visitors and super admins are unchanged (`B2CGuard.test.tsx`).
+- **R3.5:** super admins need MFA (TOTP). `is_super_admin()` requires aal2, B2B edge functions answer `MFA_REQUIRED`, and admin pages show an enrol/verify screen. `user_roles`, `b2b_pricing` and `interview_modules` are now audited (migration 0022, `super-admin-mfa.test.ts`, `MfaGate.test.tsx`). Verified with real local auth: aal1 is refused, a real TOTP verify gives aal2 and is allowed.
+- **R5.5:** evidence snapshots older than `retention_days` (default 90) are deleted through the Storage API, and transcripts for roles closed past retention are deleted. This runs in the `b2b-retention` function on a daily cron (migrations 0023–0024, `retention.test.ts` ×2). Verified on local Storage.
+- **R1.9:** super-admin alerts for low credits, plans expiring or ended, and seats at 90%+. They show on the organisations page and go out as a daily email digest to `B2B_ALERT_EMAIL` (migrations 0025–0026, `org-alerts.test.ts`, `alerts.test.ts`).
+
+- **R6.1:** AI cost by college, student, feature and day (IST) for super admins (migration 0027, `cost-breakdown.test.ts`).
+- **R1.8:** super admins set per-college activity costs and limits in a "Costs & limits" dialog. Practice cost is configurable (0 = free), and there are no charges for login or assigned drives (migration 0028, `activity-costs.test.ts`).
+- **R3.1 check:** `scripts/check-b2b-price-secrecy.mjs` runs in CI on a build with B2B on, covering source and bundle (`price-secrecy.test.ts`). `/college-placement` (it shows institution prices) is behind `B2CGuard`.
+- **R4.1:** B2C Playwright smoke, run locally with B2B off as in CI: 36 passed. **Local gotcha:** `.env.local` sets `VITE_B2B_ENABLED`, so run `VITE_B2B_ENABLED=false npm run build:e2e` before `npx playwright test`.
+
+**Phase 1 complete (2026-10-29).** Full suite: 858 tests pass. B2B types, lint and Deno checks are clean. Migrations 0012–0028 apply on local Supabase.
+
+**Phase 2 (in progress):**
+- **R2.1–R2.3 paper uniqueness:**
+  - Each test has a maximum overlap between any two students' papers (`assessments.max_overlap_pct`, default 10%).
+  - The builder's "Paper uniqueness" panel shows, for an expected batch size, whether each pick rule's pool is big enough. A rule needs about `count / (target/2)` questions.
+  - Hand-picked questions appear in every paper and count against the target. A fixed order (no randomising) can't be unique.
+  - A drive can't be scheduled or go live on a short pool (`POOL_TOO_SMALL`) unless a super admin records an override with a note (`super_override_drive_pool`).
+  - At draw time, up to 25 seeded draws are tried under a per-drive lock, and the one with the least overlap against the drive's existing papers is kept. If it still breaks the target, that's audited (`paper.overlap_exceeded`).
+  - Each question records how many papers it has been in. The bank shows this as "Papers", and editors can retire over-exposed questions.
+  - Evidence: migration 0029, `paper-uniqueness.test.ts` (12 students, 60-question pool: worst pair ≤ 40%, all papers distinct, exposure = 120), and calculator tests in `bank.test.tsx`. Full suite: 866 tests pass.
+- **R2.7 code playback:**
+  - TPOs open "Code replay" from a student's card on the drive results page. They can watch each coding answer being written at 1×, 4× or 16×, scrub to any moment, and switch questions. Long pauses are shortened in playback.
+  - The replay is rebuilt from the edit log (`b2b_drive_code_replay` / `b2b_attempt_code_replay`, staff of the context only; the student and other colleges get `FORBIDDEN`). It's checked against the saved answer and says so when they differ.
+  - Flags to watch, not verdicts: code appearing at once that wasn't copied from the student's own code (≥ 80 characters); typing faster than people type (≥ 300 characters in 10 s); answers mostly not typed; blocked pastes. "Watch from here" jumps to the moment.
+  - Language switches are now logged by the runner, so edits replay into the right language.
+  - Evidence: migration 0030, `code-replay.test.ts`, `replay.test.ts`, `CodeReplay.test.tsx`. Full suite: 881 tests pass.
+  - Local Supabase apply is pending: Docker stopped responding on 2026-10-30. The migration runs in PGlite in the tests.
+- **R2.8 plagiarism (D6: Dolos):**
+  - When a drive's window ends, a cron every 10 minutes queues one similarity run per coding question and language. TPOs can also press "Check now".
+  - A stateless worker (`services/plagiarism-worker`, Node with dolos-lib 3.6.0, Cloud Run asia-south1, scales to zero) claims runs from the database queue and compares the answers. The question's starter code is ignored as a template. It reports pairs at 30% similarity or more.
+  - Failed runs are retried 3 times; stuck runs are reclaimed after 15 minutes. A new check replaces the old pairs.
+  - The drive's Similarity page shows check status, pairs ranked by similarity, and a side-by-side compare with matched lines highlighted. It also lists MCQ pairs with 3+ identical wrong choices; matching right answers don't count.
+  - Staff of the drive only; queue functions are service-role only.
+  - Evidence: migrations 0031–0032, `similarity.test.ts` (6), `similarity.test.tsx` (5), and the worker's `node --test` suite (6, plus a real-Dolos test that needs Linux parsers). A new CI job, `plagiarism-worker`, runs that test with `DOLOS_REQUIRED=1`, and so does the Docker build.
+  - **Real Dolos verified in CI on PR #8** (job `plagiarism worker (Dolos)`: 7 of 7 pass, 0 skipped). A renamed-variable copy scores high, and a different approach scores lower. Starter code is ignored.
+  - Deploy steps are in the worker README (owner runs them). They need Vault secrets `b2b_similarity_worker_url` and `b2b_similarity_worker_token`.
+  - Full suite: 892 tests pass.
+- **R2.3 independent MCQ check:**
+  - A separate model call (`mcq.validate`: temperature 0, high reasoning, never sees the key or explanation) solves each MCQ, and the server compares its answer with the key.
+  - An MCQ becomes verified only when the check agrees, is confident (0.8 or more) and finds the question clear. Otherwise an editor can keep their key with a written reason, which is audited.
+  - Saving can't mark an MCQ verified. Editing a verified MCQ's content sends it back to draft. The browser can't write the check or set "verified" directly.
+  - Generated MCQs are checked straight away. The bank explains what the check chose and why.
+  - For stronger independence once the Claude provider exists (D1), point `mcq.validate` at a different model via `B2B_AI_CONFIG`.
+  - Evidence: migration 0033, `mcq-check.test.ts` (5), handler unit tests (17), and bank UI tests.
+- **R2.4 one question at a time:**
+  - A per-test option ("one question at a time"). The server sends only the current question, refuses saves, runs or submits for any other question (`LOCKED`), and moves forward only with `advance` (idempotent on retry).
+  - The runner hides the question list, shows "Question n of N", saves before moving on, and asks for confirmation ("you can't come back").
+  - A late autosave for a question already left is dropped, not treated as an ended test.
+  - Evidence: migration 0034, `linear-navigation.test.ts` (4), runner, autosave and handler tests.
+- **R2.6 warning ladder (strict proctoring):**
+  - Each serious violation shows "Serious violation n of N". The one before the limit is a full-screen final warning the student must acknowledge, and reaching the limit auto-submits, as before.
+  - The server decides and returns `max_violations`.
+  - Evidence: migration 0035, `proctoring.test.ts` (limit 2 and limit 3 ladders), and the monitor test.
+- **R2.2 parameterised MCQ templates:**
+  - Editors write one question with numbers that change (`{{d}}`, `{{= formula}}`), formulas for the answer and the wrong options, and conditions. They see a live preview, and the server makes up to 50 versions ahead of time. There's no AI at exam time.
+  - Formulas use a small parser (no `eval`).
+  - Two versions are solved blind (R2.3). If both agree, the rest are verified on the server's own computation, recorded as `method: "template"`. If either doesn't, all stay drafts.
+  - Papers take at most one version per template family.
+  - Coding variants: AI generation already makes a fresh problem per variant seed, verified in the sandbox. No template engine for code.
+  - Evidence: migration 0036, `mcq-template.test.ts` (7), `mcq-templates.test.ts` (3), handler tests (3), and the dialog test.
+
+**Phase 2 complete (2026-10-30)** except R2.5 (Judge0 in production is owner ops). Full suite: 925 tests pass. Migrations 0029–0036 run in PGlite. They aren't applied to local Supabase yet because Docker is unresponsive.
+
+**Phase 3 voice (cheaper option, owner decision 2026-10-30), built:**
+- **How it works:** the room records one answer at a time (speech detection from the mic level, 5 s silence or "Done answering"), and `b2b-interview transcribe` sends it to Groq Whisper large-v3-turbo. `turn` with `speak: true` voices the next line with Google WaveNet `en-IN` in the same request; `speak` voices only this interview's own lines.
+- **Cost:** about ₹0 per 20-minute interview within Google's free tier, then about ₹3, against ₹31 for the earlier streaming plan. Usage is logged per use at the provider's rate (migration 0037) and shows in the R6.1 breakdown.
+- **Limits and fallback:** per-interview caps. No always-on server. Without keys, or when a vendor fails, the room falls back to browser speech.
+- **Data residency:** the room tells candidates their answers go to Groq in the US. Sarvam (India) is one env switch away.
+- Details and trade-offs: `docs/b2b/VOICE_STACK_RESEARCH.md`.
+- Evidence: `interview-voice.test.ts` (10, on real SQL with faked vendors), `cloudVoice.test.ts` (speech detection, 4), and room tests for cloud TTS and cloud STT. Full suite: 941 tests pass.
+- **Owner, to switch it on:** set the `GROQ_API_KEY` and `GOOGLE_TTS_API_KEY` secrets (Google key restricted to the Text-to-Speech API).
+- **Not yet verified with real vendors:**
+  - Whisper accuracy on Indian accents and latency: run the bake-off with real keys.
+  - A consent item for interview voice processing. Today there's only a notice; adding a consent purpose means changing `b2b_record_consent`.
+
+**Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
+
+**Phase 2, next:**
+- R2.1–R2.3: paper uniqueness, a pool calculator, parameterised MCQs, and exposure tracking.
+- R2.7: code playback.
+- R2.8: plagiarism with Dolos.
+
+**Deploy notes:**
+- New secrets: `B2B_ALERT_EMAIL` (alert digest recipient). `B2B_CRON_SECRET` and the Vault entries `b2b_project_url` / `b2b_cron_secret` already exist for the evaluation sweep. The new cron jobs (retention, alerts) use them.
+- New edge functions to deploy with the batch: `b2b-retention`, `b2b-alerts`. Both have `verify_jwt = false` and are called by cron with `x-cron-secret`.
+- Super admins must enrol an authenticator app on first visit to `/admin/*` once 0022 is live.
+- Hotfix migration `20261029100001` (in #7) sorts after 0006–0018. When the batch goes to production, use `supabase db push --include-all`; the CLI skips older-numbered migrations otherwise, as it did locally.
+- Migrations 0006–0018 and the V1 functions are not in production. Never deploy B2B functions from this branch until they are.
+- Local test runs: use `--maxWorkers=2`. With Docker running, the 8 GB machine times out under full parallelism.
+
+---
+
+_Previous status (2026-10-22) below._
 
 ## Where things stand
 

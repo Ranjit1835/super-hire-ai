@@ -32,10 +32,11 @@ function wrap<I, O>(fn: (input: I, actor: string) => Promise<O>) {
   };
 }
 
-const RUNNER = new Set(["start", "state", "autosave", "run", "submitQuestion", "finish", "heartbeat"]);
+const RUNNER = new Set(["start", "state", "autosave", "run", "submitQuestion", "finish", "heartbeat", "advance"]);
 const contract = serveContract("B2B-ASSESS", assessContract, {
   generateQuestions: wrap(handlers.generateQuestions),
   verifyQuestion: wrap(handlers.verifyQuestion),
+  generateVariants: wrap(handlers.generateVariants),
   start: wrap(handlers.start),
   state: wrap(handlers.state),
   autosave: wrap(handlers.autosave),
@@ -43,6 +44,7 @@ const contract = serveContract("B2B-ASSESS", assessContract, {
   submitQuestion: wrap(handlers.submitQuestion),
   finish: wrap(handlers.finish),
   heartbeat: wrap(handlers.heartbeat),
+  advance: wrap(handlers.advance),
 }, { allowAnonymous: (a) => RUNNER.has(a) });
 
 serve(async (req) => {

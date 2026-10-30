@@ -18,6 +18,9 @@ export function OrgRedirect() {
   return <Navigate to="/dashboard" replace />;
 }
 
+const ORG_COLUMNS = "id, name, slug, type, logo_url, is_demo, created_by, created_at, plan_starts_at, plan_ends_at, " +
+  "public_test_enabled, public_test_monthly_cap, public_test_cta_label, public_test_cta_url";
+
 /** /org/:orgId/* — loads the org once, resolves the viewer's role, renders tabs. */
 export function OrgLayout() {
   const { orgId } = useParams();
@@ -27,9 +30,10 @@ export function OrgLayout() {
     queryKey: ["b2b", "org", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await b2bDb.from("organizations").select("*").eq("id", orgId!).maybeSingle();
+      // Every column except plan_id: the tier is super-admin-only (R3.1, migration 0016).
+      const { data, error } = await b2bDb.from("organizations").select(ORG_COLUMNS).eq("id", orgId!).maybeSingle();
       if (error) throw error;
-      return data as Organization | null;
+      return data as unknown as Organization | null;
     },
   });
 
