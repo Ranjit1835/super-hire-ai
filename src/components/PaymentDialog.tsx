@@ -95,7 +95,8 @@ export default function PaymentDialog({ open, onOpenChange, resumeAnalysisId, us
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_KEY },
         body: JSON.stringify({
           paymentType: selectedPlan,
-          resumeAnalysisId: selectedPlan === "RESUME_FIX" ? resumeAnalysisId : undefined,
+          // Fix and Combo unlock this resume; Unlimited is account-wide.
+          resumeAnalysisId: selectedPlan === "UNLIMITED_PLAN" ? undefined : resumeAnalysisId,
           currency,
         }),
       });

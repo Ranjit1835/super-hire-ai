@@ -22,11 +22,13 @@ serve(async (req) => {
     if (authErr || !user) throw new Error("Unauthorized");
 
     const body = await req.json();
-    const { paymentType, resumeAnalysisId, resumeBuilderId } = body;
+    const { paymentType, resumeBuilderId } = body;
+    let resumeAnalysisId: string | undefined = body.resumeAnalysisId;
     const currency: "INR" | "USD" = body.currency === "USD" ? "USD" : "INR";
 
     if (!["ONE_TIME_FIX", "EARLY_BIRD_ACCESS", "RESUME_BUILDER", "MOCK_INTERVIEW",
-          "RESUME_FIX", "RESUME_BUILD", "AI_INTERVIEW", "COMBO_PLAN", "UNLIMITED_PLAN"].includes(paymentType)) {
+          "RESUME_FIX", "RESUME_BUILD", "AI_INTERVIEW", "COMBO_PLAN", "UNLIMITED_PLAN",
+          "STUDIO_SINGLE", "STUDIO_WEEKLY", "STUDIO_YEARLY"].includes(paymentType)) {
       throw new Error("Invalid paymentType");
     }
 
@@ -142,10 +144,21 @@ serve(async (req) => {
     }
 
     if (paymentType === "COMBO_PLAN") {
-      const { data: planProfile } = await admin.from("profiles").select("plan_type, plan_expiry_date").eq("user_id", user.id).single();
-      if (planProfile?.plan_type === "COMBO" || planProfile?.plan_type === "UNLIMITED") {
-        return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // A combo unlocks one resume and adds one interview, so it can be bought again for another resume.
+      if (!resumeAnalysisId) {
+        const { data: latest } = await admin
+          .from("resume_analyses")
+          .select("id")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        resumeAnalysisId = latest?.id;
       }
+      if (!resumeAnalysisId) throw new Error("Scan a resume before buying the Combo");
+      const { data: resume } = await admin.from("resume_analyses").select("id, user_id").eq("id", resumeAnalysisId).single();
+      if (!resume || resume.user_id !== user.id) throw new Error("Resume not found");
+      if (isUnlimitedPlan) return new Response(JSON.stringify({ alreadyUnlocked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // --- Pricing tables (INR in paise, USD in cents) ---
