@@ -17,7 +17,7 @@ export function BottomCtaSection({ onCtaClick }: BottomCtaSectionProps) {
           className="glass-neon rounded-2xl p-8 sm:p-12"
         >
           <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-1 text-xs text-primary font-medium mb-4">
-            <Zap className="h-3 w-3" /> Free — no sign-up needed
+            <Zap className="h-3 w-3" /> Free score, no sign-up needed
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3 leading-tight">
             Your Dream Job Is One Resume Fix Away.

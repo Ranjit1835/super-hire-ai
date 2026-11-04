@@ -6,10 +6,12 @@ import { ScoreMeter } from "@/components/ScoreMeter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { Lock, LogIn, UserPlus, XCircle, AlertTriangle, Lightbulb, SearchX } from "lucide-react";
+import { Lock, XCircle, AlertTriangle, Lightbulb, SearchX, Tags } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { performanceLevel, TONE_BADGE } from "@/lib/score-levels";
 import { AnimatedGradientMesh } from "@/components/premium";
+import { GoogleIcon } from "@/components/GoogleIcon";
+import { rememberRedirect } from "@/lib/safe-redirect";
 
 interface GuestResult {
   atsScore: number;
@@ -25,11 +27,31 @@ interface GuestResult {
   criticalIssuesCount: number;
   warningsCount: number;
   optimizationsCount: number;
+  topIssue?: { issue: string; whyItMatters: string } | null;
+  missingKeywords?: string[];
+  missingKeywordsCount?: number;
+}
+
+function GoogleButton({ onClick, loading, className = "" }: { onClick: () => void; loading: boolean; className?: string }) {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      disabled={loading}
+      className={`rounded-lg font-semibold bg-white text-gray-900 border border-gray-200 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${className}`}
+    >
+      {loading
+        ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+        : <GoogleIcon />}
+      Continue with Google
+    </motion.button>
+  );
 }
 
 export default function GuestAnalysis() {
   const { token } = useParams();
-  const { user } = useAuth();
+  const { user, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [result, setResult] = useState<GuestResult | null>(null);
@@ -37,6 +59,7 @@ export default function GuestAnalysis() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (!user || !token || claiming) return;
@@ -138,6 +161,17 @@ export default function GuestAnalysis() {
   if (!result) return null;
 
   const level = performanceLevel(result.atsScore);
+  const totalIssues = result.criticalIssuesCount + result.warningsCount + result.optimizationsCount;
+  const keywords = result.missingKeywords ?? [];
+  const moreKeywords = (result.missingKeywordsCount ?? keywords.length) - keywords.length;
+
+  const continueWithGoogle = async () => {
+    setGoogleLoading(true);
+    rememberRedirect(`/analysis/guest/${token}`); // Google returns here, and this page claims the scan
+    await signInWithGoogle();
+    setGoogleLoading(false);
+  };
+  const useEmail = () => navigate("/auth?returnTo=guest&guestToken=" + token);
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -153,7 +187,7 @@ export default function GuestAnalysis() {
           animate={{ opacity: 1, y: 0 }}
         >
           <p className="text-sm text-muted-foreground mb-6">
-            Your resume analysis is ready. Sign in to unlock the full report.
+            Your free score is ready. The full report is free with an account.
           </p>
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="flex flex-col items-center">
@@ -168,6 +202,36 @@ export default function GuestAnalysis() {
             </div>
           </div>
         </motion.div>
+
+        {/* One real finding, so signing in has something behind it */}
+        {(result.topIssue || keywords.length > 0) && (
+          <motion.section className="mb-10 space-y-4" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+            {result.topIssue && (
+              <Card className="glass border-red-500/20">
+                <CardContent className="pt-6">
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-red-400 mb-2">
+                    <XCircle className="h-4 w-4" aria-hidden /> Biggest issue on your resume
+                  </p>
+                  <p className="font-semibold text-foreground mb-1">{result.topIssue.issue}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{result.topIssue.whyItMatters}</p>
+                </CardContent>
+              </Card>
+            )}
+            {keywords.length > 0 && (
+              <Card className="glass border-violet-500/15">
+                <CardContent className="pt-6">
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-cyan-400 mb-3">
+                    <Tags className="h-4 w-4" aria-hidden /> Missing keywords
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {keywords.map((keyword) => <Badge key={keyword} variant="secondary">{keyword}</Badge>)}
+                    {moreKeywords > 0 && <Badge variant="outline">+{moreKeywords} more</Badge>}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </motion.section>
+        )}
 
         {/* Scores */}
         <motion.section className="mb-10" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -248,28 +312,16 @@ export default function GuestAnalysis() {
               <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-violet-600/20 to-cyan-600/20 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
                 <Lock className="h-7 w-7 text-violet-400" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-foreground">Unlock Full Analysis</h3>
+              <h3 className="text-xl font-bold mb-2 text-foreground">
+                {totalIssues > 0 ? `See all ${totalIssues} issues and how to fix them` : "See your full report"}
+              </h3>
               <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                Sign in to see detailed issues, fix recommendations, keyword suggestions, and your complete recruiter-grade report.
+                Free with an account: every issue, all your missing keywords and your recruiter-grade report. No card needed.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate("/auth?returnTo=guest&guestToken=" + token)}
-                  className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center justify-center gap-2"
-                >
-                  <LogIn className="h-4 w-4" /> Sign In
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate("/auth?returnTo=guest&guestToken=" + token)}
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium border border-violet-500/20 text-foreground hover:bg-violet-500/5 transition-all flex items-center justify-center gap-2"
-                >
-                  <UserPlus className="h-4 w-4" /> Create Account
-                </motion.button>
-              </div>
+              <GoogleButton onClick={continueWithGoogle} loading={googleLoading} className="w-full px-5 py-3 text-sm" />
+              <button onClick={useEmail} className="mt-3 text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                Use email instead
+              </button>
             </div>
           </motion.div>
         </div>
@@ -277,16 +329,9 @@ export default function GuestAnalysis() {
 
       {/* Sticky bottom bar */}
       <div data-bottom-bar className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-violet-500/10 py-3">
-        <div className="container flex items-center justify-between max-w-5xl">
-          <p className="text-sm font-medium text-foreground">Unlock full recruiter-grade analysis now</p>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("/auth?returnTo=guest&guestToken=" + token)}
-            className="px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center gap-1.5"
-          >
-            <UserPlus className="h-3.5 w-3.5" /> Create Free Account
-          </motion.button>
+        <div className="container flex items-center justify-between gap-3 max-w-5xl">
+          <p className="text-sm font-medium text-foreground hidden sm:block">See every issue and how to fix it, free</p>
+          <GoogleButton onClick={continueWithGoogle} loading={googleLoading} className="w-full sm:w-auto px-4 py-2.5 text-sm" />
         </div>
       </div>
     </div>
