@@ -57,7 +57,7 @@ serve(async (req) => {
     if (action === "check-access") {
       const { data: profile, error: profileErr } = await admin
         .from("profiles")
-        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date, plan_type, plan_expiry_date")
+        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date, plan_type, plan_expiry_date, interview_credits")
         .eq("user_id", user.id)
         .single();
 
@@ -81,15 +81,18 @@ serve(async (req) => {
 
       // UNLIMITED plan has no monthly limit
       const monthlyLimit = isUnlimited ? Infinity : isEarlyBird ? 10 : 2;
-      const canAccess = hasPaidAccess && monthlyCount < monthlyLimit;
+      const withinPlan = hasPaidAccess && monthlyCount < monthlyLimit;
+      const interviewCredits = profile?.interview_credits || 0;
+      const canAccess = withinPlan || interviewCredits > 0;
       return new Response(JSON.stringify({
         canAccess,
+        interviewCredits,
         isEarlyBird: !!isEarlyBird,
         isUnlimited: !!isUnlimited,
         planType: isUnlimited ? "UNLIMITED" : isEarlyBird ? "EARLY_BIRD" : "FREE",
         monthlyCount,
         monthlyLimit: isUnlimited ? 999 : (isEarlyBird ? 10 : 2),
-        reason: canAccess ? "PLAN_ACCESS" : hasPaidAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
+        reason: withinPlan ? "PLAN_ACCESS" : canAccess ? "CREDIT_ACCESS" : hasPaidAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -100,7 +103,7 @@ serve(async (req) => {
       // Verify access before starting — guard against clients that skip check-access
       const { data: accessProfile } = await admin
         .from("profiles")
-        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date, plan_type, plan_expiry_date")
+        .select("early_bird_active, early_bird_expiry_date, monthly_interview_count, last_interview_reset_date, plan_type, plan_expiry_date, interview_credits")
         .eq("user_id", user.id)
         .single();
 
@@ -127,17 +130,25 @@ serve(async (req) => {
 
       // UNLIMITED plan has no monthly limit
       const startMonthlyLimit = isUnlimited ? Infinity : isEarlyBird ? 10 : 2;
-      if (!hasPaidAccess || monthlyCount >= startMonthlyLimit) {
+      const withinPlan = hasPaidAccess && monthlyCount < startMonthlyLimit;
+      // A plan's monthly allowance goes first; a bought interview is spent only when that's used up.
+      const usedCredit = withinPlan
+        ? false
+        : (await admin.rpc("use_b2c_interview_credit", { p_user_id: user.id })).data === true;
+
+      if (!withinPlan && !usedCredit) {
         return new Response(JSON.stringify({
           error: hasPaidAccess ? "Monthly interview limit reached" : "Payment required to start interview",
           reason: hasPaidAccess ? "LIMIT_REACHED" : "PAYMENT_REQUIRED",
         }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Increment monthly count
-      await admin.from("profiles").update({
-        monthly_interview_count: monthlyCount + 1,
-      }).eq("user_id", user.id);
+      if (withinPlan) {
+        // Increment monthly count
+        await admin.from("profiles").update({
+          monthly_interview_count: monthlyCount + 1,
+        }).eq("user_id", user.id);
+      }
 
       const systemPrompt = `You are a professional interviewer conducting a ${experienceLevel}-level interview for a ${role} position.
 
@@ -158,6 +169,8 @@ Rules:
         ], `Welcome. Let's start with an introduction: tell me about yourself and why you're interested in this ${role} role.`);
       } catch (e) {
         console.error("[MOCK-INTERVIEW] start AI error:", e);
+        // The interview never began, so hand back the interview they paid for.
+        if (usedCredit) await admin.rpc("add_b2c_interview_credit", { p_user_id: user.id });
         if (isRateLimit(e)) throw new Error("AI service is busy. Please try again.");
         throw new Error("AI service error");
       }

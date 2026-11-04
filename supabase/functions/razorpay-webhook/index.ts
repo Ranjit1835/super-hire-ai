@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fulfilPayment } from "../_shared/fulfil-payment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +25,11 @@ serve(async (req) => {
 
     if (!signature) throw new Error("Missing webhook signature");
 
-    const expectedSig = await hmacSHA256(Deno.env.get("RAZORPAY_KEY_SECRET")!, body);
+    // Razorpay signs webhooks with the secret set on the webhook, not the API key secret.
+    const webhookSecret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET");
+    if (!webhookSecret) throw new Error("Webhook secret not configured");
+
+    const expectedSig = await hmacSHA256(webhookSecret, body);
     if (expectedSig !== signature) throw new Error("Invalid webhook signature");
 
     const event = JSON.parse(body);
@@ -46,7 +51,7 @@ serve(async (req) => {
         .eq("razorpay_order_id", rpOrderId)
         .single();
 
-      if (!payment || payment.status === "SUCCESS") {
+      if (!payment || (payment.status === "SUCCESS" && payment.fulfilled_at)) {
         return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
       }
 
@@ -55,77 +60,7 @@ serve(async (req) => {
         razorpay_payment_id: rpPaymentId,
       }).eq("id", payment.id);
 
-      if (payment.payment_type === "ONE_TIME_FIX" && payment.resume_analysis_id) {
-        await admin.from("resume_analyses").update({
-          is_paid_fix_unlocked: true,
-          paid_fix_unlocked_at: new Date().toISOString(),
-        }).eq("id", payment.resume_analysis_id);
-      }
-
-      if (payment.payment_type === "EARLY_BIRD_ACCESS") {
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 365);
-        await admin.from("profiles").update({
-          early_bird_active: true,
-          early_bird_expiry_date: expiryDate.toISOString(),
-          plan_type: "UNLIMITED",
-          plan_expiry_date: expiryDate.toISOString(),
-        }).eq("user_id", payment.user_id);
-      }
-
-      if (payment.payment_type === "RESUME_BUILDER" && payment.resume_builder_id) {
-        await admin.from("resume_builders").update({
-          is_paid: true,
-          paid_at: new Date().toISOString(),
-        }).eq("id", payment.resume_builder_id);
-      }
-
-      // New plan type unlocks
-      if (payment.payment_type === "RESUME_FIX" && payment.resume_analysis_id) {
-        await admin.from("resume_analyses").update({
-          is_paid_fix_unlocked: true,
-          paid_fix_unlocked_at: new Date().toISOString(),
-        }).eq("id", payment.resume_analysis_id);
-      }
-
-      if (payment.payment_type === "RESUME_BUILD" && payment.resume_builder_id) {
-        await admin.from("resume_builders").update({
-          is_paid: true,
-          paid_at: new Date().toISOString(),
-        }).eq("id", payment.resume_builder_id);
-      }
-
-      if (payment.payment_type === "UNLIMITED_PLAN") {
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 365);
-        await admin.from("profiles").update({
-          plan_type: "UNLIMITED",
-          plan_expiry_date: expiryDate.toISOString(),
-          early_bird_active: true,
-          early_bird_expiry_date: expiryDate.toISOString(),
-        }).eq("user_id", payment.user_id);
-      }
-
-      if (payment.payment_type === "COMBO_PLAN") {
-        await admin.from("profiles").update({ plan_type: "COMBO" }).eq("user_id", payment.user_id);
-      }
-
-      const { data: profile } = await admin
-        .from("profiles")
-        .select("total_payments, first_time_fix_used, first_time_early_bird_used")
-        .eq("user_id", payment.user_id)
-        .single();
-
-      const profileUpdate: Record<string, unknown> = {
-        total_payments: (profile?.total_payments || 0) + 1,
-      };
-      if ((payment.payment_type === "ONE_TIME_FIX" || payment.payment_type === "RESUME_FIX") && !profile?.first_time_fix_used) {
-        profileUpdate.first_time_fix_used = true;
-      }
-      if ((payment.payment_type === "EARLY_BIRD_ACCESS" || payment.payment_type === "UNLIMITED_PLAN") && !profile?.first_time_early_bird_used) {
-        profileUpdate.first_time_early_bird_used = true;
-      }
-      await admin.from("profiles").update(profileUpdate).eq("user_id", payment.user_id);
+      await fulfilPayment(admin, payment);
 
       console.log(`[WEBHOOK PAYMENT] user=${payment.user_id} type=${payment.payment_type} amount=${payment.amount}`);
     }
@@ -133,7 +68,10 @@ serve(async (req) => {
     if (eventType === "payment.failed") {
       const rpOrderId = event.payload?.payment?.entity?.order_id;
       if (rpOrderId) {
-        await admin.from("payments").update({ status: "FAILED" }).eq("razorpay_order_id", rpOrderId);
+        // A customer can fail once and pay on retry, and webhooks can arrive out of order.
+        await admin.from("payments").update({ status: "FAILED" })
+          .eq("razorpay_order_id", rpOrderId)
+          .eq("status", "INITIATED");
       }
     }
 
