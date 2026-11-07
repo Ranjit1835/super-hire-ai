@@ -272,6 +272,14 @@ describe("tenant isolation: writes", () => {
     expect(await changes(u.adminC, "UPDATE share_links SET revoked_at = now() WHERE org_id = $1", [o.coD])).toBe(0);
   });
 
+  it("recruiters and company admins can create a job role and read it back (insert ... returning, as the role form does)", async () => {
+    for (const user of [u.recruiterC, u.adminC]) {
+      const row = await asUser(db, user, async (tx) =>
+        (await tx.query<{ id: string }>("INSERT INTO job_roles (org_id, title) VALUES ($1, 'Returning role') RETURNING id", [o.coC])).rows[0]);
+      expect(row.id).toMatch(/^[0-9a-f-]{36}$/);
+    }
+  });
+
   it("roles inside an org are limited too", async () => {
     await rejected(u.trainerA, "INSERT INTO students (org_id, roll_no, full_name, email) VALUES ($1, 'T1', 'T', 't@a.in')", [o.colA]);
     await rejected(u.hmC, "INSERT INTO job_roles (org_id, title) VALUES ($1, 'HM role')", [o.coC]);
@@ -361,12 +369,33 @@ describe("staff invites and student activation", () => {
   const hash = () => randomUUID().replace(/-/g, "").padEnd(64, "b");
   const svc = (sql: string, params: unknown[]) => asService(db, async (tx) => (await tx.query<{ r: Row }>(sql, params)).rows[0].r);
 
-  it("org admins invite staff into their own org only; roles must fit the org type", async () => {
-    expect(await svc("SELECT public.b2b_invite_staff($1, $2, 'tpo2@a.in', 'TPO Two', 'trainer', $3) AS r", [u.adminA, o.colA, hash()])).toMatchObject({ ok: true });
+  it("only super admins invite staff (R3.3/D7); roles must fit the org type", async () => {
+    // Org admins can't add staff of any role, in their own org or another.
+    for (const role of ["trainer", "org_admin"]) {
+      await expect(svc(`SELECT public.b2b_invite_staff($1, $2, 'x@a.in', 'X', '${role}', $3) AS r`, [u.adminA, o.colA, hash()])).rejects.toThrow(/FORBIDDEN/);
+    }
     await expect(svc("SELECT public.b2b_invite_staff($1, $2, 'x@b.in', 'X', 'trainer', $3) AS r", [u.adminA, o.colB, hash()])).rejects.toThrow(/FORBIDDEN/);
-    expect(await svc("SELECT public.b2b_invite_staff($1, $2, 'r@a.in', 'R', 'recruiter', $3) AS r", [u.adminA, o.colA, hash()])).toMatchObject({ ok: false, reason: "ROLE_NOT_ALLOWED" });
-    expect(await svc("SELECT public.b2b_invite_staff($1, $2, 's@a.in', 'S', 'student', $3) AS r", [u.adminA, o.colA, hash()])).toMatchObject({ ok: false, reason: "ROLE_NOT_ALLOWED" });
+    expect(await svc("SELECT public.b2b_invite_staff($1, $2, 'tpo2@a.in', 'TPO Two', 'trainer', $3) AS r", [u.super, o.colA, hash()])).toMatchObject({ ok: true });
+    expect(await svc("SELECT public.b2b_invite_staff($1, $2, 'r@a.in', 'R', 'recruiter', $3) AS r", [u.super, o.colA, hash()])).toMatchObject({ ok: false, reason: "ROLE_NOT_ALLOWED" });
+    expect(await svc("SELECT public.b2b_invite_staff($1, $2, 's@a.in', 'S', 'student', $3) AS r", [u.super, o.colA, hash()])).toMatchObject({ ok: false, reason: "ROLE_NOT_ALLOWED" });
   });
+
+  it("org admins manage student memberships only: no promotions, no touching staff (R3.3/D7)", async () => {
+    const stu = await createUser(db);
+    const trainer = await createUser(db);
+    await db.query("INSERT INTO org_memberships (org_id, user_id, role) VALUES ($1, $2, 'student'), ($1, $3, 'trainer')", [o.colA, stu, trainer]);
+    await asUser(db, u.adminA, async (tx) => {
+      // A student row can be edited, but not promoted.
+      expect(await affected(tx, "UPDATE org_memberships SET full_name = 'Renamed' WHERE user_id = $1 AND org_id = $2", [stu, o.colA])).toBe(1);
+      expect(await expectRejected(tx, "UPDATE org_memberships SET role = 'org_admin' WHERE user_id = $1 AND org_id = $2", [stu, o.colA])).toMatch(/row-level security/);
+      // Staff rows are invisible to updates and deletes.
+      expect(await affected(tx, "UPDATE org_memberships SET role = 'org_admin' WHERE user_id = $1 AND org_id = $2", [trainer, o.colA])).toBe(0);
+      expect(await affected(tx, "DELETE FROM org_memberships WHERE user_id = $1 AND org_id = $2", [trainer, o.colA])).toBe(0);
+      expect(await affected(tx, "DELETE FROM org_memberships WHERE user_id = $1 AND org_id = $2", [stu, o.colA])).toBe(1);
+    });
+    expect((await one<{ role: string }>("SELECT role FROM org_memberships WHERE user_id = $1", [trainer])).role).toBe("trainer");
+  });
+
 
   it("a staff link works only for the invited email", async () => {
     const t = hash();

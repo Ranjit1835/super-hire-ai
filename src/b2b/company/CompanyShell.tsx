@@ -11,7 +11,7 @@ export const companyTabs = (orgId: string, editor: boolean) => [
 
 const ROLE_TEXT: Record<CompanyRole, string> = { org_admin: "Company admin", recruiter: "Recruiter", hiring_manager: "Hiring manager" };
 
-export interface CompanyCtx { orgId: string; orgName: string; isAdmin: boolean; isEditor: boolean; role: CompanyRole | null }
+export interface CompanyCtx { orgId: string; orgName: string; isAdmin: boolean; isEditor: boolean; role: CompanyRole | null; /** Super admin: the only role that manages staff (R3.3). */ isSuper: boolean }
 
 /** Portal frame for company admins, recruiters and hiring managers. */
 export function CompanyShell({ children, actions }: { children: (ctx: CompanyCtx) => ReactNode; actions?: ReactNode }) {
@@ -31,7 +31,7 @@ export function CompanyShell({ children, actions }: { children: (ctx: CompanyCtx
   return (
     <V1Shell title={name} subtitle={a.isSuper && !a.role ? "Super admin" : a.role ? ROLE_TEXT[a.role] : undefined}
              tabs={companyTabs(orgId, a.isEditor)} actions={actions} aside={<CreditsTag value={org.data?.credits_balance} />}>
-      {children({ orgId, orgName: name, isAdmin: a.isAdmin, isEditor: a.isEditor, role: a.role })}
+      {children({ orgId, orgName: name, isAdmin: a.isAdmin, isEditor: a.isEditor, role: a.role, isSuper: a.isSuper })}
     </V1Shell>
   );
 }

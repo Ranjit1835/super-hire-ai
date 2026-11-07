@@ -19,10 +19,10 @@ const ROLE_TEXT: Record<CompanyRole, string> = { org_admin: "Company admin", rec
 const REASON_TEXT: Record<string, string> = { grant: "Opening credits", top_up: "Top-up", consume: "Candidate session", refund: "Refund", adjust: "Adjustment", expire: "Expired" };
 
 export default function SettingsPage() {
-  return <CompanyShell>{({ orgId, isAdmin }) => <Settings orgId={orgId} isAdmin={isAdmin} />}</CompanyShell>;
+  return <CompanyShell>{({ orgId, isAdmin, isSuper }) => <Settings orgId={orgId} isAdmin={isAdmin} isSuper={isSuper} />}</CompanyShell>;
 }
 
-export function Settings({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
+export function Settings({ orgId, isAdmin, isSuper = false }: { orgId: string; isAdmin: boolean; isSuper?: boolean }) {
   const org = useCompanyOrg(orgId);
   const ledger = useCompanyLedger(orgId, isAdmin);
   const team = useTeam(orgId);
@@ -76,7 +76,9 @@ export function Settings({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }
             ))}
           </ul>
         )}
-        {isAdmin ? <InviteStaff orgId={orgId} /> : <p className="text-sm text-[var(--hr-muted)]">Only company admins can invite people.</p>}
+        {/* R3.3: recruiters, hiring managers and admins are added by HiResume super admins only. */}
+        {isSuper ? <InviteStaff orgId={orgId} />
+          : <p className="text-sm text-[var(--hr-muted)]">To add or change team members, contact HiResume.</p>}
       </section>
     </div>
   );

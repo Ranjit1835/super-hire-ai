@@ -67,6 +67,10 @@ export const RoomState = z.object({
     dimensions: z.array(z.object({ label: z.string(), score: z.number().nullable() })),
   }).nullable(),
   duplicate: z.boolean().optional(),
+  /** Phase 3 voice: which side the server handles; "browser" = the browser's own speech (fallback). */
+  voice: z.object({ stt: z.enum(["groq", "sarvam", "browser"]), tts: z.enum(["google", "sarvam", "browser"]) }).optional(),
+  /** The interviewer's next line already voiced (turn with speak: true), so the room needn't ask again. */
+  speech: z.object({ text: z.string(), audio: z.string(), mime: z.string() }).optional(),
 });
 export type RoomState = z.infer<typeof RoomState>;
 
@@ -91,8 +95,21 @@ export const interviewContract = {
     input: z.object({
       interviewId: Uuid, clientTurnId: Uuid, turnCount: z.number().int().min(0),
       answer: z.string().trim().min(1).max(4500), meta: AnswerMetaInput.default({}), clientLatency: ClientLatency.nullable().optional(),
+      /** Also voice the next line on the server (cloud TTS) and return it in `speech`. */
+      speak: z.boolean().optional(),
     }),
     output: RoomState,
+  },
+  /** Phase 3: one recorded answer (base64), transcribed on the server. Only the interview's own candidate, while live. */
+  transcribe: {
+    input: z.object({ interviewId: Uuid, audio: z.string().min(100).max(6_000_000), mime: z.string().min(5).max(80),
+                      durationMs: z.number().min(0).max(200_000) }),
+    output: z.object({ text: z.string() }),
+  },
+  /** Phase 3: voice one of this interview's own interviewer lines (the server refuses any other text). */
+  speak: {
+    input: z.object({ interviewId: Uuid, text: z.string().min(1).max(2500) }),
+    output: z.object({ audio: z.string(), mime: z.string() }),
   },
   /** The candidate ends the interview early. With no answers yet it is cancelled and can be started again. */
   finish: {

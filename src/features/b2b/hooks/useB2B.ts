@@ -93,7 +93,8 @@ export function useAllOrgs(enabled: boolean) {
     queryFn: async (): Promise<OrgWithCounts[]> => {
       // Student counts are grouped in the database: reading every student membership would stop at 1000 rows.
       const [orgs, counts] = await Promise.all([
-        unwrap<Organization[]>(b2bDb.from("organizations").select("*").order("created_at", { ascending: false })),
+        // super_orgs(): full rows incl. plan_id, which signed-in users can't select directly (R3.1, migration 0016).
+        unwrap<Organization[]>(b2bDb.rpc("super_orgs")),
         unwrap<Record<string, number>>(b2bDb.rpc("b2b_student_counts_by_org")),
       ]);
       return orgs.map((o) => ({ ...o, student_count: counts[o.id] ?? 0 }));

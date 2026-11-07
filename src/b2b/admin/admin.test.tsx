@@ -10,6 +10,8 @@ const state = vi.hoisted(() => ({
   plans: [] as unknown[],
   invites: [] as unknown[],
   usage: [] as unknown[],
+  alerts: [] as unknown[],
+  costBy: [] as string[],
 }));
 const api = vi.hoisted(() => ({ adminApi: vi.fn() }));
 
@@ -22,6 +24,12 @@ vi.mock("./queries", async (orig) => ({
   useStaffInvites: () => ({ data: state.invites }),
   useLedger: () => ({ data: [], refetch: vi.fn() }),
   useOrgUsage: () => ({ data: state.usage, isLoading: false, error: null }),
+  useOrgAlerts: () => ({ data: state.alerts, isLoading: false, error: null }),
+  useCostBreakdown: (by: string) => {
+    state.costBy.push(by);
+    return { data: [{ key: "k", label: by === "student" ? "Asha" : "Alpha College", org_name: by === "student" ? "Alpha College" : null,
+      calls: 3, input_tokens: 3000, output_tokens: 600, cached_input_tokens: 400, cache_hits: 0, stt_seconds: 0, tts_chars: 0, cost_inr: 8 }], isLoading: false, error: null };
+  },
   adjustCredits: vi.fn().mockResolvedValue(10),
 }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), adminApi: api.adminApi }));
@@ -58,6 +66,7 @@ beforeEach(() => {
   state.plans = [plan("college_starter", "college", 399, 4), plan("college_plus", "college", 599, 5), plan("company_v1", "company", 0, 0)];
   state.invites = [{ id: "i1", org_id: "o1", email: "tpo@svr.in", full_name: "TPO", role: "org_admin", status: "pending", expires_at: "", email_sent_at: null, email_error: null, created_at: "" }];
   state.usage = [];
+  state.alerts = [];
   api.adminApi.mockReset();
 });
 
@@ -78,6 +87,24 @@ describe("super admin: organisations", () => {
     expect(within(rows[2]).getByText("Company")).toBeInTheDocument();
     expect(within(rows[2]).getByText("Suspended")).toBeInTheDocument();
     expect(within(rows[2]).getByRole("button", { name: "Reactivate" })).toBeInTheDocument();
+  });
+
+  it("shows organisations that need attention (R1.9), and nothing when all is well", () => {
+    renderAt("/admin/orgs");
+    expect(screen.queryByRole("region", { name: "Alerts" })).toBeNull();
+  });
+
+  it("lists low credits, plan expiry and full seats at the top", () => {
+    state.alerts = [
+      { org_id: "o1", org_name: "SVR College", kind: "plan_expired", detail: { ends_at: "2026-10-01T00:00:00Z" } },
+      { org_id: "o2", org_name: "Acme Labs", kind: "low_credits", detail: { credits: 12, threshold: 50 } },
+      { org_id: "o1", org_name: "SVR College", kind: "seats_full", detail: { seats_used: 290, seat_limit: 300 } },
+    ];
+    renderAt("/admin/orgs");
+    const panel = screen.getByRole("region", { name: "Alerts" });
+    expect(within(panel).getByText(/Plan ended 1 Oct 2026; access is blocked/)).toBeInTheDocument();
+    expect(within(panel).getByText("12 credits left")).toBeInTheDocument();
+    expect(within(panel).getByText("290 of 300 seats used")).toBeInTheDocument();
   });
 
   it("header counts read as English: one company, one pending invite", () => {
@@ -138,5 +165,34 @@ describe("super admin: usage", () => {
     expect(screen.getByText("210 / 300")).toBeInTheDocument();
     expect(screen.getAllByText("₹52.5").length).toBeGreaterThan(0);
     expect(screen.getAllByText("25%").length).toBeGreaterThan(0);
+  });
+});
+
+describe("super admin: AI cost breakdown (R6.1)", () => {
+  it("groups cost by college and switches to students", () => {
+    renderAt("/admin/usage");
+    const section = screen.getByRole("region", { name: "AI cost breakdown" });
+    expect(within(section).getByText("Alpha College")).toBeInTheDocument();
+    fireEvent.click(within(section).getByRole("tab", { name: "By student" }));
+    expect(within(section).getByText("Asha")).toBeInTheDocument();
+    expect(within(section).getByText(/· Alpha College/)).toBeInTheDocument();
+    expect(state.costBy).toContain("student");
+  });
+});
+
+describe("super admin: costs and limits (R1.8)", () => {
+  it("saves only the fields filled in, within bounds; refuses out-of-range values", async () => {
+    api.adminApi.mockResolvedValue({ ok: true });
+    renderAt("/admin/orgs");
+    const rows = screen.getAllByRole("row");
+    fireEvent.click(within(rows[1]).getByRole("button", { name: "Costs & limits" }));
+    fireEvent.change(screen.getByLabelText("Credits per practice run"), { target: { value: "500" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/from 0 to 100/);
+    expect(api.adminApi).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Credits per practice run"), { target: { value: "0" } });
+    fireEvent.change(screen.getByLabelText("Student idle sign-out (minutes)"), { target: { value: "45" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.adminApi).toHaveBeenCalledWith("updateOrg", { orgId: "o1", settings: { practice_credits: 0, session_idle_min: 45 } }));
   });
 });

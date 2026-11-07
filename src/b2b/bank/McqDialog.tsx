@@ -11,7 +11,7 @@ import { CATEGORY_LABEL, emptyMcq, firstError, McqForm, mcqFromRow, mcqPayload, 
 import { friendly, saveQuestion } from "./queries";
 
 export function McqDialog({ open, onOpenChange, orgId, question, onSaved }: {
-  open: boolean; onOpenChange: (o: boolean) => void; orgId: string | null; question?: QuestionRow | null; onSaved: () => void;
+  open: boolean; onOpenChange: (o: boolean) => void; orgId: string | null; question?: QuestionRow | null; onSaved: (questionId: string, ready: boolean) => void;
 }) {
   const [f, setF] = useState<McqForm>(emptyMcq);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +39,8 @@ export function McqDialog({ open, onOpenChange, orgId, question, onSaved }: {
     if (!parsed.success) { setError(firstError(parsed.error)); return; }
     setBusy(true);
     try {
-      await saveQuestion(mcqPayload(orgId, parsed.data, question?.id));
-      onSaved();
+      const r = await saveQuestion(mcqPayload(orgId, parsed.data, question?.id));
+      onSaved(r.questionId, parsed.data.ready);
       onOpenChange(false);
     } catch (e) {
       setError(friendly(e));
@@ -111,7 +111,7 @@ export function McqDialog({ open, onOpenChange, orgId, question, onSaved }: {
           </div>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={f.ready} onCheckedChange={(c) => set("ready", c === true)} aria-label="Ready to use in tests" />
-            Ready to use in tests (otherwise it stays a draft)
+            Check the answer and make it ready for tests (an independent check solves it without your key)
           </label>
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </div>

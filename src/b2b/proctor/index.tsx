@@ -38,6 +38,11 @@ const noop: ProctorApi = { report: () => {}, sessionId: null, paused: false };
 const Ctx = createContext<ProctorApi>(noop);
 
 /** Inside a proctored screen: how the host reports signals and learns about pauses. */
+/** R2.6: "Serious violation 1 of 3. At 3 the test is submitted automatically." */
+export function strikeText(violations: number, max: number): string {
+  return `Serious violation ${violations} of ${max}. At ${max} your test is submitted automatically.`;
+}
+
 export function useProctor(): ProctorApi {
   return useContext(Ctx);
 }
@@ -53,10 +58,12 @@ export interface ProctoredSessionProps {
   onReady?: (sessionId: string | null) => void;
   /** Strict policy hit its violation limit: the host must submit now. */
   onAutoSubmit?: () => void;
+  /** The test or interview is over (the host still shows its done screen): stop monitoring and release devices now. */
+  ended?: boolean;
   children: ReactNode;
 }
 
-type Stage = "preflight" | "check" | "consent" | "share" | "running" | "off" | "declined" | "error";
+type Stage = "preflight" | "check" | "consent" | "share" | "running" | "off" | "declined" | "error" | "done";
 
 interface Preflight { policy: ProctoringPolicyV1; orgName: string; retentionDays: number; contactEmail: string | null; strictMaxViolations: number; snapshotIntervalS: number }
 
@@ -70,7 +77,7 @@ const errorText = (e: unknown) => (e instanceof ApiError || e instanceof Error ?
  * Wraps a proctored screen: shows system check → consent → screen share before children, monitors while they
  * render, and ends the session (computing the integrity score) on unmount.
  */
-export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAutoSubmit, children }: ProctoredSessionProps) {
+export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAutoSubmit, ended, children }: ProctoredSessionProps) {
   useB2BTheme();
   const [stage, setStage] = useState<Stage>("preflight");
   const [pre, setPre] = useState<Preflight | null>(null);
@@ -81,6 +88,8 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
   const [paused, setPaused] = useState(false);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [warning, setWarning] = useState<string | null>(null);
+  /** R2.6: the final warning before auto-submit; stays until the student acknowledges it. */
+  const [finalWarning, setFinalWarning] = useState<{ violations: number; max: number } | null>(null);
   const check = useRef<CheckResult | null>(null);
   const consents = useRef<AcceptedConsent[]>([]);
   const monitor = useRef<ProctorMonitor | null>(null);
@@ -107,13 +116,15 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
 
   useEffect(() => { void runPreflight(); }, [runPreflight]);
 
-  // Unmount: stop monitoring, send what's queued, end the session (server computes the score), release devices.
-  useEffect(() => () => {
+  // B40: stop monitoring, send what's queued, end the session (server computes the score), release devices.
+  // Runs once, on unmount, when the host says the test/interview ended, or when the server says the session ended.
+  const teardown = useCallback(() => {
     const m = monitor.current;
     const s = live.current;
     monitor.current = null;
     live.current = null;
     stopStream(screen.current);
+    screen.current = null;
     if (!s) { stopStream(check.current?.stream); return; }
     void (async () => {
       try { await m?.stop(); } finally {
@@ -123,6 +134,25 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
       }
     })();
   }, []);
+
+  useEffect(() => teardown, [teardown]);
+
+  const finishNow = useCallback(() => {
+    teardown();
+    setPaused(false);
+    setWarning(null);
+    setFinalWarning(null);
+    setProblems([]);
+    setStage("done");
+  }, [teardown]);
+
+  useEffect(() => { if (ended) finishNow(); }, [ended, finishNow]);
+
+  /** The server refuses events and uploads once the test/interview is over: stop here too. */
+  const watchEnded = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => {
+    if (e instanceof ApiError && e.code === "SESSION_ENDED") finishNow();
+    throw e;
+  });
 
   const start = async (screenStream: MediaStream, displays: number) => {
     const c = check.current;
@@ -144,9 +174,9 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
       const m = new ProctorMonitor({
         sessionId: r.sessionId, policy: r.policy as Policy, kind, tier: c.tier, snapshotIntervalS: r.snapshotIntervalS,
         camera: c.stream, mic: kind === "assessment" ? c.stream : null, screen: screenStream,
-        sendEvents: async (events) => (await proctorApi("events", { sessionId: r.sessionId, events: events as never })) as SendResult,
+        sendEvents: async (events) => (await watchEnded(proctorApi("events", { sessionId: r.sessionId, events: events as never }))) as SendResult,
         uploadUrl: async (snapKind, contentType) => {
-          const u = await proctorApi("snapshotUploadUrl", { sessionId: r.sessionId, kind: snapKind, contentType });
+          const u = await watchEnded(proctorApi("snapshotUploadUrl", { sessionId: r.sessionId, kind: snapKind, contentType }));
           return { path: u.path, token: u.token };
         },
         upload: async (job) => {
@@ -156,6 +186,10 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
         loadDetector: () => loadLandmarker(c.tier === "full"),
         storage: typeof sessionStorage !== "undefined" ? sessionStorage : null,
         onWarning: (w) => setWarning(w.message),
+        onStrike: (s) => {
+          if (s.final) setFinalWarning({ violations: s.violations, max: s.max });
+          else setWarning(strikeText(s.violations, s.max));
+        },
         onPausedChange: setPaused,
         onProblemsChange: setProblems,
         onAutoSubmit: () => cb.current.onAutoSubmit?.(),
@@ -207,7 +241,7 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
     return () => clearTimeout(id);
   }, [warning]);
 
-  if (stage === "off") return <Ctx.Provider value={noop}>{children}</Ctx.Provider>;
+  if (stage === "off" || stage === "done") return <Ctx.Provider value={noop}>{children}</Ctx.Provider>;
 
   if (stage === "running") {
     return (
@@ -218,6 +252,20 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
         {warning && !paused && (
           <div role="status" className="hr-rise fixed top-3 left-1/2 -translate-x-1/2 z-50 max-w-md bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] px-4 py-2.5 text-sm text-foreground">
             <AlertTriangle className="inline h-4 w-4 mr-2 -mt-0.5 text-[var(--hr-orange)]" aria-hidden />{warning}
+          </div>
+        )}
+        {finalWarning && !paused && (
+          <div role="alertdialog" aria-modal="true" aria-labelledby="final-warning-title" aria-describedby="final-warning-body"
+               className="fixed inset-0 z-[55] bg-background/95 flex items-center justify-center p-6">
+            <div className="hr-rise max-w-md w-full space-y-4 text-center">
+              <AlertTriangle className="h-9 w-9 mx-auto text-[var(--hr-red)]" aria-hidden />
+              <h2 id="final-warning-title" className="hr-display text-xl">Final warning</h2>
+              <p id="final-warning-body" className="text-sm text-[var(--hr-muted)]">
+                That was serious violation {finalWarning.violations} of {finalWarning.max}. One more and your test is submitted
+                automatically with the answers saved so far. Stay in full screen, keep this tab open and keep your face in view.
+              </p>
+              <Button onClick={() => setFinalWarning(null)}>I understand</Button>
+            </div>
           </div>
         )}
         {!paused && problems.length > 0 && (

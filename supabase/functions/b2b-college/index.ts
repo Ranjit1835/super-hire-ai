@@ -28,6 +28,11 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(fn, args);
   if (error) {
     if (/FORBIDDEN|insufficient_privilege/.test(error.message)) throw new HttpError(403, "FORBIDDEN", "You don't have permission to do that.");
+    // R2.1 scheduling gate (migration 0029): the pool can't give this many students different-enough papers.
+    if (/POOL_TOO_SMALL/.test(error.message)) {
+      throw new HttpError(409, "POOL_TOO_SMALL", "The question bank is too small to give every assigned student a different-enough paper. " +
+        "Add questions to the test's pick rules, raise its overlap limit, or ask HiResume to approve this drive.");
+    }
     throw error;
   }
   return data as T;
@@ -132,7 +137,7 @@ serve(serveContract("B2B-COLLEGE", collegeContract, {
 
   async inviteStaff(input, ctx) {
     const token = randomToken();
-    // b2b_invite_staff lets super admins and the org's admins through; it refuses trainers and outsiders.
+    // b2b_invite_staff lets super admins only through (R3.3, migration 0017).
     const r = await rpc<{ ok: boolean; reason?: string; invite_id?: string }>("b2b_invite_staff", {
       _actor: ctx.user.id, _org_id: input.orgId, _email: input.email, _full_name: input.fullName ?? null,
       _role: input.role, _token_hash: await sha256Hex(token),

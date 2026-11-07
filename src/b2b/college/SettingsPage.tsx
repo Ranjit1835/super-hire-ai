@@ -23,10 +23,10 @@ const ROLE_TEXT: Record<string, string> = { org_admin: "TPO admin", trainer: "Tr
 const TOPUP_MAILTO = "mailto:ranjitperumala@gmail.com?subject=Credit%20top-up%20for%20";
 
 export default function SettingsPage() {
-  return <CollegeShell>{({ orgId, isAdmin }) => <Settings orgId={orgId} isAdmin={isAdmin} />}</CollegeShell>;
+  return <CollegeShell>{({ orgId, isAdmin, isSuper }) => <Settings orgId={orgId} isAdmin={isAdmin} isSuper={isSuper} />}</CollegeShell>;
 }
 
-function Settings({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
+function Settings({ orgId, isAdmin, isSuper = false }: { orgId: string; isAdmin: boolean; isSuper?: boolean }) {
   const org = useOrg(orgId);
   const ledger = useCollegeLedger(orgId);
   const staff = useStaff(orgId);
@@ -94,7 +94,9 @@ function Settings({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
             </TableBody>
           </Table>
         )}
-        {isAdmin && <InviteStaffForm orgId={orgId} />}
+        {/* R3.3: staff (TPO admins, trainers) are added by HiResume super admins only. */}
+        {isSuper ? <InviteStaffForm orgId={orgId} />
+          : isAdmin && <p className="text-sm text-[var(--hr-muted)]">To add or change staff, contact HiResume. You manage your students from the Students page.</p>}
       </section>
     </div>
   );

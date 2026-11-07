@@ -13,7 +13,7 @@ export const collegeTabs = (orgId: string) => [
   { to: `/c/${orgId}/settings`, label: "Credits & team" },
 ];
 
-export interface CollegeCtx { orgId: string; isAdmin: boolean; orgName: string }
+export interface CollegeCtx { orgId: string; isAdmin: boolean; orgName: string; /** Super admin: the only role that manages staff (R3.3). */ isSuper: boolean }
 
 /** Portal frame for TPO admins and trainers; everyone else gets a polite dead end. */
 export function CollegeShell({ children, actions }: { children: (ctx: CollegeCtx) => ReactNode; actions?: ReactNode }) {
@@ -32,7 +32,7 @@ export function CollegeShell({ children, actions }: { children: (ctx: CollegeCtx
   return (
     <V1Shell title={name} subtitle={access.data.isAdmin ? "TPO admin" : "Trainer"} tabs={collegeTabs(orgId)} actions={actions}
              aside={<CreditsTag value={org.data?.credits_balance} />}>
-      {children({ orgId, isAdmin: access.data.isAdmin, orgName: name })}
+      {children({ orgId, isAdmin: access.data.isAdmin, orgName: name, isSuper: access.data.isSuper })}
     </V1Shell>
   );
 }

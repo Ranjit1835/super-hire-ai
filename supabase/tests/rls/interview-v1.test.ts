@@ -170,3 +170,18 @@ describe("create, resume, load", () => {
     expect(anon).toMatch(/permission denied/);
   });
 });
+
+describe("library interview modules (migration 20261103000001)", () => {
+  it("a drive that uses a library module (no org) can start its interview", async () => {
+    const r = await create(f.u.stuA2, "drive", f.ids.driveLib);
+    expect(r).toMatchObject({ ok: true, resumed: false });
+    const row = await f.one<J>("SELECT org_id, module_id FROM b2b_interviews WHERE id = $1", [String(r.interview_id)]);
+    expect(row).toMatchObject({ org_id: f.o.A, module_id: f.ids.moduleLib });
+  });
+
+  it("an interview still can't point at another org's module", async () => {
+    const live = await f.one<J>("SELECT id FROM b2b_interviews WHERE user_id = $1", [f.u.stuA2]);
+    expect(await errOf(f.db.query("UPDATE b2b_interviews SET module_id = $1 WHERE id = $2", [f.ids.moduleB, live.id])))
+      .toMatch(/MODULE_NOT_IN_ORG/);
+  });
+});

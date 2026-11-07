@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { LogoMark, Numeral } from "../ui/broadcast";
 import { Stage, type StageStep } from "../three/Stage";
 import { EASE_OUT, useReducedMotion } from "../motion";
+import { endServerSession, useStudentSession } from "../session";
 import "../theme.css";
 
 export interface ShellTab { to: string; label: string; end?: boolean }
@@ -16,6 +17,7 @@ export interface ShellTab { to: string; label: string; end?: boolean }
  * private (portals, candidate and share links carry their own access), so they are also marked noindex while mounted.
  */
 export function useB2BTheme() {
+  useStudentSession();   // R1.6: every B2B screen keeps the student's session honest
   useEffect(() => {
     document.body.classList.add("b2b-theme");
     const meta = document.createElement("meta");
@@ -80,7 +82,7 @@ export function V1Shell({ title, subtitle, tabs, actions, aside, children }: {
               <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">HiResume</span>
             </Link>
             <button type="button" aria-label="Sign out" className="p-2 text-[var(--hr-muted)] hover:text-foreground"
-                    onClick={async () => { await signOut(); navigate("/auth"); }}>
+                    onClick={async () => { await endServerSession(); await signOut(); navigate("/auth"); }}>
               <LogOut className="h-4 w-4" />
             </button>
           </div>

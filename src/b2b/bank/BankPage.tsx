@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { b2bDb } from "@/features/b2b/lib/db";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +15,9 @@ import { ApiError, assessApi } from "../lib/api";
 import { CodingDialog } from "./CodingDialog";
 import { GenerateDialog, type GenerateResult } from "./GenerateDialog";
 import { McqDialog } from "./McqDialog";
+import { OverrideDialog } from "./OverrideDialog";
+import { TemplateDialog } from "./TemplateDialog";
+import { mcqCheckReason, type McqCheck } from "../../../supabase/functions/_shared/contracts/assess";
 import { LANGUAGE_LABEL, type QuestionRow } from "./forms";
 import { BANK_PAGE, friendly, orgOf, setQuestionStatus, useBankPage, useCanEdit, type BankOwner, type BankType } from "./queries";
 
@@ -43,8 +47,12 @@ export default function BankPage() {
   const bank = useBankPage(orgId, { type, owner, search: query, page }, canEdit.data === true);
   const [editing, setEditing] = useState<{ kind: "mcq" | "coding"; row: QuestionRow | null } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [templating, setTemplating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  /** The last MCQ check that disagreed, so the editor can keep their key with a reason. */
+  const [disputed, setDisputed] = useState<{ questionId: string; version: number; check: McqCheck } | null>(null);
+  const [overriding, setOverriding] = useState(false);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["b2b-assess", "bank", orgId] });
 
@@ -56,7 +64,17 @@ export default function BankPage() {
     setBusyId(id);
     setNotice(null);
     try {
+      setDisputed(null);
       const r = await assessApi("verifyQuestion", { questionId: id }, { timeoutMs: 120_000 });
+      if (r.check) {
+        // MCQ: an independent model solved it without the key (R2.3).
+        const c = r.check;
+        setNotice(r.status === "verified"
+          ? { tone: "ok", text: "Verified: an independent check reached the same answer. The question can now be used in tests." }
+          : { tone: "error", text: `Not verified: ${mcqCheckReason(c)}${c.note ? ` Its working: “${c.note}”` : ""} Fix the question, or keep your key with a reason.` });
+        if (r.status !== "verified" && r.version != null) setDisputed({ questionId: id, version: r.version, check: c });
+        return;
+      }
       setNotice(r.status === "verified"
         ? { tone: "ok", text: "Verified: the reference solution passed every test. The question can now be used in tests." }
         : { tone: "error", text: `Not verified: the reference solution failed ${r.failures.length} test${r.failures.length === 1 ? "" : "s"} (${Array.from(new Set(r.failures.map((f) => f.status))).join(", ") || "no tests ran"}). Fix the tests or the solution and try again.` });
@@ -103,6 +121,7 @@ export default function BankPage() {
              actions={<div className="hidden sm:flex gap-2">
                <Button size="sm" variant="outline" onClick={() => setGenerating(true)}>Generate with AI</Button>
                <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "mcq", row: null })}>New MCQ</Button>
+               <Button size="sm" variant="outline" onClick={() => setTemplating(true)}>MCQs from a template</Button>
                <Button size="sm" onClick={() => setEditing({ kind: "coding", row: null })}>New coding question</Button>
              </div>}>
       <div className="space-y-4">
@@ -119,6 +138,7 @@ export default function BankPage() {
         <div className="flex sm:hidden flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => setGenerating(true)}>Generate with AI</Button>
           <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "mcq", row: null })}>New MCQ</Button>
+               <Button size="sm" variant="outline" onClick={() => setTemplating(true)}>MCQs from a template</Button>
           <Button size="sm" onClick={() => setEditing({ kind: "coding", row: null })}>New coding question</Button>
         </div>
 
@@ -149,11 +169,19 @@ export default function BankPage() {
           )}
         </div>
 
+        {orgId !== null && <RetireOverexposed orgId={orgId} onDone={(n) => {
+          setNotice({ tone: "ok", text: n ? `Retired ${n} over-used question${n === 1 ? "" : "s"}.` : "No questions have been used that often." });
+          void refresh();
+        }} />}
+
         {notice && (
           <p role={notice.tone === "error" ? "alert" : "status"}
              className={`text-sm ${notice.tone === "error" ? "text-destructive" : "text-[var(--hr-gold)]"}`}>
             {notice.text}
           </p>
+        )}
+        {disputed && (
+          <Button size="sm" variant="outline" className="self-start" onClick={() => setOverriding(true)}>Keep my key…</Button>
         )}
 
         {bank.isLoading ? <Loading /> : bank.error ? <p role="alert" className="text-sm text-destructive">{friendly(bank.error)}</p>
@@ -170,7 +198,9 @@ export default function BankPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent"><TableHead className="hr-label">Title</TableHead><TableHead className="hr-label">Type</TableHead><TableHead className="hr-label">Difficulty</TableHead>
                 <TableHead className="hr-label">Topics</TableHead><TableHead className="hr-label">Languages</TableHead>
-                <TableHead className="hr-label">Status</TableHead><TableHead className="hr-label text-right">Actions</TableHead></TableRow>
+                <TableHead className="hr-label">Status</TableHead>
+                <TableHead className="hr-label text-right" title="Papers this question has been in">Papers</TableHead>
+                <TableHead className="hr-label text-right">Actions</TableHead></TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((q) => (
@@ -187,6 +217,7 @@ export default function BankPage() {
                     {q.type === "coding" ? q.languages.map((l) => LANGUAGE_LABEL[l] ?? l).join(", ") || "–" : "–"}
                   </TableCell>
                   <TableCell><Chip tone={STATUS_TONE[q.status]} solid={q.status === "verified"}>{STATUS_LABEL[q.status]}</Chip></TableCell>
+                  <TableCell className="hr-data text-right text-xs">{q.exposure_count ?? 0}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     {mine(q) ? (
                       <>
@@ -216,10 +247,45 @@ export default function BankPage() {
         )}
       </div>
       <McqDialog open={editing?.kind === "mcq"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
-                 onSaved={() => { setNotice({ tone: "ok", text: "Question saved." }); void refresh(); }} />
+                 onSaved={(id, ready) => { if (ready) void verify(id); else { setNotice({ tone: "ok", text: "Question saved." }); void refresh(); } }} />
+      <OverrideDialog target={overriding ? disputed : null} onClose={() => setOverriding(false)}
+                      onDone={() => { setOverriding(false); setDisputed(null); setNotice({ tone: "ok", text: "Verified with your reason. The override is recorded in the audit log." }); void refresh(); }} />
       <CodingDialog open={editing?.kind === "coding"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
                     onSaved={(id) => { void verify(id); }} />
       <GenerateDialog open={generating} onOpenChange={setGenerating} orgId={orgId} onDone={onGenerated} />
+      <TemplateDialog open={templating} onOpenChange={setTemplating} orgId={orgId} onDone={(r) => {
+        setNotice(r.reason
+          ? { tone: "error", text: `Made ${r.created} questions. ${r.reason}` }
+          : { tone: "ok", text: `Made ${r.created} questions from the template; ${r.verified} verified and ready for tests.` });
+        void refresh();
+      }} />
     </V1Shell>
+  );
+}
+
+/** R2.3: retire this org's questions once they've been in too many papers (b2b_retire_overexposed). */
+function RetireOverexposed({ orgId, onDone }: { orgId: string; onDone: (n: number) => void }) {
+  const [threshold, setThreshold] = useState(200);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true); setError(null);
+    try {
+      const { data, error: e } = await b2bDb.rpc("b2b_retire_overexposed", { _org_id: orgId, _threshold: threshold });
+      if (e) throw new Error(e.message);
+      onDone(Number(data));
+    } catch (e) {
+      setError(friendly(e));
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-[var(--hr-muted)]">Retire your questions used in</span>
+      <Input aria-label="Retire after this many papers" type="number" min={1} value={threshold} className="h-8 w-24"
+             onChange={(e) => setThreshold(Math.max(1, Number(e.target.value) || 1))} />
+      <span className="text-[var(--hr-muted)]">or more papers</span>
+      <Button size="sm" variant="outline" onClick={() => void run()} disabled={busy}>{busy ? "Retiring…" : "Retire"}</Button>
+      {error && <span role="alert" className="text-[var(--hr-red-ink)]">{error}</span>}
+    </div>
   );
 }

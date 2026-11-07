@@ -177,6 +177,25 @@ describe("ProctoredSession", () => {
     await waitFor(() => expect(api.proctorApi).toHaveBeenCalledWith("end", { sessionId: SID }));
   });
 
+  it("ended (B40): stops monitoring and ends the session while the host's done screen stays", async () => {
+    routeApi();
+    const ui = (ended: boolean) => <ProctoredSession attemptId={AID} policy="standard" kind="assessment" ended={ended}><Child /></ProctoredSession>;
+    const { rerender } = render(ui(false));
+    fireEvent.click(await screen.findByRole("button", { name: /Allow camera/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    for (const b of screen.getAllByRole("checkbox")) fireEvent.click(b);
+    fireEvent.click(screen.getByRole("button", { name: /I agree, continue/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Share entire screen" }));
+    await screen.findByTestId("share-ok");
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    expect(await screen.findByTestId("child")).toHaveTextContent(`session ${SID}`);
+
+    rerender(ui(true));
+    await waitFor(() => expect(api.proctorApi).toHaveBeenCalledWith("end", { sessionId: SID }));
+    expect(screen.getByTestId("child")).toHaveTextContent("session none");
+  });
+
   it("policy off: renders children straight away, no session", async () => {
     routeApi({ preflight: { policy: "off", orgName: "X", retentionDays: 90, contactEmail: null, strictMaxViolations: 3, snapshotIntervalS: 30 } });
     const onReady = vi.fn();

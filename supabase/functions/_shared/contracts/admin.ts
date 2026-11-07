@@ -12,6 +12,13 @@ export const OrgSettings = z.object({
   results_release_default: ResultsRelease.optional(),
   retention_days: z.number().int().min(7).max(730).optional(),
   video_enabled: z.boolean().optional(),
+  // R1.8 activity costs (credits) and per-org limits added in Phase 1 (migrations 0019-0028).
+  practice_credits: z.number().min(0).max(100).optional(),
+  candidate_session_credits: z.number().min(0.01).max(100).optional(),
+  low_credit_alert: z.number().min(0).max(1_000_000).optional(),
+  expiry_alert_days: z.number().int().min(1).max(90).optional(),
+  session_idle_min: z.number().int().min(5).max(240).optional(),
+  session_max_hours: z.number().int().min(1).max(24).optional(),
 }).strict();
 
 const OrgFields = {

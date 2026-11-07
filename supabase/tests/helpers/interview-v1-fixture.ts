@@ -69,7 +69,13 @@ export async function buildFixture(): Promise<Fixture> {
     [o.A, ids.module]);
   ids.driveNoIv = await id("INSERT INTO drives (org_id, name, status) VALUES ($1, 'No interview', 'live') RETURNING id", [o.A]);
   ids.driveB = await id("INSERT INTO drives (org_id, name, interview_module_id, status) VALUES ($1, 'B drive', $2, 'live') RETURNING id", [o.B, ids.moduleB]);
-  for (const [drive, sid, org] of [[ids.drive, ids.sA, o.A], [ids.driveClosed, ids.sA, o.A], [ids.driveNoIv, ids.sA, o.A], [ids.driveB, ids.sB, o.B]]) {
+  // A library module (no org) used by a college drive: the drive form offers these.
+  ids.moduleLib = await id("INSERT INTO interview_modules (org_id, spec) VALUES (NULL, $1) RETURNING id", [JSON.stringify(SPEC)]);
+  ids.driveLib = await id(
+    "INSERT INTO drives (org_id, name, interview_module_id, status, window_start, window_end) VALUES ($1, 'Library drive', $2, 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id",
+    [o.A, ids.moduleLib]);
+  for (const [drive, sid, org] of [[ids.drive, ids.sA, o.A], [ids.driveClosed, ids.sA, o.A], [ids.driveNoIv, ids.sA, o.A], [ids.driveB, ids.sB, o.B],
+                                   [ids.driveLib, ids.sA2, o.A]]) {
     await db.query("INSERT INTO drive_assignments (drive_id, org_id, student_id) VALUES ($1, $2, $3)", [drive, org, sid]);
   }
 

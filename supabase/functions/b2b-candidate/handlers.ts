@@ -27,6 +27,8 @@ const REASONS: Record<string, [number, string]> = {
   CLOSED: [410, "This role is no longer accepting assessments."],
   NOT_ANONYMOUS: [409, "You're signed in to a HiResume account in this browser. Open the link in a private window, or sign out first."],
   OTHER_DEVICE: [409, "This link is already in use in another browser. Continue there, or ask the recruiter to send you a new link."],
+  // The browser's session belongs to another candidate (shared computer); the page starts a fresh one and retries.
+  SESSION_IN_USE: [409, "This browser was used by another candidate. Please reload the page."],
   CONSENT_REQUIRED: [400, "Please agree to every item to continue."],
   CONSENT_CHANGED: [409, "The consent wording has been updated. Please reload the page."],
 };

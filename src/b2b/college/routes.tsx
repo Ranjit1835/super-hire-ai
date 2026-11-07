@@ -10,6 +10,7 @@ const DrivesPage = lazy(() => import("./DrivesPage"));
 const DriveFormPage = lazy(() => import("./DriveFormPage"));
 const DriveDetailPage = lazy(() => import("./DriveDetailPage"));
 const AnalyticsPage = lazy(() => import("./AnalyticsPage"));
+const SimilarityPage = lazy(() => import("./SimilarityPage"));
 const SettingsPage = lazy(() => import("./SettingsPage"));
 const CollegeRedirect = lazy(() => import("./CollegeShell").then((m) => ({ default: m.CollegeRedirect })));
 
@@ -29,6 +30,7 @@ export const collegeRoutes: RouteObject[] = [
   { path: "/c/:orgId/drives/new", element: page(<DriveFormPage />) },
   { path: "/c/:orgId/drives/:driveId", element: page(<DriveDetailPage />) },
   { path: "/c/:orgId/drives/:driveId/edit", element: page(<DriveFormPage />) },
+  { path: "/c/:orgId/drives/:driveId/similarity", element: page(<SimilarityPage />) },
   { path: "/c/:orgId/analytics", element: page(<AnalyticsPage />) },
   { path: "/c/:orgId/settings", element: page(<SettingsPage />) },
 ];

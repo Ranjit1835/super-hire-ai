@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ensureVisitorSession } from "@/features/b2b/lib/api";
+import { ensureVisitorSession, freshVisitorSession } from "@/features/b2b/lib/api";
 import { useB2BTheme, Loading } from "../layout/V1Shell";
 import { Wordmark } from "../ui/broadcast";
 import { Stage } from "../three/Stage";
@@ -59,7 +59,15 @@ export function TokenFlow({ token }: { token: string }) {
     (async () => {
       try {
         await ensureVisitorSession();
-        const s = await candidateApi("startCandidate", { token });
+        let s: CandidateState;
+        try {
+          s = await candidateApi("startCandidate", { token });
+        } catch (e) {
+          // This browser's session belongs to another candidate (shared computer): start a new one for this link.
+          if (!(e instanceof ApiError && e.code === "SESSION_IN_USE")) throw e;
+          await freshVisitorSession();
+          s = await candidateApi("startCandidate", { token });
+        }
         try { localStorage.setItem(TOKEN_KEY, token); } catch { /* storage blocked */ }
         if (!cancelled) setState(s);
       } catch (e) {

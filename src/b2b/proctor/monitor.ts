@@ -54,6 +54,8 @@ export interface MonitorDeps {
   loadDetector?: () => Promise<FaceDetectorLike>;
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
   onWarning?: (w: { type: string; message: string }) => void;
+  /** Strict policy (R2.6): a serious violation was counted; `final` = the next one submits the test. */
+  onStrike?: (s: { violations: number; max: number; final: boolean }) => void;
   onPausedChange?: (paused: boolean) => void;
   onProblemsChange?: (problems: Problem[]) => void;
   onAutoSubmit?: () => void;
@@ -76,6 +78,8 @@ export class ProctorMonitor {
   private paused = false;
   private submitted = false;
   private stopped = false;
+  /** Highest violation count the server has reported (strikes are shown only when it rises). */
+  private lastViolations = 0;
   private lastEmit = new Map<string, number>();
   private conditionEvidence = new Map<ConditionType, string>();
   private screenVideo: HTMLVideoElement | null = null;
@@ -271,6 +275,12 @@ export class ProctorMonitor {
   }
 
   private onServer(r: SendResult) {
+    // B39: minor flagged events also answer "warn"; only a new serious violation (count went up) is a strike.
+    const counted = r.violations > this.lastViolations;
+    if (r.violations > this.lastViolations) this.lastViolations = r.violations;
+    if ((r.action === "warn" || r.action === "final_warning") && r.maxViolations && counted) {
+      this.d.onStrike?.({ violations: r.violations, max: r.maxViolations, final: r.action === "final_warning" });
+    }
     if (r.action === "submit" && !this.submitted) {
       this.submitted = true;
       this.d.onAutoSubmit?.();

@@ -2,9 +2,11 @@
 // so it is unit-tested in Node with fakes (supabase/tests/unit/b2b-assess-handlers.test.ts).
 // Authorization lives in the SQL functions (supabase/migrations/20261021000006_b2b_v1_assessment.sql): every call passes the actor.
 import {
-  GeneratedMcq, GeneratedQuestion, type AttemptState, type JudgeResult, type RunnerQuestion,
+  GeneratedMcq, GeneratedQuestion, McqSolution, mcqCheckReason, type AttemptState, type JudgeResult, type McqCheck, type RunnerQuestion,
 } from "../_shared/contracts/assess.ts";
+export { mcqCheckReason } from "../_shared/contracts/assess.ts";
 import type { GatewayRequest, GatewayResult } from "../_shared/ai-gateway/core.ts";
+import { generateVariants as makeVariants, templateErrors, type McqTemplate } from "../_shared/mcq-template.ts";
 import {
   Judge0Error, codingScore, judgeTests, summarize, type Judge0Client, type Language, type TestCase,
 } from "../_shared/judge0.ts";
@@ -26,6 +28,7 @@ const REASONS: Record<string, [number, string]> = {
   NOT_FOUND: [404, "That test doesn't exist."],
   NOT_ELIGIBLE: [403, "This test isn't assigned to you."],
   NOT_AVAILABLE: [403, "This test isn't open for practice."],
+  PRACTICE_USED: [409, "You've already used your practice run for this test."],
   NOT_OPEN: [403, "This test isn't open."],
   NOT_OPEN_YET: [403, "This test hasn't opened yet. Please come back at the start time."],
   WINDOW_CLOSED: [403, "The time window for this test has closed."],
@@ -49,6 +52,8 @@ const REASONS: Record<string, [number, string]> = {
   ANSWER_NOT_AN_OPTION: [400, "The correct answer must be one of the options."],
   CHANGED: [409, "The question changed while it was being checked. Please verify again."],
   RETIRED: [409, "Retired questions can't be verified."],
+  LOCKED: [409, "That question is closed: this test goes one question at a time, with no going back."],
+  NOT_LINEAR: [400, "This test lets you move between questions freely."],
 };
 
 export function refuse(reason: string | undefined): never {
@@ -110,6 +115,10 @@ export function toAttemptState(r: Json): AttemptState {
       })),
     } : null,
     proctoring: { policy: String(r.policy ?? "standard"), sessionId: (r.proctoring_session_id as string | null) ?? null },
+    ...(r.navigation && typeof r.navigation === "object" ? { navigation: {
+      mode: (r.navigation as Json).mode === "linear" ? "linear" as const : "free" as const,
+      index: num((r.navigation as Json).index), total: num((r.navigation as Json).total),
+    } } : {}),
   };
 }
 
@@ -177,6 +186,31 @@ Rules:
 - explanation: one short paragraph explaining why the answer is right.
 - Unambiguous, plain English.`;
 
+// R2.3: the independent check solves the question without the key; the server compares.
+const MCQ_SOLUTION_SCHEMA = {
+  type: "object",
+  required: ["answer", "confidence", "ambiguous", "note"],
+  properties: {
+    answer: { type: "array", items: { type: "string" }, description: "ids of the option(s) you believe are correct" },
+    confidence: { type: "number", description: "0 to 1: how sure you are that your answer is the only correct one" },
+    ambiguous: { type: "boolean", description: "true if the question is unclear, has no correct option, or more than one defensible answer" },
+    note: { type: "string", description: "one or two sentences: your working, or what is wrong with the question" },
+  },
+};
+
+const MCQ_VALIDATE_SYSTEM = `You check multiple-choice questions for a hiring test before students see them.
+Solve the question yourself, carefully and step by step in your head, then report:
+- answer: the id(s) of the correct option(s). If it says exactly one option is correct, give one id.
+- confidence: how sure you are (0 to 1).
+- ambiguous: true if the wording is unclear, no option is correct, or more than one option is defensible.
+- note: your short working, or the problem with the question.
+You are NOT told the intended answer. Do not guess what the author wanted; answer what is actually correct.`;
+
+/** Normalised set of option ids, for comparing the check with the key. */
+export function optionSet(ids: unknown, valid: string[]): string[] {
+  return Array.from(new Set((Array.isArray(ids) ? ids : []).map(String).filter((x) => valid.includes(x)))).sort();
+}
+
 const POINTS: Record<string, number> = { easy: 10, medium: 20, hard: 30 };
 
 export function codingPayload(orgId: string | null, g: GeneratedQuestion, nonce: string): Json {
@@ -241,13 +275,45 @@ export function makeHandlers(deps: Deps) {
     return !!(await deps.rpc("actor_is_org_editor", { _actor: actor, _org_id: orgId }));
   }
 
+  /** R2.3: solve the MCQ blind with a separate model call, compare with the key, store the result for this version. */
+  async function checkMcq(actor: string, questionId: string, q: Json): Promise<McqCheck> {
+    const options = (Array.isArray(q.options) ? q.options : []) as { id: string; text: string }[];
+    const ids = options.map((o) => String(o.id));
+    const brief = `Question:\n${String(q.statement)}\n\nOptions:\n${options.map((o) => `${o.id}) ${o.text}`).join("\n")}\n\n`
+      + (q.multi_select ? "Select ALL correct options." : "Exactly one option is correct.");
+    const g = await deps.ai({
+      feature: "mcq.validate", orgId: (q.org_id as string | null) ?? null, userId: actor, system: MCQ_VALIDATE_SYSTEM,
+      messages: [{ role: "user", content: brief }], cacheInput: { statement: q.statement, options, multi: !!q.multi_select },
+      jsonSchema: MCQ_SOLUTION_SCHEMA, schemaName: "mcq_solution", parse: McqSolution.safeParse,
+    });
+    if (!g.ok) {
+      if (g.code === "QUOTA_EXCEEDED") throw new AssessError(429, "QUOTA_EXCEEDED", "This month's question-check limit is used up.");
+      throw new AssessError(502, "CHECK_FAILED", "Couldn't check the answer right now. Please try again.");
+    }
+    const answer = optionSet(g.data.answer, ids);
+    const key = optionSet(q.answer, ids);
+    const check: McqCheck = {
+      answer, agrees: answer.length > 0 && answer.join() === key.join(), ambiguous: g.data.ambiguous,
+      confidence: g.data.confidence, note: g.data.note,
+    };
+    const r = await rpc("b2b_record_mcq_check", { _actor: actor, _question_id: questionId, _version: q.version,
+                                                  _check: { ...check, model: "mcq-validate-v1" } });
+    if (!r.ok) refuse(r.reason as string);
+    return check;
+  }
+
   async function verify(actor: string, questionId: string) {
     const q = await rpc("b2b_question_for_verify", { _actor: actor, _question_id: questionId });
     if (!q.ok) refuse(q.reason as string);
     if (q.type === "mcq") {
-      const v = await rpc("b2b_record_verification", { _actor: actor, _question_id: questionId, _version: q.version, _passed: true });
+      const stored = q.mcq_check as Json | null;
+      const check: McqCheck = stored && Number(stored.version) === Number(q.version)
+        ? { answer: (stored.answer as string[]) ?? [], agrees: !!stored.agrees, ambiguous: !!stored.ambiguous,
+            confidence: Number(stored.confidence ?? 0), note: String(stored.note ?? "") }
+        : await checkMcq(actor, questionId, q);
+      const v = await rpc("b2b_record_verification", { _actor: actor, _question_id: questionId, _version: q.version, _passed: null });
       if (!v.ok) refuse(v.reason as string);
-      return { status: "verified" as const, failures: [] };
+      return { status: v.status as "verified" | "draft", failures: [], check, version: Number(q.version) };
     }
     if (!deps.judge0) throw JUDGE0_MISSING();
     const ref = (q.references as Json[] | undefined)?.[0];
@@ -308,7 +374,15 @@ export function makeHandlers(deps: Deps) {
           }
           const saved = await rpc("b2b_save_question_as", { _actor: actor, _q: mcqPayload(input.orgId, g.data) });
           if (!saved.ok) { lastError = String(saved.reason); continue; }
-          created.push({ questionId: String(saved.question_id), status: "draft", reason: "Review the answer, then verify it." });
+          const qid = String(saved.question_id);
+          try {
+            const v = await verify(actor, qid);
+            created.push(v.status === "verified" ? { questionId: qid, status: "verified" }
+              : { questionId: qid, status: "draft", reason: `Saved as a draft: ${mcqCheckReason(v.check)}` });
+          } catch (e) {
+            if (!(e instanceof AssessError)) throw e;
+            created.push({ questionId: qid, status: "draft", reason: `Saved as a draft: ${e.message}` });
+          }
         }
       }
       if (created.length === 0) {
@@ -320,6 +394,54 @@ export function makeHandlers(deps: Deps) {
 
     async verifyQuestion(input: { questionId: string }, actor: string) {
       return verify(actor, input.questionId);
+    },
+
+    async generateVariants(input: { orgId: string | null; template: McqTemplate; count: number; difficulty: "easy" | "medium" | "hard";
+                                     category?: "aptitude" | "cs_fundamentals" | "technical"; topics: string[] }, actor: string) {
+      if (!(await canEdit(actor, input.orgId))) throw new AssessError(403, "FORBIDDEN", "You can't add questions here.");
+      const errs = templateErrors(input.template);
+      if (errs.length) throw new AssessError(400, "TEMPLATE_INVALID", errs[0]);
+      const familyId = crypto.randomUUID();
+      // The server computes every variant (and its key); the browser's preview is only a preview.
+      const { variants } = makeVariants(input.template, input.count, familyId);
+      if (!variants.length) {
+        throw new AssessError(400, "NO_VARIANTS", "None of the number combinations gave four different options. Widen the ranges or relax the conditions.");
+      }
+      const saved: { id: string; answer: string[] }[] = [];
+      for (const [i, v] of variants.entries()) {
+        const r = await rpc("b2b_save_question_as", { _actor: actor, _q: {
+          org_id: input.orgId, type: "mcq", title: `${input.template.title} (${i + 1})`, statement: v.statement,
+          difficulty: input.difficulty, category: input.category ?? "aptitude", topics: input.topics, options: v.options,
+          answer: v.answer, multi_select: false, points: POINTS[input.difficulty] ?? 10, status: "draft", source: "template",
+          family_id: familyId, params: { values: v.params, template: input.template },
+        } });
+        if (!r.ok) refuse(r.reason as string);
+        saved.push({ id: String(r.question_id), answer: v.answer });
+      }
+      // Spot check: two variants solved blind. A template is one formula, so if both agree the rest are verified on
+      // the strength of the server's own computation; if either doesn't, none are.
+      const sample = saved.slice(0, Math.min(2, saved.length));
+      const checks: McqCheck[] = [];
+      for (const s of sample) checks.push((await verify(actor, s.id)).check!);
+      const ok = checks.every((c) => c.agrees && !c.ambiguous && c.confidence >= 0.8);
+      if (!ok) {
+        const bad = checks.find((c) => !(c.agrees && !c.ambiguous && c.confidence >= 0.8));
+        return { familyId, created: saved.length, verified: 0,
+                 reason: `All saved as drafts: in a spot check, ${mcqCheckReason(bad)} Check the formulas and the wording.` };
+      }
+      let verified = sample.length;
+      for (const s of saved.slice(sample.length)) {
+        const q = await rpc("b2b_question_for_verify", { _actor: actor, _question_id: s.id });
+        if (!q.ok) continue;
+        const rec = await rpc("b2b_record_mcq_check", { _actor: actor, _question_id: s.id, _version: q.version, _check: {
+          answer: s.answer, agrees: true, ambiguous: false, confidence: 1, method: "template", sampled: sample.map((x) => x.id),
+          note: `Computed from the template; ${sample.length} variant(s) of it were solved independently and agreed.`,
+        } });
+        if (!rec.ok) continue;
+        const v = await rpc("b2b_record_verification", { _actor: actor, _question_id: s.id, _version: q.version, _passed: null });
+        if (v.ok && v.status === "verified") verified++;
+      }
+      return { familyId, created: saved.length, verified };
     },
 
     async start(input: { context: "practice" | "drive" | "job_role"; contextId: string | null; assessmentId?: string; sessionId?: string }, actor: string) {
@@ -345,6 +467,12 @@ export function makeHandlers(deps: Deps) {
       });
       if (!r.ok) refuse(r.reason as string);
       return { ok: true as const, seq: num(r.seq), deadline_at: String(r.deadline_at), server_now: String(r.server_now) };
+    },
+
+    async advance(input: { attemptId: string; sessionId: string; fromIndex: number }, actor: string) {
+      const r = await rpc("b2b_advance_question", { _actor: actor, _attempt_id: input.attemptId, _session: input.sessionId, _from_index: input.fromIndex });
+      if (!r.ok) refuse(r.reason as string);
+      return state(actor, input.attemptId, input.sessionId);
     },
 
     async heartbeat(input: { attemptId: string; sessionId: string }, actor: string) {

@@ -81,7 +81,9 @@ serve(serveContract("B2B-PROCTOR", proctorContract, {
 
   async events(input, ctx) {
     const r = await call("b2b_proctor_log_events", { _actor: ctx.user.id, _session_id: input.sessionId, _events: input.events });
-    return { accepted: Number(r.accepted), violations: Number(r.violations), action: r.action as "none" | "warn" | "pause" | "resume" | "submit" };
+    return { accepted: Number(r.accepted), violations: Number(r.violations),
+             action: r.action as "none" | "warn" | "final_warning" | "pause" | "resume" | "submit",
+             ...(r.max_violations != null ? { maxViolations: Number(r.max_violations) } : {}) };
   },
 
   async snapshotUploadUrl(input, ctx) {

@@ -156,15 +156,30 @@ describe("events: own live session only, idempotent", () => {
 });
 
 describe("strict and maximum policies", () => {
-  it("strict: auto-submit after N hard violations (once), soft signals don't count", async () => {
+  it("strict: numbered warnings, a final warning, then auto-submit after N hard violations (once); soft signals don't count", async () => {
     const s = await start(u.studentA2, r.atStrict);
     r.sessStrict = s.session_id as string;
     expect(await log(u.studentA2, r.sessStrict, [ev("looking_away"), ev("copy_attempt")])).toMatchObject({ violations: 0, action: "warn" });
-    expect(await log(u.studentA2, r.sessStrict, [ev("tab_hidden")])).toMatchObject({ violations: 1, action: "warn" });
+    // R2.6 ladder (limit 2 here): violation 1 is already the last before the limit, so it's the final warning.
+    expect(await log(u.studentA2, r.sessStrict, [ev("tab_hidden")])).toMatchObject({ violations: 1, action: "final_warning", max_violations: 2 });
     expect(await log(u.studentA2, r.sessStrict, [ev("fullscreen_exit")])).toMatchObject({ violations: 2, action: "submit" });
     expect(await log(u.studentA2, r.sessStrict, [ev("window_blur")])).toMatchObject({ action: "submit" });
     const n = await db.query<{ n: number }>("SELECT count(*)::int n FROM proctoring_events WHERE session_id = $1 AND type = 'auto_submitted'", [r.sessStrict]);
     expect(n.rows[0].n).toBe(1);
+  });
+
+  it("strict ladder with a limit of 3: warning 1 of 3, final warning at 2, submitted at 3 (R2.6)", async () => {
+    const as3 = (await db.query<{ id: string }>(
+      "INSERT INTO assessments (org_id, title, duration_min, proctoring_policy, strict_max_violations) VALUES ($1, 'Ladder', 60, 'strict', 3) RETURNING id", [o.A])).rows[0].id;
+    const at3 = (await db.query<{ id: string }>(
+      "INSERT INTO attempts (org_id, assessment_id, subject_user_id, status, student_id, context_type) VALUES ($1, $2, $3, 'in_progress', $4, 'practice') RETURNING id",
+      [o.A, as3, u.studentA2, r.sA2])).rows[0].id;
+    const s = await start(u.studentA2, at3);
+    const sess = s.session_id as string;
+    expect(await log(u.studentA2, sess, [ev("tab_hidden")])).toMatchObject({ violations: 1, action: "warn", max_violations: 3 });
+    expect(await log(u.studentA2, sess, [ev("looking_away")])).toMatchObject({ violations: 1, action: "warn" });     // soft: not counted
+    expect(await log(u.studentA2, sess, [ev("fullscreen_exit")])).toMatchObject({ violations: 2, action: "final_warning", max_violations: 3 });
+    expect(await log(u.studentA2, sess, [ev("tab_hidden")])).toMatchObject({ violations: 3, action: "submit" });
   });
 
   it("maximum: hard violations pause until resumed; repeated pauses escalate; the attempt timer pauses", async () => {
@@ -254,5 +269,30 @@ describe("end + review", () => {
       "SELECT action, actor_id FROM audit_logs WHERE action IN ('proctor.review_event', 'proctor.start') ORDER BY id");
     expect(audit.rows.some((a) => a.action === "proctor.review_event" && a.actor_id === u.trainerA)).toBe(true);
     expect(audit.rows.some((a) => a.action === "proctor.start")).toBe(true);
+  });
+});
+
+describe("B40: the session ends with its test", () => {
+  it("submitting the attempt ends its live session; later events and snapshot uploads are refused", async () => {
+    const drive = await id("INSERT INTO drives (org_id, name, assessment_id, proctoring_policy) VALUES ($1, 'Drive B40', $2, 'standard') RETURNING id", [o.A, r.asStd]);
+    const at = await id(
+      "INSERT INTO attempts (org_id, assessment_id, subject_user_id, status, student_id, context_type, context_id) VALUES ($1, $2, $3, 'in_progress', $4, 'drive', $5) RETURNING id",
+      [o.A, r.asStd, u.studentA, r.sA, drive]);
+    const s = await start(u.studentA, at);
+    expect(s).toMatchObject({ ok: true });
+    const sess = String(s.session_id);
+    expect(await log(u.studentA, sess, [ev("copy_attempt")])).toMatchObject({ ok: true });
+
+    await db.query("UPDATE attempts SET status = 'submitted', submitted_at = now() WHERE id = $1", [at]);
+
+    const row = (await db.query<{ status: string; ended_at: string | null; integrity_score: string | null }>(
+      "SELECT status, ended_at, integrity_score FROM proctoring_sessions WHERE id = $1", [sess])).rows[0];
+    expect(row.status).toBe("ended");
+    expect(row.ended_at).not.toBeNull();
+    expect(row.integrity_score).toBeNull(); // scored by the browser's `end` (or provisionally on the review page)
+    expect(await log(u.studentA, sess, [ev("tab_hidden")])).toMatchObject({ ok: false, reason: "SESSION_ENDED" });
+    expect(await rpc("b2b_proctor_subject_session", [u.studentA, sess])).toMatchObject({ status: "ended" });
+    // The browser's `end` still stores the score afterwards.
+    expect(await rpc("b2b_proctor_end", [u.studentA, sess, 95, "high", "{}"])).toMatchObject({ ok: true, integrity_band: "high" });
   });
 });

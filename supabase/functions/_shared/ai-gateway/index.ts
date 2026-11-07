@@ -1,5 +1,5 @@
 // Deno wiring for the AI gateway: Supabase (service role) as the store, Gemini as the default provider.
-//   import { ai } from "../_shared/ai-gateway/index.ts";
+//   Usage (from a function folder): import `ai` from ../_shared/ai-gateway/index.ts, then
 //   const r = await ai({ feature: "jd.skills_matrix", orgId, userId, system, messages, cacheInput: { jd },
 //                        jsonSchema, schemaName: "skills_matrix", parse: SkillsMatrix.safeParse });
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";

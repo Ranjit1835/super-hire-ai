@@ -50,6 +50,18 @@ describe("autosave queue", () => {
     expect(q.current).toBe("saved");
   });
 
+  it("drops a save for a question already left (LOCKED) and carries on with the rest", async () => {
+    const sent: string[] = [];
+    const onFatal = vi.fn();
+    const q = new AutosaveQueue({ onFatal, send: async (i) => { if (i.questionId === "old") throw new ApiError(409, "LOCKED", "closed"); sent.push(i.questionId); } });
+    q.put({ questionId: "old", seq: 1, mcq_choice: ["a"] });
+    q.put({ questionId: "now", seq: 1, mcq_choice: ["b"] });
+    await q.flush();
+    expect(sent).toEqual(["now"]);
+    expect(q.size).toBe(0);
+    expect(onFatal).not.toHaveBeenCalled();
+  });
+
   it("keeps saves while offline and retries with backoff", async () => {
     const timers: { fn: () => void; ms: number }[] = [];
     let fail = 2;
@@ -228,6 +240,31 @@ describe("runner", () => {
     render(<Runner state={st} onEnded={onEnded} onConflict={onConflict} autosaveMs={40} heartbeatMs={60_000} {...props} />);
     return { onEnded, onConflict };
   };
+
+  it("one question at a time: no question list, confirm before moving on, the next question replaces it (R2.4)", async () => {
+    const all = state().questions;
+    const linear = (i: number) => state({ questions: [all[i]], navigation: { mode: "linear", index: i, total: 2 } });
+    api.assessApi.mockImplementation(async (action: string, input: { fromIndex?: number }) => {
+      if (action === "autosave") return { ok: true, seq: 1, deadline_at: new Date(Date.now() + 60_000).toISOString(), server_now: new Date().toISOString() };
+      if (action === "advance") return linear((input.fromIndex ?? 0) + 1);
+      throw new Error(`unexpected ${action}`);
+    });
+    renderRunner(linear(0));
+    expect(screen.queryByRole("navigation", { name: "Questions" })).toBeNull();
+    expect(screen.getByText(/Question 1 of 2 · one at a time/)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("radio")[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Next question" }));
+    expect(await screen.findByText(/You can't come back to this question/)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Next question" }).at(-1)!);
+    expect(await screen.findByRole("heading", { name: /2\. Sum two/ })).toBeInTheDocument();
+    // the answer was saved before moving on, and the move names the question being left
+    const calls = api.assessApi.mock.calls.map(([a]) => a);
+    expect(calls.indexOf("autosave")).toBeLessThan(calls.indexOf("advance"));
+    expect(api.assessApi).toHaveBeenCalledWith("advance", { attemptId: ATT, sessionId: SESS, fromIndex: 0 });
+    expect(screen.getByText(/Question 2 of 2/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next question" })).toBeNull();          // last question
+    expect(await screen.findByLabelText("Code")).toHaveValue("# start");
+  });
 
   it("shows the question, options in the shuffled order, timer and watermark", () => {
     renderRunner();

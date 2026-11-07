@@ -93,6 +93,12 @@ export class AutosaveQueue {
       try {
         await this.opts.send(item);
       } catch (e) {
+        if ((e as SendError).code === "LOCKED") {
+          // One question at a time (R2.4): a late save for a question already left is dropped, not fatal.
+          if (this.pending.get(qid) === item) this.pending.delete(qid);
+          this.write();
+          continue;
+        }
         if (isRetryable(e)) {
           this.failures++;
           this.setStatus("offline");

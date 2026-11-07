@@ -67,7 +67,10 @@ export const proctorContract = {
   events: {
     input: z.object({ sessionId: Uuid, events: z.array(ProctorEvent).min(1).max(200) }),
     /** pause / auto-submit instructions come back here for strict / maximum policies */
-    output: z.object({ accepted: z.number(), violations: z.number(), action: z.enum(["none", "warn", "pause", "resume", "submit"]) }),
+    output: z.object({ accepted: z.number(), violations: z.number(),
+                       action: z.enum(["none", "warn", "final_warning", "pause", "resume", "submit"]),
+                       /** Strict policy: violations allowed before auto-submit (R2.6 ladder). */
+                       maxViolations: z.number().optional() }),
   },
   snapshotUploadUrl: {
     input: z.object({ sessionId: Uuid, kind: z.enum(["screen", "camera"]), contentType: z.enum(["image/jpeg", "image/webp"]) }),

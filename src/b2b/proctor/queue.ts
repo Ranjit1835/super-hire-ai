@@ -13,7 +13,10 @@ export interface QueuedEvent {
   meta?: Record<string, unknown>;
 }
 
-export interface SendResult { accepted: number; violations: number; action: "none" | "warn" | "pause" | "resume" | "submit" }
+export interface SendResult {
+  accepted: number; violations: number; action: "none" | "warn" | "final_warning" | "pause" | "resume" | "submit";
+  maxViolations?: number;
+}
 
 export interface QueueOptions {
   send: (events: QueuedEvent[]) => Promise<SendResult>;

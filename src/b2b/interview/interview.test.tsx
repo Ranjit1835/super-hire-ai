@@ -241,3 +241,74 @@ describe("Gemini Live spike helpers", () => {
     expect(setupMessage("gemini-x").setup.model).toBe("models/gemini-x");
   });
 });
+
+describe("interview room with cloud voice (Phase 3)", () => {
+  const clip = { audio: "SUQzBAAAAAAA", mime: "audio/mpeg" };
+  const stubPlayback = () => {
+    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    return vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(function (this: HTMLMediaElement) {
+      setTimeout(() => { this.onplaying?.(new Event("playing")); this.onended?.(new Event("ended")); }, 0);
+      return Promise.resolve();
+    });
+  };
+
+  it("plays the server's voice, asks for the next line voiced in the turn, and doesn't fetch it again", async () => {
+    const play = stubPlayback();
+    const cloud = { stt: "browser" as const, tts: "google" as const };
+    const next = room({ voice: cloud, turnCount: 1, question: "What is a class?", speech: { text: "What is a class?", ...clip } });
+    serve({ rooms: [room({ voice: cloud })], turns: [next] });
+    const base = api.call.getMockImplementation()!;
+    api.call.mockImplementation(async (action: string, input: unknown) => (action === "speak" ? clip : base(action, input)));
+    voice.hook.listen
+      .mockResolvedValueOnce({ text: "I am a CSE student.", meta: { input_mode: "voice", ended_by: "silence" } })
+      .mockImplementationOnce(() => new Promise(() => {}));
+    renderAt(`/interview/v1/i/${IV}`);
+    fireEvent.click(await screen.findByRole("button", { name: "Start interview" }));
+
+    await waitFor(() => expect(api.call).toHaveBeenCalledWith("turn", expect.objectContaining({ answer: "I am a CSE student.", speak: true })));
+    await waitFor(() => expect(voice.hook.listen).toHaveBeenCalledTimes(2));
+    expect(api.call.mock.calls.filter(([a]) => a === "speak")).toEqual([["speak", { interviewId: IV, text: "Please introduce yourself." }]]);
+    expect(play.mock.instances.length).toBeGreaterThanOrEqual(2);            // first question + the pre-voiced next one
+    expect(voice.hook.speak).not.toHaveBeenCalled();                          // the browser voice wasn't needed
+  });
+
+  it("records the answer and sends it to be transcribed on the server", async () => {
+    const stopped = vi.fn();
+    const stream = { getTracks: () => [{ stop: stopped }] };
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn(async () => stream) } });
+    class FakeRecorder {
+      static isTypeSupported = (m: string) => m === "audio/webm;codecs=opus";
+      ondataavailable: ((e: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      start() { setTimeout(() => this.ondataavailable?.({ data: new Blob(["x".repeat(600)]) }), 0); }
+      stop() { setTimeout(() => this.onstop?.(), 0); }
+    }
+    class FakeAudioContext {
+      createAnalyser() { return { fftSize: 1024, connect() {}, getFloatTimeDomainData(a: Float32Array) { a.fill(0.001); } }; }
+      createMediaStreamSource() { return { connect() {} }; }
+      close() { return Promise.resolve(); }
+    }
+    vi.stubGlobal("MediaRecorder", FakeRecorder);
+    vi.stubGlobal("AudioContext", FakeAudioContext);
+    try {
+      const cloud = { stt: "groq" as const, tts: "browser" as const };
+      serve({ rooms: [room({ voice: cloud })], turns: [room({ voice: cloud, turnCount: 1, question: "Next?" })] });
+      const base = api.call.getMockImplementation()!;
+      api.call.mockImplementation(async (action: string, input: unknown) =>
+        (action === "transcribe" ? { text: "I built a library app." } : base(action, input)));
+      renderAt(`/interview/v1/i/${IV}`);
+      fireEvent.click(await screen.findByRole("button", { name: "Start interview" }));
+      await waitFor(() => expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getAllByText(/Listening/).length).toBeGreaterThan(0));
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+      fireEvent.click(await screen.findByRole("button", { name: /Done answering/ }));
+      await waitFor(() => expect(api.call).toHaveBeenCalledWith("transcribe",
+        expect.objectContaining({ interviewId: IV, mime: "audio/webm;codecs=opus", audio: expect.any(String) }), { timeoutMs: 60_000 }));
+      await waitFor(() => expect(api.call).toHaveBeenCalledWith("turn", expect.objectContaining({ answer: "I built a library app.", speak: false })));
+      expect(stopped).toHaveBeenCalled();                                     // the microphone is released after each answer
+      expect(voice.hook.listen).not.toHaveBeenCalled();                       // not the browser recogniser
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

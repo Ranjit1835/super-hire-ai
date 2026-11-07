@@ -173,6 +173,11 @@ describe("candidate token flow", () => {
     expect(first).toMatchObject({ ok: true, steps: { consent: "todo", coding: "todo", interview: null, done: "todo" } });
     expect((await claim("tA1", ses1)).ok).toBe(true);                        // same session again: fine
     expect((await claim("tA1", await anon())).reason).toBe("OTHER_DEVICE");   // a different browser: refused
+    // Shared computer: the next candidate's link in the same browser must not reuse Asha's session.
+    await invite(u.recA, r.A2, [{ email: "carol@x.in", full_name: "Carol" }], ["tCarol"]);
+    expect((await claim("tCarol", ses1)).reason).toBe("SESSION_IN_USE");
+    expect(await one<{ n: number }>("SELECT count(*)::int AS n FROM role_candidates WHERE invite_token_hash = $1 AND session_user_id IS NOT NULL", [hash("tCarol")]))
+      .toEqual({ n: 0 });
     expect(await svcErr("b2b_candidate_state", [hash("tA1"), await anon()], ["text", "uuid"])).toMatch(/FORBIDDEN/);
     const cand = await one<{ user_id: string }>("SELECT user_id FROM candidates WHERE email = 'asha@x.in' AND org_id = $1", [o.A]);
     expect(cand.user_id).toBe(ses1);

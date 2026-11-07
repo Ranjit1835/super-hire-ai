@@ -93,6 +93,9 @@ function seedStudents(qc: QueryClient, rows: StudentRecord[]) {
   qc.setQueryData(["b2b-college", "facets", DEMO.org], { departments: ["CSE", "ECE"], batchYears: [2026, 2027], sections: ["A", "B"] });
   qc.setQueryData(["b2b-college", "student-status-counts", DEMO.org],
     rows.length ? demoStudentCounts : { imported: 0, invited: 0, active: 0, deactivated: 0, held_minor: 0 });
+  // Drives done / assigned and last activity per student (migration 0019).
+  qc.setQueryData(["b2b-college", "student-activity", DEMO.org], Object.fromEntries(rows.map((r, i) =>
+    [r.id, { assigned: i < 3 ? 2 : 0, completed: i === 0 ? 2 : i === 1 ? 1 : 0, last_active_at: i < 2 ? "2026-10-24T09:30:00Z" : null }])));
 }
 
 function Students() {

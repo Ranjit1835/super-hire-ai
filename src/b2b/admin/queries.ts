@@ -20,11 +20,52 @@ export function useIsSuperAdmin() {
   });
 }
 
+export interface OrgAlert {
+  org_id: string; org_name: string;
+  kind: "low_credits" | "plan_expired" | "plan_expiring" | "seats_full";
+  detail: { credits?: number; threshold?: number; ends_at?: string; days_left?: number; seats_used?: number; seat_limit?: number };
+}
+/** R1.9: organisations that need attention (super_org_alerts, migration 0025). */
+export function useOrgAlerts(enabled: boolean) {
+  return useQuery({
+    queryKey: ["b2b-v1", "org-alerts"],
+    enabled,
+    queryFn: () => rows<OrgAlert[]>(b2bDb.rpc("super_org_alerts")),
+  });
+}
+
+export function alertText(a: OrgAlert): string {
+  const d = a.detail;
+  switch (a.kind) {
+    case "low_credits": return `${num(d.credits)} credits left`;
+    case "plan_expired": return `Plan ended ${fmtDate(d.ends_at ?? null)}; access is blocked`;
+    case "plan_expiring": return `Plan ends in ${d.days_left} day${d.days_left === 1 ? "" : "s"} (${fmtDate(d.ends_at ?? null)})`;
+    case "seats_full": return `${d.seats_used} of ${d.seat_limit} seats used`;
+  }
+}
+
+export type CostGroup = "org" | "student" | "feature" | "day";
+export interface CostRow {
+  key: string | null; label: string; org_name: string | null; calls: number; input_tokens: number; output_tokens: number;
+  cached_input_tokens: number; cache_hits: number; stt_seconds: number; tts_chars: number; cost_inr: number;
+}
+/** R6.1: AI cost grouped by college, student, feature or day (super_cost_breakdown, migration 0027). */
+export function useCostBreakdown(by: CostGroup, days: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ["b2b-v1", "cost-breakdown", by, days],
+    enabled,
+    queryFn: () => rows<CostRow[]>(b2bDb.rpc("super_cost_breakdown", {
+      _by: by, _from: new Date(Date.now() - days * 86_400_000).toISOString(), _to: new Date().toISOString(),
+    })),
+  });
+}
+
 export function useOrgs(enabled: boolean) {
   return useQuery({
     queryKey: ["b2b-v1", "orgs"],
     enabled,
-    queryFn: () => rows<OrgRow[]>(b2bDb.from("organizations").select("*").order("created_at", { ascending: false })),
+    // super_orgs(): full rows incl. plan_id, which signed-in users can't select directly (R3.1, migration 0016).
+    queryFn: () => rows<OrgRow[]>(b2bDb.rpc("super_orgs")),
   });
 }
 
