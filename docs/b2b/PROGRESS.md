@@ -40,7 +40,7 @@ Checks, run locally: typecheck:b2b clean, 202 frontend B2B tests pass, 545 DB te
   - B11: ledger dialog balance doesn't refresh
 - Voice consent is only a notice.
 - B2C (resume side), later: B1–B10, B12.
-- Public `/college-placement` still shows retired ₹149/₹299 plans: owner to decide.
+- Public `/college-placement`: prices removed, "Get a quote" instead (owner, 2026-11-07).
 
 **Owner steps:**
 - Hands-on guide steps 5.18–5.27, c2, downloads and 8.1–8.15
