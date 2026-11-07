@@ -22,12 +22,15 @@ function walk(dir, out = []) {
   return out;
 }
 
+// Public pages for institutions: quoted per institution, never a listed price (owner, 2026-11-07).
+const PUBLIC_INSTITUTION_PAGES = ["src/pages/CollegePlacement.tsx"];
+
 export function sourceViolations(root = ROOT) {
   const bad = [];
-  for (const base of ["src/b2b", "src/features/b2b"]) {
+  for (const base of ["src/b2b", "src/features/b2b", ...PUBLIC_INSTITUTION_PAGES]) {
     const dir = join(root, base);
     if (!existsSync(dir)) continue;
-    for (const f of walk(dir)) {
+    for (const f of base.endsWith(".tsx") ? [dir] : walk(dir)) {
       const rel = relative(root, f).split(sep).join("/");
       if (!/\.(ts|tsx)$/.test(rel) || SOURCE_ALLOW.some((r) => r.test(rel))) continue;
       const lines = readFileSync(f, "utf8").split("\n");
