@@ -14,14 +14,33 @@ Fixes for blockers found in the 2026-11-03 guide run (`docs/b2b/TEST-RUN-2026-11
 
 Checks, run locally: typecheck:b2b clean, 202 frontend B2B tests pass, 545 DB tests pass (3 skipped).
 
-**Still open from the run:**
-- B34: no integrity-review link on the college side
-- Builder paywall ignores the Unlimited plan
-- Unlimited wording differs between pricing and home pages
-- Cost rates start in 2027, so costs show ₹0
-- No way to revoke a candidate invite
-- The TPO sees the plan id in the ledger
-- Voice consent is only a notice
+**Also fixed 2026-11-07:**
+- `7f898d3`: B40 (privacy) proctoring stops when the test or interview ends, enforced on both server and browser. Also B23, B38 and B39.
+- `7a74379`: B14, no plan names in the college or company ledger.
+
+**Owner rule (2026-11-07):** no prices or plan names anywhere in the B2B portals. Pricing is set per college and can include distributor or mediator commissions. Only super-admin pages show prices.
+
+**Still open from the run, B2B first:**
+- Wrong results shown to staff:
+  - B29: invented skill evidence
+  - B21: interviewer invents company facts
+  - B22: repeated question
+  - B33/B35: scores don't match
+  - B30: raw score keys shown
+  - B37: each exit penalised twice
+  - B36: dismissing a flag doesn't update the score
+- Admin:
+  - B13: cost rates start in 2027, so costs show ₹0
+  - B15: practice shows a credit cost when it was set to 0
+  - B26: no invite revoke
+  - B32: shortlisting a no-result candidate counts as completed
+  - B31: decision note taken from the comment box
+  - B34: no integrity-review link on the college side
+  - B27: system check can be skipped
+  - B11: ledger dialog balance doesn't refresh
+- Voice consent is only a notice.
+- B2C (resume side), later: B1–B10, B12.
+- Public `/college-placement` still shows retired ₹149/₹299 plans: owner to decide.
 
 **Owner steps:**
 - Hands-on guide steps 5.18–5.27, c2, downloads and 8.1–8.15
