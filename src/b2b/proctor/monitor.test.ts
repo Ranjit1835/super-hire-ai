@@ -185,6 +185,21 @@ describe("proctor monitor: policies", () => {
     await m.stop();
   });
 
+  it("strict: a minor flag the server answers with \"warn\" doesn't repeat the last strike (B39)", async () => {
+    const onStrike = vi.fn();
+    const { m } = setup("strict", { onStrike });
+    reply = { accepted: 1, violations: 1, action: "warn", maxViolations: 3 };
+    fullscreen = null;
+    document.dispatchEvent(new Event("fullscreenchange"));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onStrike).toHaveBeenCalledTimes(1);
+    // Same count (a looking-away / no-face flag): no new "Serious violation 1 of 3".
+    m.report("tab_hidden", "high");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onStrike).toHaveBeenCalledTimes(1);
+    await m.stop();
+  });
+
   it("flags a virtual camera by its label (a hint for the reviewer)", async () => {
     const t = new FakeTrack("", "OBS Virtual Camera");
     const { m } = setup("standard", { camera: stream(t) });

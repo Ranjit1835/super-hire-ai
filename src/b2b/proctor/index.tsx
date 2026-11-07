@@ -58,10 +58,12 @@ export interface ProctoredSessionProps {
   onReady?: (sessionId: string | null) => void;
   /** Strict policy hit its violation limit: the host must submit now. */
   onAutoSubmit?: () => void;
+  /** The test or interview is over (the host still shows its done screen): stop monitoring and release devices now. */
+  ended?: boolean;
   children: ReactNode;
 }
 
-type Stage = "preflight" | "check" | "consent" | "share" | "running" | "off" | "declined" | "error";
+type Stage = "preflight" | "check" | "consent" | "share" | "running" | "off" | "declined" | "error" | "done";
 
 interface Preflight { policy: ProctoringPolicyV1; orgName: string; retentionDays: number; contactEmail: string | null; strictMaxViolations: number; snapshotIntervalS: number }
 
@@ -75,7 +77,7 @@ const errorText = (e: unknown) => (e instanceof ApiError || e instanceof Error ?
  * Wraps a proctored screen: shows system check → consent → screen share before children, monitors while they
  * render, and ends the session (computing the integrity score) on unmount.
  */
-export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAutoSubmit, children }: ProctoredSessionProps) {
+export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAutoSubmit, ended, children }: ProctoredSessionProps) {
   useB2BTheme();
   const [stage, setStage] = useState<Stage>("preflight");
   const [pre, setPre] = useState<Preflight | null>(null);
@@ -114,13 +116,15 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
 
   useEffect(() => { void runPreflight(); }, [runPreflight]);
 
-  // Unmount: stop monitoring, send what's queued, end the session (server computes the score), release devices.
-  useEffect(() => () => {
+  // B40: stop monitoring, send what's queued, end the session (server computes the score), release devices.
+  // Runs once, on unmount, when the host says the test/interview ended, or when the server says the session ended.
+  const teardown = useCallback(() => {
     const m = monitor.current;
     const s = live.current;
     monitor.current = null;
     live.current = null;
     stopStream(screen.current);
+    screen.current = null;
     if (!s) { stopStream(check.current?.stream); return; }
     void (async () => {
       try { await m?.stop(); } finally {
@@ -130,6 +134,25 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
       }
     })();
   }, []);
+
+  useEffect(() => teardown, [teardown]);
+
+  const finishNow = useCallback(() => {
+    teardown();
+    setPaused(false);
+    setWarning(null);
+    setFinalWarning(null);
+    setProblems([]);
+    setStage("done");
+  }, [teardown]);
+
+  useEffect(() => { if (ended) finishNow(); }, [ended, finishNow]);
+
+  /** The server refuses events and uploads once the test/interview is over: stop here too. */
+  const watchEnded = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => {
+    if (e instanceof ApiError && e.code === "SESSION_ENDED") finishNow();
+    throw e;
+  });
 
   const start = async (screenStream: MediaStream, displays: number) => {
     const c = check.current;
@@ -151,9 +174,9 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
       const m = new ProctorMonitor({
         sessionId: r.sessionId, policy: r.policy as Policy, kind, tier: c.tier, snapshotIntervalS: r.snapshotIntervalS,
         camera: c.stream, mic: kind === "assessment" ? c.stream : null, screen: screenStream,
-        sendEvents: async (events) => (await proctorApi("events", { sessionId: r.sessionId, events: events as never })) as SendResult,
+        sendEvents: async (events) => (await watchEnded(proctorApi("events", { sessionId: r.sessionId, events: events as never }))) as SendResult,
         uploadUrl: async (snapKind, contentType) => {
-          const u = await proctorApi("snapshotUploadUrl", { sessionId: r.sessionId, kind: snapKind, contentType });
+          const u = await watchEnded(proctorApi("snapshotUploadUrl", { sessionId: r.sessionId, kind: snapKind, contentType }));
           return { path: u.path, token: u.token };
         },
         upload: async (job) => {
@@ -218,7 +241,7 @@ export function ProctoredSession({ attemptId, interviewId, kind, onReady, onAuto
     return () => clearTimeout(id);
   }, [warning]);
 
-  if (stage === "off") return <Ctx.Provider value={noop}>{children}</Ctx.Provider>;
+  if (stage === "off" || stage === "done") return <Ctx.Provider value={noop}>{children}</Ctx.Provider>;
 
   if (stage === "running") {
     return (

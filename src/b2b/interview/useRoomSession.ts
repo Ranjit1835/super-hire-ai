@@ -79,9 +79,10 @@ export function useRoomSession(interviewId: string) {
   const finishWith = useCallback(async (s: RoomState) => {
     show(s);
     voice.cancel();
-    if (s.closing) { setPhase("asking"); await voice.speak(s.closing); }
     if (!alive.current) return;
+    // B38: the interview is over the moment the server says so; the closing line plays without holding the page.
     setPhase("finished");
+    if (s.closing) void voice.speak(s.closing).catch(() => undefined);
     if (samplesRef.current.length) {
       void interviewV1Api("latency", { interviewId, samples: samplesRef.current.slice(0, 100) }).catch(() => undefined);
     }

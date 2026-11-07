@@ -197,8 +197,11 @@ export function RoomView({ room, phase, error, issue, voiceTranscript, level, re
 }
 
 /** The live room: wires useRoomSession to RoomView. */
-export function Room({ interviewId }: { interviewId: string }) {
+export function Room({ interviewId, onFinished }: { interviewId: string; onFinished?: () => void }) {
   const s = useRoomSession(interviewId);
+  const finishedCb = useRef(onFinished);
+  finishedCb.current = onFinished;
+  useEffect(() => { if (s.phase === "finished") finishedCb.current?.(); }, [s.phase]);
   const level = useMicLevel(s.phase === "listening");
   const room = s.room;
   if (s.phase === "loading" && !room) return <Loading />;
@@ -218,6 +221,8 @@ export default function RoomPage() {
   const [policy, setPolicy] = useState<RoomState["policy"] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [finished, setFinished] = useState(false);
+  /** Finished while open: proctoring stops (B23/B40) while the room keeps its done screen. */
+  const [over, setOver] = useState(false);
   useEffect(() => {
     interviewV1Api("room", { interviewId })
       .then((r) => { setPolicy(r.policy); setFinished(r.status !== "in_progress"); })
@@ -228,8 +233,8 @@ export default function RoomPage() {
   // A finished interview has nothing left to proctor.
   if (finished) return <Room interviewId={interviewId} />;
   return (
-    <ProctoredSession interviewId={interviewId} policy={policy} kind="interview">
-      <Room interviewId={interviewId} />
+    <ProctoredSession interviewId={interviewId} policy={policy} kind="interview" ended={over}>
+      <Room interviewId={interviewId} onFinished={() => setOver(true)} />
     </ProctoredSession>
   );
 }

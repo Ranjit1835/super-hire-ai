@@ -78,6 +78,8 @@ export class ProctorMonitor {
   private paused = false;
   private submitted = false;
   private stopped = false;
+  /** Highest violation count the server has reported (strikes are shown only when it rises). */
+  private lastViolations = 0;
   private lastEmit = new Map<string, number>();
   private conditionEvidence = new Map<ConditionType, string>();
   private screenVideo: HTMLVideoElement | null = null;
@@ -273,7 +275,10 @@ export class ProctorMonitor {
   }
 
   private onServer(r: SendResult) {
-    if ((r.action === "warn" || r.action === "final_warning") && r.maxViolations) {
+    // B39: minor flagged events also answer "warn"; only a new serious violation (count went up) is a strike.
+    const counted = r.violations > this.lastViolations;
+    if (r.violations > this.lastViolations) this.lastViolations = r.violations;
+    if ((r.action === "warn" || r.action === "final_warning") && r.maxViolations && counted) {
       this.d.onStrike?.({ violations: r.violations, max: r.maxViolations, final: r.action === "final_warning" });
     }
     if (r.action === "submit" && !this.submitted) {
