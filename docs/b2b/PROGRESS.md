@@ -3,7 +3,30 @@
 > Read this first at the start of every session; update it at the end.
 > Spec + **Decisions log**: `docs/b2b/hiresume-b2b-build-prompt.md` · Evidence and numbers: `docs/b2b/AUDIT.md`
 
-_Last updated: 2026-10-29_
+_Last updated: 2026-11-07_
+
+## 2026-11-07: test-run blockers fixed (`776e830`, pushed to PR #8)
+Fixes for blockers found in the 2026-11-03 guide run (`docs/b2b/TEST-RUN-2026-11-03.md`), each with a regression test:
+- **B19:** a blank late-join window is no longer saved as 0, which had locked students out (`forms.ts` union order).
+- **B20:** interviews can use library modules (org_id NULL). Other orgs' modules are still refused (migration `20261103000001`).
+- **B25:** recruiters and company admins can create a job role with insert … returning under RLS (migration `…02`).
+- **B28:** a candidate link on a shared browser now gets a fresh session instead of the previous candidate's (migration `…03`, `TokenFlowPage`).
+
+Checks, run locally: typecheck:b2b clean, 202 frontend B2B tests pass, 545 DB tests pass (3 skipped).
+
+**Still open from the run:**
+- B34: no integrity-review link on the college side
+- Builder paywall ignores the Unlimited plan
+- Unlimited wording differs between pricing and home pages
+- Cost rates start in 2027, so costs show ₹0
+- No way to revoke a candidate invite
+- The TPO sees the plan id in the ledger
+- Voice consent is only a notice
+
+**Owner steps:**
+- Hands-on guide steps 5.18–5.27, c2, downloads and 8.1–8.15
+- Secrets GROQ_API_KEY and GOOGLE_TTS_API_KEY
+- A "go" at each production step: backup → migrations → secrets → functions → frontend
 
 ## Current: `HIRESUME_B2B_SPEC.md`, Phases 1–2 done, Phase 3 voice pipeline built (branch `feat/b2b-hardening`, PR #8)
 
