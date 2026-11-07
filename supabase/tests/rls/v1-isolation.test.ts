@@ -272,6 +272,14 @@ describe("tenant isolation: writes", () => {
     expect(await changes(u.adminC, "UPDATE share_links SET revoked_at = now() WHERE org_id = $1", [o.coD])).toBe(0);
   });
 
+  it("recruiters and company admins can create a job role and read it back (insert ... returning, as the role form does)", async () => {
+    for (const user of [u.recruiterC, u.adminC]) {
+      const row = await asUser(db, user, async (tx) =>
+        (await tx.query<{ id: string }>("INSERT INTO job_roles (org_id, title) VALUES ($1, 'Returning role') RETURNING id", [o.coC])).rows[0]);
+      expect(row.id).toMatch(/^[0-9a-f-]{36}$/);
+    }
+  });
+
   it("roles inside an org are limited too", async () => {
     await rejected(u.trainerA, "INSERT INTO students (org_id, roll_no, full_name, email) VALUES ($1, 'T1', 'T', 't@a.in')", [o.colA]);
     await rejected(u.hmC, "INSERT INTO job_roles (org_id, title) VALUES ($1, 'HM role')", [o.coC]);

@@ -172,6 +172,13 @@ export async function ensureVisitorSession(): Promise<void> {
   if (error) throw new ApiError(error.status ?? 0, "ANON_AUTH", "Couldn't start a test session. Please refresh and try again.");
 }
 
+/** Drop an anonymous session left by someone else in this browser (shared computer) and start a new one. */
+export async function freshVisitorSession(): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user.is_anonymous) await supabase.auth.signOut({ scope: "local" });
+  await ensureVisitorSession();
+}
+
 export const publicTestApi = {
   info: async (slug: string): Promise<PublicTestInfo | null> => {
     const { data, error } = await supabase.rpc("public_test_info" as never, { _slug: slug } as never);

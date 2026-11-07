@@ -13,11 +13,11 @@ const db = vi.hoisted(() => {
   const update = vi.fn(() => ({ eq }));
   return { insert, update, single, from: vi.fn(() => ({ insert, update })) };
 });
-const session = vi.hoisted(() => ({ ensureVisitorSession: vi.fn() }));
+const session = vi.hoisted(() => ({ ensureVisitorSession: vi.fn(), freshVisitorSession: vi.fn() }));
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" }, signOut: vi.fn() }) }));
 vi.mock("@/features/b2b/lib/db", () => ({ b2bDb: { from: db.from, rpc: vi.fn() } }));
-vi.mock("@/features/b2b/lib/api", async (orig) => ({ ...(await orig<typeof import("@/features/b2b/lib/api")>()), ensureVisitorSession: session.ensureVisitorSession }));
+vi.mock("@/features/b2b/lib/api", async (orig) => ({ ...(await orig<typeof import("@/features/b2b/lib/api")>()), ensureVisitorSession: session.ensureVisitorSession, freshVisitorSession: session.freshVisitorSession }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), companyApi: api.companyApi, candidateApi: api.candidateApi }));
 vi.mock("./queries", async (orig) => ({
   ...(await orig<typeof import("./queries")>()),
@@ -32,6 +32,7 @@ import { InviteDialog } from "./InviteDialog";
 import { StaffReport } from "./ReportPage";
 import { ShareView } from "../candidate/SharePage";
 import { TokenFlow } from "../candidate/TokenFlowPage";
+import { ApiError } from "../lib/api";
 import type { JobRoleRecord } from "./queries";
 import type { CandidateReport } from "../../../supabase/functions/_shared/contracts/company";
 
@@ -73,7 +74,7 @@ const report = (over: Partial<CandidateReport> = {}): CandidateReport => ({
 });
 
 beforeEach(() => {
-  api.companyApi.mockReset(); api.candidateApi.mockReset(); session.ensureVisitorSession.mockReset();
+  api.companyApi.mockReset(); api.candidateApi.mockReset(); session.ensureVisitorSession.mockReset(); session.freshVisitorSession.mockReset();
   db.from.mockClear(); db.insert.mockClear(); db.update.mockClear();
 });
 
@@ -280,5 +281,22 @@ describe("candidate token flow", () => {
     });
     wrap(<TokenFlow token={TOKEN} />);
     expect(await screen.findByRole("alert")).toHaveTextContent(/another browser/);
+  });
+
+  it("a session left by another candidate on a shared computer is replaced, then the link opens", async () => {
+    let starts = 0;
+    api.candidateApi.mockImplementation(async (action: string) => {
+      if (action === "resolveInvite") return info;
+      if (action === "startCandidate") {
+        starts += 1;
+        if (starts === 1) throw new ApiError(409, "SESSION_IN_USE", "This browser was used by another candidate. Please reload the page.");
+        return state();
+      }
+      throw new Error(action);
+    });
+    wrap(<TokenFlow token={TOKEN} />);
+    await screen.findByRole("heading", { name: "Backend engineer at Acme" });
+    expect(session.freshVisitorSession).toHaveBeenCalledTimes(1);
+    expect(starts).toBe(2);
   });
 });

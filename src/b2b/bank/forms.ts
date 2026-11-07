@@ -161,7 +161,8 @@ export const AssessmentForm = z.object({
   proctoring_policy: ProctoringPolicy,
   strict_max_violations: z.coerce.number().int().min(1).max(50),
   practice_enabled: z.boolean(),
-  late_join_min: z.union([z.coerce.number().int().min(0).max(600), z.literal("")]),
+  // "" (blank = any time in the window) must be tried first: z.coerce.number() turns "" into 0.
+  late_join_min: z.union([z.literal(""), z.coerce.number().int().min(0).max(600)]),
   /** R2.1: the most of a paper any two students in the same drive may share (percent). */
   max_overlap_pct: z.coerce.number().int().min(1, "Overlap target: 1 to 100").max(100, "Overlap target: 1 to 100"),
   /** R2.4: "linear" = one question at a time, no going back. */

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  assessmentFromRow, assessmentRow, checkDraw, CodingForm, codingPayload, describeRule, emptyAssessment, emptyCoding, McqForm, mcqPayload,
+  AssessmentForm, assessmentFromRow, assessmentRow, checkDraw, CodingForm, codingPayload, describeRule, emptyAssessment, emptyCoding, McqForm, mcqPayload,
   paperCapacity, poolMatches, type AssessmentRow, type QuestionRow,
 } from "./forms";
 
@@ -106,6 +106,12 @@ describe("bank forms (pure)", () => {
       { type: "mcq", title: "Aptitude", question_ids: [Q2] },
     ]);
     expect(row.late_join_min).toBeNull();
+    // A blank "late join" must stay blank through validation ("any time in the window"), not become 0 minutes.
+    const parsed = AssessmentForm.parse({ ...f, late_join_min: "" });
+    expect(parsed.late_join_min).toBe("");
+    expect(assessmentRow(ORG, parsed).late_join_min).toBeNull();
+    expect(AssessmentForm.parse({ ...f, late_join_min: "15" }).late_join_min).toBe(15);
+    expect(AssessmentForm.parse({ ...f, late_join_min: 0 }).late_join_min).toBe(0);
     const back = assessmentFromRow({ ...row, id: "x", created_at: "", updated_at: "", negative_marking: "0.25" } as unknown as AssessmentRow);
     expect(back.sections[0].pick[0]).toEqual({ difficulty: "easy", topics: "arrays, strings", count: 2 });
     expect(back.negative_marking).toBe(0.25);
