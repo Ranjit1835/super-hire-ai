@@ -209,3 +209,15 @@ describe("super_add_org_member", () => {
     });
   });
 });
+
+describe("no plan names in the portal ledger (B14)", () => {
+  it("a new org's opening credit grant doesn't name the plan its staff will read", async () => {
+    const r = await asService(db, async (tx) => (await tx.query<{ r: { ok: boolean; org_id: string } }>(
+      "SELECT public.super_create_org($1, $2::jsonb, NULL) AS r",
+      [u.super, JSON.stringify({ name: "Ledger College", slug: "ledger-college", type: "college", planId: "college_starter", seatLimit: 10 })])).rows[0].r);
+    expect(r.ok).toBe(true);
+    const notes = (await db.query<{ note: string | null }>("SELECT note FROM org_credit_ledger WHERE org_id = $1", [r.org_id])).rows;
+    expect(notes).toEqual([{ note: "Opening credits" }]);
+    for (const n of notes) expect(n.note ?? "").not.toMatch(/college_|company_|plan|₹/i);
+  });
+});
