@@ -17,14 +17,15 @@ Checks, run locally: typecheck:b2b clean, 202 frontend B2B tests pass, 545 DB te
 **Also fixed 2026-11-07:**
 - `7f898d3`: B40 (privacy) proctoring stops when the test or interview ends, enforced on both server and browser. Also B23, B38 and B39.
 - `7a74379`: B14, no plan names in the college or company ledger.
+- `669a21a`: no listed prices on the public `/college-placement` page ("Get a quote").
+- `20e1b0a`: B29 (no invented skill evidence), B21 (interviewer never describes the organisation), B22 (no repeated questions). B21/B22 change the prompt only, so confirm them in the next live interview.
+
+Full suite on 2026-11-08: 950 pass, 3 skipped (run with `--maxWorkers=1` when free RAM is low).
 
 **Owner rule (2026-11-07):** no prices or plan names anywhere in the B2B portals. Pricing is set per college and can include distributor or mediator commissions. Only super-admin pages show prices.
 
 **Still open from the run, B2B first:**
 - Wrong results shown to staff:
-  - B29: invented skill evidence
-  - B21: interviewer invents company facts
-  - B22: repeated question
   - B33/B35: scores don't match
   - B30: raw score keys shown
   - B37: each exit penalised twice
