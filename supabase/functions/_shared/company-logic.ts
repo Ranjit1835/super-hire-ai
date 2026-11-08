@@ -50,7 +50,11 @@ const round1 = (x: number) => Math.round(x * 10) / 10;
 
 // ── AI match score ────────────────────────────────────────────────────────────────────────────────────────
 /** A piece of scored evidence (0–100) from the coding test or the interview. */
-export interface Signal { source: "coding" | "mcq" | "interview"; label: string; score: number; evidence: string[] }
+export interface Signal {
+  source: "coding" | "mcq" | "interview"; label: string; score: number; evidence: string[];
+  /** The label is a skill name the interview scored: it matches only that skill, not anything sharing a word. */
+  exact?: boolean;
+}
 
 const STOP = new Set(["and", "the", "for", "with", "of", "in", "on", "to", "a", "an", "or", "skills", "knowledge", "experience", "basics", "general"]);
 export function tokens(s: string): string[] {
@@ -67,6 +71,12 @@ export function matches(skill: string, label: string): boolean {
   const bs = b.join(" ");
   if (as.includes(bs) || bs.includes(as)) return true;
   return a.some((t) => t.length >= 3 && b.includes(t));
+}
+
+/** Same skill name, ignoring case, punctuation and filler words. */
+export function sameSkill(skill: string, label: string): boolean {
+  const a = tokens(skill).join(" ");
+  return a.length > 0 && a === tokens(label).join(" ");
 }
 
 export function recommendationFor(score: number | null): "strong" | "good" | "borderline" | "not_yet" | null {
@@ -103,7 +113,7 @@ export function computeMatch(matrix: SkillsMatrix | null, signals: Signal[], ove
   let wHit = 0;
   let acc = 0;
   const skills = list.map((s) => {
-    const hits = signals.filter((g) => matches(s.skill, g.label));
+    const hits = signals.filter((g) => (g.exact ? sameSkill(s.skill, g.label) : matches(s.skill, g.label)));
     const w = s.weight * (s.kind === "must" ? 2 : 1);
     wSum += w;
     if (!hits.length) return { skill: s.skill, kind: s.kind, weight: s.weight, score: null, evidence: [] as string[] };
@@ -131,11 +141,11 @@ const BAND_RANK: Record<Band, number> = { high: 0, medium: 1, low: 2 };
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
 const arr = (v: unknown): Json[] => (Array.isArray(v) ? (v.filter((x) => x && typeof x === "object") as Json[]) : []);
 
-function scoredItems(result: unknown): Array<{ label: string; score: number | null; quotes: string[]; reason: string }> {
+function scoredItems(result: unknown, keys = ["dimensions", "per_topic"]): Array<{ label: string; score: number | null; quotes: string[]; reason: string }> {
   if (!result || typeof result !== "object") return [];
   const r = result as Json;
   const out: Array<{ label: string; score: number | null; quotes: string[]; reason: string }> = [];
-  for (const key of ["dimensions", "per_topic"]) {
+  for (const key of keys) {
     const group = r[key];
     if (!group || typeof group !== "object") continue;
     for (const [label, item] of Object.entries(group as Json)) {
@@ -163,14 +173,16 @@ export function signalsFrom(raw: Json): { signals: Signal[]; codingPct: number |
     const topic = str(d.topic);
     if (d.source_type === "assessment") {
       signals.push({ source: dim === "coding" ? "coding" : "mcq", label: topic ?? dim.replace(/_/g, " "), score, evidence: [] });
-    } else if (d.source_type === "interview") {
-      signals.push({ source: "interview", label: topic ?? dim.replace(/_/g, " "), score, evidence: [] });
+    } else if (d.source_type === "interview" && topic) {
+      // B29: only a score the evaluator gave for a named skill (backed by quotes) is evidence for that skill.
+      // General interview dimensions ("code understanding") feed the interview overall, never a skill row.
+      signals.push({ source: "interview", label: topic, score, evidence: [], exact: true });
     }
   }
   const iv = raw.interview as Json | null | undefined;
   const ev = iv?.evaluation as Json | null | undefined;
-  for (const it of scoredItems(ev?.result)) {
-    if (it.score !== null) signals.push({ source: "interview", label: it.label, score: it.score, evidence: it.quotes.map((q) => `“${q}”`) });
+  for (const it of scoredItems(ev?.result, ["per_topic"])) {
+    if (it.score !== null) signals.push({ source: "interview", label: it.label, score: it.score, evidence: it.quotes.map((q) => `“${q}”`), exact: true });
   }
   const a = raw.attempt as Json | null | undefined;
   const score = n(a?.score);

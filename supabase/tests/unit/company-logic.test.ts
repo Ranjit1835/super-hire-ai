@@ -107,6 +107,22 @@ describe("report shaping", () => {
     expect(r.integrity.sessions.every((s) => s.sessionId === null)).toBe(true);
   });
 
+  it("B29: a general interview score is never evidence for a skill that wasn't discussed", () => {
+    const withGit: SkillsMatrix = { ...matrix, nice_to_have: [{ skill: "Git & code review", weight: 2 }] };
+    const r = shapeReport(raw({
+      role: { id: U(2), title: "Backend engineer", org_name: "Startup A", skills_matrix: withGit },
+      dimension_scores: [
+        { source_type: "assessment", dimension: "coding", topic: null, score: 80 },
+        // V1 interview rows: a general dimension (code walkthrough 1/5) and one skill the evaluator scored with quotes.
+        { source_type: "interview", dimension: "coding", topic: "code_walkthrough", score: 20 },
+        { source_type: "interview", dimension: "communication", topic: null, score: 60 },
+        { source_type: "interview", dimension: "technical_knowledge", topic: "SQL", score: 80 },
+      ],
+    }), true);
+    expect(r.skills.find((s) => s.skill === "Git & code review")).toMatchObject({ score: null, evidence: [] });
+    expect(r.skills.find((s) => s.skill === "SQL")!.evidence[0]).toMatch(/^Interview: SQL 80%/);
+  });
+
   it("an unfinished attempt doesn't count towards the match", () => {
     const m = matchFromRaw(raw({ attempt: { id: U(3), status: "in_progress", score: 2, max_score: 10, questions: [] }, dimension_scores: [] }));
     expect(m.score).toBeNull();
