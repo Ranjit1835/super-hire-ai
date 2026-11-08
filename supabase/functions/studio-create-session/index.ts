@@ -7,6 +7,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const PASS_PAYMENT_TYPE: Record<string, string> = {
+  single: "STUDIO_SINGLE",
+  weekly: "STUDIO_WEEKLY",
+  yearly: "STUDIO_YEARLY",
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
@@ -98,6 +104,31 @@ serve(async (req) => {
 
       if (expectedSig !== razorpaySignature) {
         throw new Error("Payment signature verification failed");
+      }
+
+      // The order must be this user's and for this pass: a ₹149 order can't open a yearly pass.
+      const { data: order } = await admin
+        .from("payments")
+        .select("id, payment_type")
+        .eq("razorpay_order_id", razorpayOrderId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!order || order.payment_type !== PASS_PAYMENT_TYPE[passType]) {
+        throw new Error("Payment does not match this pass");
+      }
+
+      // One payment opens one session.
+      const { data: existingPaid } = await admin
+        .from("studio_sessions")
+        .select("id, pass_type, expires_at, messages_used")
+        .eq("razorpay_payment_id", razorpayPaymentId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (existingPaid) {
+        return new Response(
+          JSON.stringify({ session: existingPaid }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       // Update payment record to SUCCESS

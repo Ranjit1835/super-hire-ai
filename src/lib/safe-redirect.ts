@@ -16,19 +16,23 @@ export function authUrlFor(path: string): string {
   return back && back !== "/" ? `/auth?redirect=${encodeURIComponent(back)}` : "/auth";
 }
 
-/** Google/Apple sign-in leaves the site; remember where to go when it returns to /auth/callback. */
+/**
+ * Google/Apple sign-in leaves the site, and an email confirmation link opens a new tab. Remember
+ * where to go when either returns to /auth/callback. localStorage, because sessionStorage doesn't
+ * reach that new tab.
+ */
 export function rememberRedirect(path: string | null | undefined) {
   const p = safeRedirect(path);
   try {
-    if (p) sessionStorage.setItem(KEY, p);
-    else sessionStorage.removeItem(KEY);
+    if (p) localStorage.setItem(KEY, p);
+    else localStorage.removeItem(KEY);
   } catch { /* storage blocked: fall back to the dashboard */ }
 }
 
 export function takeRememberedRedirect(): string | null {
   try {
-    const p = sessionStorage.getItem(KEY);
-    sessionStorage.removeItem(KEY);
+    const p = localStorage.getItem(KEY);
+    localStorage.removeItem(KEY);
     return safeRedirect(p);
   } catch {
     return null;

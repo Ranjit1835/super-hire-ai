@@ -122,7 +122,7 @@ export function HeroSection({ dragOver, setDragOver, onDrop, onFileSelect, fileI
           </motion.div>
 
           <p className="text-sm text-muted-foreground mt-4">
-            Free · No signup · Results in about 15 seconds
+            Free score · No signup · About 15 seconds
           </p>
           <p className="text-sm text-muted-foreground mt-3">
             Want to edit your resume with AI instead?{" "}

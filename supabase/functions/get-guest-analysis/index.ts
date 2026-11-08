@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { guestPreview } from "../_shared/guest-preview.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,7 +44,7 @@ serve(async (req) => {
       });
     }
 
-    // Return TRUNCATED data — scores + performance tag only, no detailed issues/recommendations
+    // Return TRUNCATED data — scores + performance tag + one finding, no fixes or the rest of the report
     const result = data.analysis_result as any;
     const truncatedResult = {
       atsScore: result?.atsScore ?? data.ats_score,
@@ -60,6 +61,7 @@ serve(async (req) => {
       criticalIssuesCount: result?.criticalIssues?.length ?? 0,
       warningsCount: result?.warnings?.length ?? 0,
       optimizationsCount: result?.optimizationOpportunities?.length ?? 0,
+      ...guestPreview(result),
     };
 
     return new Response(JSON.stringify({

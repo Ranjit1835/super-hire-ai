@@ -77,7 +77,7 @@ export interface Feature {
 /** One entry per product feature, shown on the home page. */
 export const FEATURES: Feature[] = [
   { href: "/ats-checker", icon: BarChart3, title: "ATS score check", cta: "Check my resume",
-    desc: "Upload a PDF and see what applicant tracking systems read, the keywords you're missing and what to fix. Free, no sign-up." },
+    desc: "Upload a PDF and see what applicant tracking systems read, the keywords you're missing and what to fix. Free score with no sign-up, full report with a free account." },
   { href: "/ats-checker", icon: Wrench, title: "AI resume fix", cta: "Start with a free check",
     desc: "After your score, one click rewrites your resume for the job, keeping your facts. Download it as an ATS-friendly PDF." },
   { href: "/build-resume", icon: FileText, title: "Resume builder", cta: "Build a resume", signIn: true,

@@ -18,7 +18,7 @@ const FEATURES = [
   { icon: BarChart3, title: "Impact Score", desc: "Measures how well your bullet points quantify achievements. Weak verbs and vague descriptions get flagged instantly." },
   { icon: Shield, title: "Recruiter Scan Simulation", desc: "A quick view of what stands out — and what gets missed — when a recruiter skims your resume." },
   { icon: Clock, title: "Results in Seconds", desc: "Upload your PDF and get a complete ATS score breakdown in about 15 seconds." },
-  { icon: Star, title: "100% Free Analysis", desc: "The full ATS score check is free — no signup and no credit card. You only pay if you want AI to rewrite your resume." },
+  { icon: Star, title: "100% Free Analysis", desc: "Your ATS score needs no signup, and the full report is free with an account. No credit card. You only pay if you want AI to rewrite your resume." },
 ];
 
 const ATS_SYSTEMS = [
@@ -68,7 +68,7 @@ export default function ATSChecker() {
             Check Your <span className="gradient-text-new">ATS Resume Score</span> in Seconds
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            Many companies screen applications with an Applicant Tracking System (ATS). Upload your resume to see what it reads, which keywords you're missing and what to fix — free, no signup.
+            Many companies screen applications with an Applicant Tracking System (ATS). Upload your resume to see what it reads, which keywords you're missing and what to fix. Your score needs no signup, and the full report is free with an account.
           </p>
 
           {/* Upload CTA */}
@@ -91,7 +91,7 @@ export default function ATSChecker() {
               >
                 <Upload className="h-10 w-10 text-primary mx-auto mb-3" aria-hidden />
                 <span className="block font-semibold mb-1">Upload your resume PDF</span>
-                <span className="block text-sm text-muted-foreground">Tap to choose a file or drag it here · free, no signup</span>
+                <span className="block text-sm text-muted-foreground">Tap to choose a file or drag it here · free score, no signup</span>
               </button>
             )}
             <input
@@ -185,7 +185,7 @@ export default function ATSChecker() {
           <div className="space-y-4">
             {[
               { q: "What is an ATS and why does it matter?", a: "An ATS (Applicant Tracking System) is software companies use to collect applications and let recruiters search and filter them. If it can't read your resume properly, or your resume lacks the skills recruiters search for, you may not be shortlisted. Our checker shows you what to fix." },
-              { q: "Is the ATS resume checker really free?", a: "Yes. You get your full ATS score, keyword analysis, formatting check and impact assessment with no signup and no credit card. You only pay if you want AI to fix and rewrite your resume." },
+              { q: "Is the ATS resume checker really free?", a: "Yes. Your ATS score needs no signup. The keyword analysis, formatting check and impact assessment are free with an account, and no credit card is needed. You only pay if you want AI to fix and rewrite your resume." },
               { q: "What resume format should I use for ATS?", a: "Use a single-column PDF with standard section headings (Experience, Education, Skills). Avoid tables, text boxes, headers/footers, and graphics. Our checker flags all formatting issues automatically." },
               { q: "How accurate is the ATS score?", a: "The score is an AI assessment of how readable your resume is to applicant tracking software and how well it covers the keywords a role needs. Treat it as a guide to what to fix — no tool can predict exactly how a particular company's system or recruiter will rank you." },
               { q: "Can I check multiple resumes?", a: "Yes. Tailor your resume for each job application and check the ATS score each time — checks are free." },

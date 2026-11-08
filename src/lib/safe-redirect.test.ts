@@ -20,7 +20,7 @@ describe("safeRedirect", () => {
 });
 
 describe("remembered redirect (survives Google sign-in and the sign-up code step)", () => {
-  beforeEach(() => sessionStorage.clear());
+  beforeEach(() => localStorage.clear());
   it("is read once", () => {
     rememberRedirect("/mock-interview");
     expect(takeRememberedRedirect()).toBe("/mock-interview");

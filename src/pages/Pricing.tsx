@@ -38,7 +38,7 @@ export default function Pricing() {
       price: `${pricing.symbol}0`,
       period: "forever",
       description: "Check your ATS score — no limits",
-      features: ["Unlimited ATS score checks", "Keyword gap analysis", "Formatting assessment", "Impact score breakdown", "No signup required"],
+      features: ["Unlimited ATS score checks", "Keyword gap analysis", "Formatting assessment", "Impact score breakdown", "No signup for your score"],
       highlight: false,
       badge: null,
     },
@@ -211,7 +211,7 @@ export default function Pricing() {
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">Pricing FAQ</h2>
           <div className="space-y-4">
             {[
-              { q: "Is the ATS resume check really free?", a: "Yes — completely free, no signup, no limits. Check as many resumes as you want. You only pay when you want AI to fix or build your resume." },
+              { q: "Is the ATS resume check really free?", a: "Yes. Your score needs no signup, and the full report is free with an account. Check as many resumes as you want. You only pay when you want AI to fix or build your resume." },
               { q: "What payment methods do you accept?", a: "We accept Visa, Mastercard, UPI, net banking, and digital wallets via Razorpay. Prices are shown in USD or INR based on your location — toggle anytime." },
               { q: "Is there a student discount?", a: "Yes! Students get automatic discounts on the Unlimited Plan. The discount is applied based on your resume type during checkout." },
               { q: "Can I get a refund?", a: "Since our AI processes your resume immediately upon payment, we don't offer refunds. But the free ATS check lets you evaluate the quality before paying." },
