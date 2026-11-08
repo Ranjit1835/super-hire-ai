@@ -296,3 +296,38 @@ describe("B40: the session ends with its test", () => {
     expect(await rpc("b2b_proctor_end", [u.studentA, sess, 95, "high", "{}"])).toMatchObject({ ok: true, integrity_band: "high" });
   });
 });
+
+describe("B35: drive integrity counts every session, once scored", () => {
+  it("shows not scored yet while a session has no score, then the lowest score once the finalizer stores it", async () => {
+    const drive = await id("INSERT INTO drives (org_id, name, assessment_id, proctoring_policy) VALUES ($1, 'Drive B35', $2, 'standard') RETURNING id", [o.A, r.asStd]);
+    const at = await id(
+      "INSERT INTO attempts (org_id, assessment_id, subject_user_id, status, student_id, context_type, context_id) VALUES ($1, $2, $3, 'in_progress', $4, 'drive', $5) RETURNING id",
+      [o.A, r.asStd, u.studentA2, r.sA2, drive]);
+    await db.query("INSERT INTO drive_assignments (drive_id, org_id, student_id, attempt_id) VALUES ($1, $2, $3, $4)", [drive, o.A, r.sA2, at]);
+    const test = String((await start(u.studentA2, at)).session_id);
+    // Another session of the same assignment that ended cleanly with a perfect score (the interview, in the test run).
+    await db.query(
+      "INSERT INTO proctoring_sessions (org_id, subject_user_id, context_type, context_id, attempt_id, policy, status, ended_at, integrity_score, integrity_band) VALUES ($1, $2, 'drive', $3, $4, 'standard', 'ended', now(), 100, 'high')",
+      [o.A, u.studentA2, drive, at]);
+    const integrity = async () => (await asService(db, async (tx) => (await tx.query<{ integrity_score: string | null; integrity_band: string | null }>(
+      "SELECT integrity_score, integrity_band FROM public.b2b_college_result_rows($1, $2)", [o.A, drive])).rows[0]));
+
+    expect(await integrity()).toEqual({ integrity_score: null, integrity_band: null }); // test session still live
+    await db.query("UPDATE attempts SET status = 'submitted', submitted_at = now() WHERE id = $1", [at]); // ends it (B40)
+    expect(await integrity()).toEqual({ integrity_score: null, integrity_band: null }); // ended, not scored yet
+
+    expect(await rpc("b2b_proctor_unscored_sessions", [10])).toContain(test);
+    expect(await rpc("b2b_proctor_store_score", [test, 88, "medium", "{}"])).toBe(true);
+    expect(await rpc("b2b_proctor_store_score", [test, 10, "low", "{}"])).toBe(false); // never overwrites
+    expect(await rpc("b2b_proctor_unscored_sessions", [10])).not.toContain(test);
+    const row = await integrity();
+    expect([Number(row.integrity_score), row.integrity_band]).toEqual([88, "medium"]);
+  });
+
+  it("the finalizer functions are service-role only", async () => {
+    await asUser(db, u.studentA, async (tx) => {
+      await expectRejected(tx, "SELECT public.b2b_proctor_unscored_sessions(10)");
+      await expectRejected(tx, "SELECT public.b2b_proctor_store_score(gen_random_uuid(), 100, 'high', '{}')");
+    });
+  });
+});
