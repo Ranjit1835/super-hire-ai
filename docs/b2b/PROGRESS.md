@@ -20,9 +20,13 @@ Launch steps; owner says "go" before each:
    `b2b_project_url` = prod URL; all 7 B2B cron jobs active. Not set (fallbacks OK): GROQ/GOOGLE_TTS (browser voice),
    `B2B_EMAIL_FROM` (invites show links to share instead), `B2B_ALERT_EMAIL` (digest only on the orgs page).
 4. [x] `npx supabase functions deploy --project-ref zhfahrrxuguagwbujkiz` (2026-11-09 10:42 UTC): all 34 ACTIVE, preflight 200.
-5. [ ] Merge to `main` (retarget PR #8 to main; it supersedes #3, #4, #5, #7) → Vercel publishes, B2B still off.
-6. [ ] Vercel prod env `VITE_B2B_ENABLED=true` → redeploy.
+5. [x] PR #8 merged to `main` as `363d1e2` (2026-11-09 11:09 UTC) after CI went green (`adc66d2`: TemplateDialog
+   TS2345, fulfil-payment lint, 6 stale B2C Linux screenshots regenerated in `fcd8e8c`). Vercel prod deploy ready;
+   B2B routes absent from the bundle. PRs #1, #2 closed automatically; #3, #4, #5, #7 closed as superseded.
+6. [x] Vercel prod env `VITE_B2B_ENABLED=true`, production redeploy `dpl_8Vyd6wF6ZMXM7L9Tgxj94uSu1T31` ready
+   (2026-11-09). Live bundle has `/admin/orgs`, `/admin/costs`, `/admin/usage`, `/org`.
 7. [ ] Smoke test: super admin creates the first college; owner runs one test + interview as a student.
+   Prod at launch: 1 `admin` role (super admin, needs MFA/aal2 on sign-in), 0 organizations.
 
 ## 2026-11-07: test-run blockers fixed (`776e830`, pushed to PR #8)
 Fixes for blockers found in the 2026-11-03 guide run (`docs/b2b/TEST-RUN-2026-11-03.md`), each with a regression test:
