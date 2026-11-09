@@ -80,7 +80,7 @@ export function TemplateDialog({ open, onOpenChange, orgId, onDone }: {
         orgId, template, count, difficulty, category: "aptitude",
         topics: topics.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 10),
       }, { timeoutMs: 180_000 });
-      onDone(r);
+      onDone({ ...r, created: r.created ?? 0, verified: r.verified ?? 0 });
       onOpenChange(false);
     } catch (e) {
       setError(e instanceof ApiError || e instanceof Error ? e.message : "Couldn't make the questions.");
