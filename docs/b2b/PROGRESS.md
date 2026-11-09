@@ -13,13 +13,13 @@ Owner wants production live now; remaining bugs are fixed after launch.
 - Website = Vercel (auto-deploys `main`). B2B is hidden behind `VITE_B2B_ENABLED` (off in prod).
 
 Launch steps; owner says "go" before each:
-1. [ ] Backup prod → `Documents\hiresume-backups\prod-<date>\{schema,data,roles}.sql` via
-   `npx supabase db dump --linked [-f …] [--data-only] [--role-only]` (needs Docker). 2026-11-09 attempt failed: WSL hung;
-   owner rebooting. Empty files from that attempt in `prod-20261109-1035`, delete them.
-2. [ ] `npx supabase db push` (about 40 B2B migrations pending on prod; all applied locally).
-3. [ ] Secrets: `B2B_CRON_SECRET` (function env) + Vault `b2b_project_url`, `b2b_cron_secret`; optional GROQ_API_KEY,
-   GOOGLE_TTS_API_KEY (else browser voice).
-4. [ ] `npx supabase functions deploy --project-ref zhfahrrxuguagwbujkiz`
+1. [x] Backup prod → `Documents\hiresume-backups\prod-20261109-1057\{schema,data,roles}.sql` (2026-11-09:
+   schema 160KB / 34 tables, data 10MB incl. auth.users). Empty leftover folder `prod-20261109-1035` still to delete.
+2. [x] `npx supabase db push --include-all` (2026-11-09): 47 B2B migrations applied, local = remote (87 rows).
+3. [x] Secrets checked 2026-11-09: `B2B_CRON_SECRET` set and its sha256 equals Vault `b2b_cron_secret`; Vault
+   `b2b_project_url` = prod URL; all 7 B2B cron jobs active. Not set (fallbacks OK): GROQ/GOOGLE_TTS (browser voice),
+   `B2B_EMAIL_FROM` (invites show links to share instead), `B2B_ALERT_EMAIL` (digest only on the orgs page).
+4. [x] `npx supabase functions deploy --project-ref zhfahrrxuguagwbujkiz` (2026-11-09 10:42 UTC): all 34 ACTIVE, preflight 200.
 5. [ ] Merge to `main` (retarget PR #8 to main; it supersedes #3, #4, #5, #7) → Vercel publishes, B2B still off.
 6. [ ] Vercel prod env `VITE_B2B_ENABLED=true` → redeploy.
 7. [ ] Smoke test: super admin creates the first college; owner runs one test + interview as a student.
