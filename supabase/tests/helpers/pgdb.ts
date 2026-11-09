@@ -16,7 +16,7 @@ const SUPABASE_STUB = `
   CREATE ROLE service_role NOLOGIN BYPASSRLS;
 
   CREATE SCHEMA auth;
-  CREATE TABLE auth.users (id UUID PRIMARY KEY, email TEXT);
+  CREATE TABLE auth.users (id UUID PRIMARY KEY, email TEXT, is_anonymous BOOLEAN NOT NULL DEFAULT false);
   CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE AS $$
     SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid
   $$;
@@ -60,13 +60,25 @@ export function readMigration(file: string): string {
   return readFileSync(join(MIGRATIONS_DIR, file), "utf8");
 }
 
-export async function createTestDb(): Promise<PGlite> {
+/**
+ * All B2B migrations on a fresh database. `extraSql` (paths relative to the repo root) is applied after
+ * them: V1 tracks put their proposed schema in docs/b2b/tracks/<track>.sql and test against it; the lead
+ * turns those files into numbered migrations when merging the track.
+ */
+export async function createTestDb(opts: { extraSql?: string[] } = {}): Promise<PGlite> {
   const db = await createBaseDb();
   for (const file of b2bMigrationFiles()) {
     try {
       await db.exec(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
     } catch (e) {
       throw new Error(`Migration ${file} failed: ${(e as Error).message}`);
+    }
+  }
+  for (const file of opts.extraSql ?? []) {
+    try {
+      await db.exec(readFileSync(join(MIGRATIONS_DIR, "..", "..", file), "utf8"));
+    } catch (e) {
+      throw new Error(`Extra SQL ${file} failed: ${(e as Error).message}`);
     }
   }
   return db;

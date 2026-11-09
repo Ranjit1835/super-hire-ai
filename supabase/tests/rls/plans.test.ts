@@ -40,11 +40,24 @@ beforeAll(async () => {
 
 describe("seeded plans", () => {
   it("match the pilot / basic / pro spec", async () => {
-    const rows = (await db.query("SELECT id, interviews_per_student, company_packs_enabled, dashboard_enabled, max_students FROM plans ORDER BY id")).rows;
+    const rows = (await db.query("SELECT id, interviews_per_student, company_packs_enabled, dashboard_enabled, max_students FROM plans WHERE id IN ('basic', 'pilot', 'pro') ORDER BY id")).rows;
     expect(rows).toEqual([
       { id: "basic", interviews_per_student: 4, company_packs_enabled: false, dashboard_enabled: false, max_students: null },
       { id: "pilot", interviews_per_student: 6, company_packs_enabled: true, dashboard_enabled: true, max_students: 150 },
       { id: "pro", interviews_per_student: 10, company_packs_enabled: true, dashboard_enabled: true, max_students: null },
+    ]);
+  });
+
+  it("V1 college plans carry pooled credits; basic and pro are retired", async () => {
+    const rows = (await db.query(
+      "SELECT id, org_type, price_inr_per_student::float AS price, drives_included, credits_per_student::float AS credits, is_active FROM plans WHERE org_type IS NOT NULL OR NOT is_active ORDER BY id")).rows;
+    expect(rows).toEqual([
+      { id: "basic", org_type: null, price: 149, drives_included: 0, credits: 0, is_active: false },
+      { id: "college_plus", org_type: "college", price: 599, drives_included: 3, credits: 5, is_active: true },
+      { id: "college_standard", org_type: "college", price: 499, drives_included: 2, credits: 5, is_active: true },
+      { id: "college_starter", org_type: "college", price: 399, drives_included: 1, credits: 4, is_active: true },
+      { id: "company_v1", org_type: "company", price: 0, drives_included: 0, credits: 0, is_active: true },
+      { id: "pro", org_type: null, price: 299, drives_included: 0, credits: 0, is_active: false },
     ]);
   });
 });
@@ -114,20 +127,42 @@ describe("usage visibility", () => {
     for (const who of [u.adminA, u.trainerA]) {
       await asUser(db, who, async (tx) => {
         const s = (await tx.query<{ s: Record<string, unknown> }>("SELECT public.org_usage_summary($1) AS s", [org.a])).rows[0].s;
-        expect(s).toMatchObject({ students: 3, students_exhausted: 1, plan: { id: "pilot", max_students: 150 } });
+        expect(s).toMatchObject({ students: 3, students_exhausted: 1, plan: { max_students: 150 } });
+        // R3.1: the tier (plan id / name) never reaches org staff.
+        expect((s.plan as Record<string, unknown>).id).toBeUndefined();
+        expect((s.plan as Record<string, unknown>).name).toBeUndefined();
         expect(await expectRejected(tx, "SELECT public.org_usage_summary($1)", [org.b])).toMatch(/FORBIDDEN/);
       });
     }
+    await asUser(db, u.super, async (tx) => {
+      const s = (await tx.query<{ s: Record<string, unknown> }>("SELECT public.org_usage_summary($1) AS s", [org.a])).rows[0].s;
+      expect(s).toMatchObject({ plan: { id: "pilot" } });
+    });
     await asUser(db, u.studentA, async (tx) => {
       expect(await expectRejected(tx, "SELECT public.org_usage_summary($1)", [org.a])).toMatch(/FORBIDDEN/);
     });
   });
 
-  it("plans are visible to staff of an org on that plan, not to students or B2C users", async () => {
-    await asUser(db, u.adminA, async (tx) => {
-      expect((await tx.query<{ id: string }>("SELECT id FROM plans")).rows.map((r) => r.id)).toEqual(["pilot"]);
+  it("an org's plan tier (plan_id) is readable by super admins only, through super_orgs() (R3.1)", async () => {
+    for (const who of [u.adminA, u.trainerA, u.studentA]) {
+      await asUser(db, who, async (tx) => {
+        expect(await expectRejected(tx, "SELECT plan_id FROM organizations WHERE id = $1", [org.a])).toMatch(/permission denied/);
+        expect(await expectRejected(tx, "SELECT * FROM organizations WHERE id = $1", [org.a])).toMatch(/permission denied/);
+        expect((await tx.query<{ name: string }>("SELECT name FROM organizations WHERE id = $1", [org.a])).rows).toHaveLength(1);
+        expect(await expectRejected(tx, "SELECT * FROM public.super_orgs()")).toMatch(/FORBIDDEN/);
+      });
+    }
+    await asUser(db, u.super, async (tx) => {
+      const rows = (await tx.query<{ id: string; plan_id: string }>("SELECT id, plan_id FROM public.super_orgs()")).rows;
+      expect(rows.find((r) => r.id === org.a)?.plan_id).toBe("pilot");
     });
-    for (const who of [u.studentA, u.b2c]) {
+  });
+
+  it("plans (with prices) are visible to super admins only, never to staff, students or B2C users", async () => {
+    await asUser(db, u.super, async (tx) => {
+      expect((await tx.query<{ id: string }>("SELECT id FROM plans")).rows.length).toBeGreaterThan(0);
+    });
+    for (const who of [u.adminA, u.studentA, u.b2c]) {
       await asUser(db, who, async (tx) => expect((await tx.query("SELECT id FROM plans")).rows).toEqual([]));
     }
   });
@@ -172,5 +207,17 @@ describe("super_add_org_member", () => {
       const m = (await tx.query("SELECT role, full_name FROM org_memberships WHERE user_id = $1", [tpo])).rows[0];
       expect(m).toEqual({ role: "org_admin", full_name: "TPO" });
     });
+  });
+});
+
+describe("no plan names in the portal ledger (B14)", () => {
+  it("a new org's opening credit grant doesn't name the plan its staff will read", async () => {
+    const r = await asService(db, async (tx) => (await tx.query<{ r: { ok: boolean; org_id: string } }>(
+      "SELECT public.super_create_org($1, $2::jsonb, NULL) AS r",
+      [u.super, JSON.stringify({ name: "Ledger College", slug: "ledger-college", type: "college", planId: "college_starter", seatLimit: 10 })])).rows[0].r);
+    expect(r.ok).toBe(true);
+    const notes = (await db.query<{ note: string | null }>("SELECT note FROM org_credit_ledger WHERE org_id = $1", [r.org_id])).rows;
+    expect(notes).toEqual([{ note: "Opening credits" }]);
+    for (const n of notes) expect(n.note ?? "").not.toMatch(/college_|company_|plan|₹/i);
   });
 });

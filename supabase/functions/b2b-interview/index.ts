@@ -7,6 +7,9 @@
 //   end     { interviewId }                                    → student ends (0 answers = cancelled + refunded)
 //   current {}                                                 → the student's live interview, if any
 //
+// V1 (drive / job-role interviews, track C): the actions of _shared/contracts/interview.ts (startContext, room, turn,
+// finish, audioIssue, latency, liveToken) are served from ./v1.ts. The pilot actions refuse V1 interviews.
+//
 // The browser only ever sends its latest answer. The server owns the transcript and the
 // state machine (_shared/interview-engine.ts); every write goes through a SQL function
 // that re-checks ownership, idempotency (clientTurnId) and turn order (turnCount).
@@ -22,9 +25,14 @@ import {
   buildSystemPrompt, buildTurnMessage, cleanQuestion, fallbackQuestion, nextTurnTool, type TranscriptTurn,
 } from "../_shared/interview-prompts.ts";
 import { callTool, type LlmUsage } from "../_shared/b2b-llm.ts";
+import { logTurnLatency } from "../_shared/turn-latency.ts";
 import { askOpeningQuestion, firstNameOf } from "../_shared/interview-opening.ts";
 import { sanitizeAnswerMeta, sanitizeClientMeta } from "../_shared/interview-meta.ts";
 import { evaluateInBackground } from "../_shared/evaluate-interview.ts";
+import { serveContract, type Ctx } from "../_shared/contract-handler.ts";
+import { interviewContract } from "../_shared/contracts/interview.ts";
+import { ai } from "../_shared/ai-gateway/index.ts";
+import { V1Error, makeV1Handlers } from "./v1.ts";
 
 const MAX_ANSWER_CHARS = 4000;
 
@@ -32,7 +40,7 @@ type Admin = ReturnType<typeof serviceClient>;
 
 interface InterviewRow {
   id: string; org_id: string; user_id: string; module_id: string; module_spec: ModuleSpec; state: InterviewState;
-  status: string; end_reason: string | null; started_at: string; deadline_at: string;
+  status: string; end_reason: string | null; started_at: string; deadline_at: string; kind?: string;
 }
 interface TurnRow { turn_index: number; role: "interviewer" | "student"; content: string; topic: string | null; client_turn_id: string | null }
 
@@ -47,10 +55,12 @@ const START_ERRORS: Record<string, [number, string]> = {
 async function loadInterview(admin: Admin, id: string, userId: string): Promise<InterviewRow> {
   const { data, error } = await admin
     .from("b2b_interviews")
-    .select("id, org_id, user_id, module_id, module_spec, state, status, end_reason, started_at, deadline_at")
+    .select("id, org_id, user_id, module_id, module_spec, state, status, end_reason, started_at, deadline_at, kind")
     .eq("id", id).eq("user_id", userId).maybeSingle();
   if (error) throw error;
   if (!data) throw new HttpError(404, "NOT_FOUND", "Interview not found.");
+  // Drive / job-role interviews run on the V1 engine; the pilot actions must not touch them.
+  if (data.kind === "drive" || data.kind === "job_role") throw new HttpError(409, "USE_V1", "Open this interview from its interview room.");
   return data as InterviewRow;
 }
 
@@ -115,7 +125,7 @@ function asProposal(args: Record<string, unknown>): TurnProposal | null {
   };
 }
 
-serve(handle("B2B-INTERVIEW", async (req, body) => {
+const pilot = handle("B2B-INTERVIEW", async (req, body) => {
   const action = str(body.action, "action", 20);
   const user = await requireUser(req);
   const admin = serviceClient();
@@ -125,7 +135,9 @@ serve(handle("B2B-INTERVIEW", async (req, body) => {
     const { data, error } = await admin
       .from("b2b_interviews")
       .select("id, org_id, user_id, module_id, module_spec, state, status, end_reason, started_at, deadline_at")
-      .eq("user_id", user.id).eq("status", "in_progress").maybeSingle();
+      .eq("user_id", user.id).eq("status", "in_progress")
+      .in("kind", ["practice", "public_test"]) // V1 drive and job-role interviews are served by v1.ts
+      .maybeSingle();
     if (error) throw error;
     if (!data) return json({ interview: null });
     const iv = data as InterviewRow;
@@ -217,6 +229,8 @@ serve(handle("B2B-INTERVIEW", async (req, body) => {
     if (!Number.isInteger(expected) || expected < 0) throw new HttpError(400, "BAD_REQUEST", "turnCount must be a non-negative integer");
     const answer = str(body.answer, "answer", MAX_ANSWER_CHARS + 500).slice(0, MAX_ANSWER_CHARS);
     const answerMeta = sanitizeAnswerMeta(body.meta, answer);
+    // Previous turn's timing from the browser (logging only).
+    logTurnLatency("b2b-interview", interviewId, body.clientLatency);
 
     const iv = await loadInterview(admin, interviewId, user.id);
     let turns = await loadTurns(admin, iv.id);
@@ -315,4 +329,52 @@ serve(handle("B2B-INTERVIEW", async (req, body) => {
   }
 
   throw new HttpError(400, "BAD_REQUEST", "Unknown action");
-}));
+});
+
+// ── V1 ────────────────────────────────────────────────────────────────────────
+const db = serviceClient();
+const v1 = makeV1Handlers({
+  rpc: async (fn, args) => {
+    const { data, error } = await db.rpc(fn, args);
+    if (error) throw new Error(`${fn}: ${error.message}`);
+    return data;
+  },
+  ai: (req) => ai(req, db),
+  evaluateLater: (id) => evaluateInBackground(db, id),
+  env: (k) => Deno.env.get(k),
+  fetch,
+});
+
+function wrap<I, O>(fn: (input: I, actor: string) => Promise<O>) {
+  return async (input: I, ctx: Ctx): Promise<O> => {
+    try {
+      return await fn(input, ctx.user.id);
+    } catch (e) {
+      if (e instanceof V1Error) throw new HttpError(e.status, e.code, e.message);
+      // The SQL ownership checks raise FORBIDDEN; that's a refusal, not a server error.
+      if (e instanceof Error && /: FORBIDDEN\b/.test(e.message)) throw new HttpError(403, "FORBIDDEN", "Not allowed.");
+      throw e;
+    }
+  };
+}
+
+// Candidates take interviews with anonymous sessions; the SQL functions check the caller owns the interview.
+const v1Contract = serveContract("B2B-INTERVIEW", interviewContract, {
+  startContext: wrap(v1.startContext),
+  room: wrap(v1.room),
+  turn: wrap(v1.turn),
+  finish: wrap(v1.finish),
+  audioIssue: wrap(v1.audioIssue),
+  latency: wrap(v1.latency),
+  transcribe: wrap(v1.transcribe),
+  speak: wrap(v1.speak),
+  liveToken: wrap(v1.liveToken),
+}, { allowAnonymous: (a) => a !== "liveToken" });
+
+serve(async (req) => {
+  if (req.method === "POST") {
+    const body = await req.clone().json().catch(() => null) as { action?: unknown } | null;
+    if (body && typeof body.action === "string" && body.action in interviewContract) return v1Contract(req);
+  }
+  return pilot(req);
+});

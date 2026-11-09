@@ -8,14 +8,21 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, handle, json, requireUser, serviceClient, str, uuid } from "../_shared/b2b-http.ts";
 import { evaluateInterview } from "../_shared/evaluate-interview.ts";
 import { EVALUATOR_PROMPT_VERSION } from "../_shared/evaluator.ts";
+import { V1_EVALUATOR_VERSION } from "../_shared/interview-v1/evaluation.ts";
 
 type Admin = ReturnType<typeof serviceClient>;
 
 async function authorize(admin: Admin, userId: string, interviewId: string) {
-  const { data: iv, error } = await admin.from("b2b_interviews").select("id, org_id, user_id, status").eq("id", interviewId).maybeSingle();
+  const { data: iv, error } = await admin.from("b2b_interviews").select("id, org_id, user_id, status, kind, context_id").eq("id", interviewId).maybeSingle();
   if (error) throw error;
   if (!iv) throw new HttpError(404, "NOT_FOUND", "Interview not found.");
-  if (iv.user_id === userId) return iv;
+  if (iv.user_id === userId) {
+    // Drive / job-role results reach their subject only once they are visible (drive released; candidates never).
+    if (iv.kind !== "drive" && iv.kind !== "job_role") return iv;
+    const { data: visible } = await admin.rpc("b2b_results_visible", { _context_type: iv.kind, _context_id: iv.context_id });
+    if (visible === true) return iv;
+    throw new HttpError(403, "RESULTS_HIDDEN", "Results aren't available yet.");
+  }
   const [{ data: m }, { data: r }] = await Promise.all([
     admin.from("org_memberships").select("role").eq("org_id", iv.org_id).eq("user_id", userId).maybeSingle(),
     admin.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
@@ -32,8 +39,8 @@ async function latest(admin: Admin, interviewId: string) {
     .order("updated_at", { ascending: false });
   if (error) throw error;
   const rows = data ?? [];
-  const current = rows.find((r) => r.evaluator_version === EVALUATOR_PROMPT_VERSION);
-  const completed = rows.find((r) => r.status === "completed" && r.evaluator_version === EVALUATOR_PROMPT_VERSION)
+  const current = rows.find((r) => r.evaluator_version === EVALUATOR_PROMPT_VERSION || r.evaluator_version === V1_EVALUATOR_VERSION);
+  const completed = rows.find((r) => r.status === "completed" && (r.evaluator_version === EVALUATOR_PROMPT_VERSION || r.evaluator_version === V1_EVALUATOR_VERSION))
     ?? rows.find((r) => r.status === "completed");
   return { current, completed };
 }
@@ -52,11 +59,13 @@ serve(handle("B2B-EVALUATE", async (req, body) => {
     }
     const orgId = body.orgId ? uuid(body.orgId, "orgId") : null;
     const limit = Math.min(Math.max(Number(body.limit) || 20, 1), 100);
-    const { data, error } = await admin.rpc("b2b_interviews_needing_evaluation", {
-      _version: EVALUATOR_PROMPT_VERSION, _org_id: orgId, _limit: limit,
-    });
-    if (error) throw error;
-    const ids = (data as { interview_id: string }[]).map((r) => r.interview_id);
+    // Pilot evaluator for practice / public-test interviews, V1 evaluator for drive / job-role interviews.
+    const ids: string[] = [];
+    for (const version of [EVALUATOR_PROMPT_VERSION, V1_EVALUATOR_VERSION]) {
+      const { data, error } = await admin.rpc("b2b_interviews_needing_evaluation", { _version: version, _org_id: orgId, _limit: limit });
+      if (error) throw error;
+      ids.push(...(data as { interview_id: string }[]).map((r) => r.interview_id));
+    }
     const run = async () => {
       const counts: Record<string, number> = {};
       // Small pool: evaluation calls are long; don't burst the provider.

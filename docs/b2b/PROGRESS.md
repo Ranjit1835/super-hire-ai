@@ -1,0 +1,360 @@
+# HiResume B2B — Progress
+
+> Read this first at the start of every session; update it at the end.
+> Spec + **Decisions log**: `docs/b2b/hiresume-b2b-build-prompt.md` · Evidence and numbers: `docs/b2b/AUDIT.md`
+
+_Last updated: 2026-11-09_
+
+## 2026-11-09: LAUNCH IN PROGRESS (read this first)
+Owner wants production live now; remaining bugs are fixed after launch.
+- Branch `feat/b2b-hardening` now includes `main` (merge `7562711`: B2C fixes #9/#10, whose migrations
+  20261104002824 / 20261104004219 are already on prod). Full suite after merge: **981 pass, 0 fail**.
+- Also fixed 2026-11-08: `0666bf7` B35 (integrity finalizer, every 10 minutes, + drive card waits for all sessions).
+- Website = Vercel (auto-deploys `main`). B2B is hidden behind `VITE_B2B_ENABLED` (off in prod).
+
+Launch steps; owner says "go" before each:
+1. [x] Backup prod → `Documents\hiresume-backups\prod-20261109-1057\{schema,data,roles}.sql` (2026-11-09:
+   schema 160KB / 34 tables, data 10MB incl. auth.users). Empty leftover folder `prod-20261109-1035` still to delete.
+2. [x] `npx supabase db push --include-all` (2026-11-09): 47 B2B migrations applied, local = remote (87 rows).
+3. [x] Secrets checked 2026-11-09: `B2B_CRON_SECRET` set and its sha256 equals Vault `b2b_cron_secret`; Vault
+   `b2b_project_url` = prod URL; all 7 B2B cron jobs active. Not set (fallbacks OK): GROQ/GOOGLE_TTS (browser voice),
+   `B2B_EMAIL_FROM` (invites show links to share instead), `B2B_ALERT_EMAIL` (digest only on the orgs page).
+4. [x] `npx supabase functions deploy --project-ref zhfahrrxuguagwbujkiz` (2026-11-09 10:42 UTC): all 34 ACTIVE, preflight 200.
+5. [ ] Merge to `main` (retarget PR #8 to main; it supersedes #3, #4, #5, #7) → Vercel publishes, B2B still off.
+6. [ ] Vercel prod env `VITE_B2B_ENABLED=true` → redeploy.
+7. [ ] Smoke test: super admin creates the first college; owner runs one test + interview as a student.
+
+## 2026-11-07: test-run blockers fixed (`776e830`, pushed to PR #8)
+Fixes for blockers found in the 2026-11-03 guide run (`docs/b2b/TEST-RUN-2026-11-03.md`), each with a regression test:
+- **B19:** a blank late-join window is no longer saved as 0, which had locked students out (`forms.ts` union order).
+- **B20:** interviews can use library modules (org_id NULL). Other orgs' modules are still refused (migration `20261103000001`).
+- **B25:** recruiters and company admins can create a job role with insert … returning under RLS (migration `…02`).
+- **B28:** a candidate link on a shared browser now gets a fresh session instead of the previous candidate's (migration `…03`, `TokenFlowPage`).
+
+Checks, run locally: typecheck:b2b clean, 202 frontend B2B tests pass, 545 DB tests pass (3 skipped).
+
+**Also fixed 2026-11-07:**
+- `7f898d3`: B40 (privacy) proctoring stops when the test or interview ends, enforced on both server and browser. Also B23, B38 and B39.
+- `7a74379`: B14, no plan names in the college or company ledger.
+- `669a21a`: no listed prices on the public `/college-placement` page ("Get a quote").
+- `20e1b0a`: B29 (no invented skill evidence), B21 (interviewer never describes the organisation), B22 (no repeated questions). B21/B22 change the prompt only, so confirm them in the next live interview.
+
+Full suite on 2026-11-08: 950 pass, 3 skipped (run with `--maxWorkers=1` when free RAM is low).
+
+**Owner rule (2026-11-07):** no prices or plan names anywhere in the B2B portals. Pricing is set per college and can include distributor or mediator commissions. Only super-admin pages show prices.
+
+**Still open from the run, B2B first:**
+- Wrong results shown to staff:
+  - B33: MCQ 85.7% (6/7) on a test thought to have 5 one-mark MCQs; scoring = marks ÷ max marks per question, looks right; check the real attempt's question_set when Docker is up
+  - B30: raw score keys shown
+  - B37: each exit penalised twice
+  - B36: dismissing a flag doesn't update the score
+- Admin:
+  - B13: cost rates start in 2027, so costs show ₹0
+  - B15: practice shows a credit cost when it was set to 0
+  - B26: no invite revoke
+  - B32: shortlisting a no-result candidate counts as completed
+  - B31: decision note taken from the comment box
+  - B34: no integrity-review link on the college side
+  - B27: system check can be skipped
+  - B11: ledger dialog balance doesn't refresh
+- Voice consent is only a notice.
+- B2C (resume side), later: B1–B10, B12.
+- Public `/college-placement`: prices removed, "Get a quote" instead (owner, 2026-11-07).
+
+**Owner steps:**
+- Hands-on guide steps 5.18–5.27, c2, downloads and 8.1–8.15
+- Secrets GROQ_API_KEY and GOOGLE_TTS_API_KEY
+- A "go" at each production step: backup → migrations → secrets → functions → frontend
+
+## Current: `HIRESUME_B2B_SPEC.md`, Phases 1–2 done, Phase 3 voice pipeline built (branch `feat/b2b-hardening`, PR #8)
+
+**Decisions (2026-10-29):**
+- **D1:** Claude in production; Gemini for now to keep costs down. The gateway gets a Claude provider and a per-environment switch.
+- **D2:** Docker. It's installed; local Supabase runs with `supabase start -x vector,logflare,imgproxy,studio`.
+- **D3:** sessions built in the app.
+- **D4:** researched in `docs/b2b/VOICE_STACK_RESEARCH.md`. Recommendation: Sarvam plus Pipecat with Smart Turn v3, pending a 1-day bake-off.
+- **D5:** B2B and B2C kept separate on one login.
+- **D6:** Dolos.
+- **D7:** super admin has full access; TPOs manage students only.
+- **D8:** hotfix PR #7, plans readable by super admins only. You apply it.
+
+**Phase 1, done (evidence in the commits and tests):**
+- **R3.1:** the plans table is super-admin only (#7, cherry-picked here). The plan tier (`plan_id`) is hidden from everyone except super admins through column privileges plus `super_orgs()`, and `org_usage_summary` no longer returns the tier to staff (migration 0016, `plans.test.ts`).
+- **R3.3 / D7:** staff invites are super-admin only, and org admins can update or delete student memberships only (migration 0017, `v1-isolation.test.ts`).
+- **R1.3 / R1.4:** the seat cap applies on every path with a per-org lock, a used seat is never recycled, and `super_free_seat()` frees one (migration 0018, `seats.test.ts`, plus a real-Postgres race on local Supabase).
+
+- **R1.5 / R1.6, changed by owner decision (2026-10-29): no credits are charged for logging in.** What's recorded instead is what each student was given and did: activated, then assigned, started, and completed / absent / removed. This lives in the append-only `student_activity` table, written only by triggers. A student sees only the drives their TPO assigned, gets one attempt per drive (unique per drive and student; attempts are reused), and a finished drive stays "Completed" until the TPO assigns another. The seat counts as used once the student activates their account (R1.4). The TPO roster shows drives done / assigned and last active (migration 0019, `student-activity.test.ts`).
+
+- **Practice (owner decision):** practice stays self-serve when a TPO enables it on a test, limited to one run per student per test. An open run can be resumed; once a run exists a new start returns `PRACTICE_USED`. The student home shows "Practice done" (migration 0020, `assessment.test.ts`).
+- **R1.6 sessions (no credits):** one active session per student, 30-minute idle timeout and 8-hour absolute expiry. Orgs can override these with `settings.session_idle_min` / `session_max_hours`. A session is identified by the JWT's `session_id`, so refresh, reload and extra tabs don't count as new logins. Enforcement is server-side in every B2B edge call (`requireUser` → `b2b_session_touch`). The browser sends a heartbeat on activity, a new login signs other devices out (`signOut({scope:"others"})`), and an ended session shows the reason (migration 0021, `sessions.test.ts`, `src/b2b/session.test.ts`). Staff, candidates and B2C users aren't affected. If the session check itself errors, requests are allowed and logged.
+
+- **R3.2:** `B2CGuard` sends signed-in B2B members from B2C pricing, paywall and checkout pages to their portal. B2C users, visitors and super admins are unchanged (`B2CGuard.test.tsx`).
+- **R3.5:** super admins need MFA (TOTP). `is_super_admin()` requires aal2, B2B edge functions answer `MFA_REQUIRED`, and admin pages show an enrol/verify screen. `user_roles`, `b2b_pricing` and `interview_modules` are now audited (migration 0022, `super-admin-mfa.test.ts`, `MfaGate.test.tsx`). Verified with real local auth: aal1 is refused, a real TOTP verify gives aal2 and is allowed.
+- **R5.5:** evidence snapshots older than `retention_days` (default 90) are deleted through the Storage API, and transcripts for roles closed past retention are deleted. This runs in the `b2b-retention` function on a daily cron (migrations 0023–0024, `retention.test.ts` ×2). Verified on local Storage.
+- **R1.9:** super-admin alerts for low credits, plans expiring or ended, and seats at 90%+. They show on the organisations page and go out as a daily email digest to `B2B_ALERT_EMAIL` (migrations 0025–0026, `org-alerts.test.ts`, `alerts.test.ts`).
+
+- **R6.1:** AI cost by college, student, feature and day (IST) for super admins (migration 0027, `cost-breakdown.test.ts`).
+- **R1.8:** super admins set per-college activity costs and limits in a "Costs & limits" dialog. Practice cost is configurable (0 = free), and there are no charges for login or assigned drives (migration 0028, `activity-costs.test.ts`).
+- **R3.1 check:** `scripts/check-b2b-price-secrecy.mjs` runs in CI on a build with B2B on, covering source and bundle (`price-secrecy.test.ts`). `/college-placement` (it shows institution prices) is behind `B2CGuard`.
+- **R4.1:** B2C Playwright smoke, run locally with B2B off as in CI: 36 passed. **Local gotcha:** `.env.local` sets `VITE_B2B_ENABLED`, so run `VITE_B2B_ENABLED=false npm run build:e2e` before `npx playwright test`.
+
+**Phase 1 complete (2026-10-29).** Full suite: 858 tests pass. B2B types, lint and Deno checks are clean. Migrations 0012–0028 apply on local Supabase.
+
+**Phase 2 (in progress):**
+- **R2.1–R2.3 paper uniqueness:**
+  - Each test has a maximum overlap between any two students' papers (`assessments.max_overlap_pct`, default 10%).
+  - The builder's "Paper uniqueness" panel shows, for an expected batch size, whether each pick rule's pool is big enough. A rule needs about `count / (target/2)` questions.
+  - Hand-picked questions appear in every paper and count against the target. A fixed order (no randomising) can't be unique.
+  - A drive can't be scheduled or go live on a short pool (`POOL_TOO_SMALL`) unless a super admin records an override with a note (`super_override_drive_pool`).
+  - At draw time, up to 25 seeded draws are tried under a per-drive lock, and the one with the least overlap against the drive's existing papers is kept. If it still breaks the target, that's audited (`paper.overlap_exceeded`).
+  - Each question records how many papers it has been in. The bank shows this as "Papers", and editors can retire over-exposed questions.
+  - Evidence: migration 0029, `paper-uniqueness.test.ts` (12 students, 60-question pool: worst pair ≤ 40%, all papers distinct, exposure = 120), and calculator tests in `bank.test.tsx`. Full suite: 866 tests pass.
+- **R2.7 code playback:**
+  - TPOs open "Code replay" from a student's card on the drive results page. They can watch each coding answer being written at 1×, 4× or 16×, scrub to any moment, and switch questions. Long pauses are shortened in playback.
+  - The replay is rebuilt from the edit log (`b2b_drive_code_replay` / `b2b_attempt_code_replay`, staff of the context only; the student and other colleges get `FORBIDDEN`). It's checked against the saved answer and says so when they differ.
+  - Flags to watch, not verdicts: code appearing at once that wasn't copied from the student's own code (≥ 80 characters); typing faster than people type (≥ 300 characters in 10 s); answers mostly not typed; blocked pastes. "Watch from here" jumps to the moment.
+  - Language switches are now logged by the runner, so edits replay into the right language.
+  - Evidence: migration 0030, `code-replay.test.ts`, `replay.test.ts`, `CodeReplay.test.tsx`. Full suite: 881 tests pass.
+  - Local Supabase apply is pending: Docker stopped responding on 2026-10-30. The migration runs in PGlite in the tests.
+- **R2.8 plagiarism (D6: Dolos):**
+  - When a drive's window ends, a cron every 10 minutes queues one similarity run per coding question and language. TPOs can also press "Check now".
+  - A stateless worker (`services/plagiarism-worker`, Node with dolos-lib 3.6.0, Cloud Run asia-south1, scales to zero) claims runs from the database queue and compares the answers. The question's starter code is ignored as a template. It reports pairs at 30% similarity or more.
+  - Failed runs are retried 3 times; stuck runs are reclaimed after 15 minutes. A new check replaces the old pairs.
+  - The drive's Similarity page shows check status, pairs ranked by similarity, and a side-by-side compare with matched lines highlighted. It also lists MCQ pairs with 3+ identical wrong choices; matching right answers don't count.
+  - Staff of the drive only; queue functions are service-role only.
+  - Evidence: migrations 0031–0032, `similarity.test.ts` (6), `similarity.test.tsx` (5), and the worker's `node --test` suite (6, plus a real-Dolos test that needs Linux parsers). A new CI job, `plagiarism-worker`, runs that test with `DOLOS_REQUIRED=1`, and so does the Docker build.
+  - **Real Dolos verified in CI on PR #8** (job `plagiarism worker (Dolos)`: 7 of 7 pass, 0 skipped). A renamed-variable copy scores high, and a different approach scores lower. Starter code is ignored.
+  - Deploy steps are in the worker README (owner runs them). They need Vault secrets `b2b_similarity_worker_url` and `b2b_similarity_worker_token`.
+  - Full suite: 892 tests pass.
+- **R2.3 independent MCQ check:**
+  - A separate model call (`mcq.validate`: temperature 0, high reasoning, never sees the key or explanation) solves each MCQ, and the server compares its answer with the key.
+  - An MCQ becomes verified only when the check agrees, is confident (0.8 or more) and finds the question clear. Otherwise an editor can keep their key with a written reason, which is audited.
+  - Saving can't mark an MCQ verified. Editing a verified MCQ's content sends it back to draft. The browser can't write the check or set "verified" directly.
+  - Generated MCQs are checked straight away. The bank explains what the check chose and why.
+  - For stronger independence once the Claude provider exists (D1), point `mcq.validate` at a different model via `B2B_AI_CONFIG`.
+  - Evidence: migration 0033, `mcq-check.test.ts` (5), handler unit tests (17), and bank UI tests.
+- **R2.4 one question at a time:**
+  - A per-test option ("one question at a time"). The server sends only the current question, refuses saves, runs or submits for any other question (`LOCKED`), and moves forward only with `advance` (idempotent on retry).
+  - The runner hides the question list, shows "Question n of N", saves before moving on, and asks for confirmation ("you can't come back").
+  - A late autosave for a question already left is dropped, not treated as an ended test.
+  - Evidence: migration 0034, `linear-navigation.test.ts` (4), runner, autosave and handler tests.
+- **R2.6 warning ladder (strict proctoring):**
+  - Each serious violation shows "Serious violation n of N". The one before the limit is a full-screen final warning the student must acknowledge, and reaching the limit auto-submits, as before.
+  - The server decides and returns `max_violations`.
+  - Evidence: migration 0035, `proctoring.test.ts` (limit 2 and limit 3 ladders), and the monitor test.
+- **R2.2 parameterised MCQ templates:**
+  - Editors write one question with numbers that change (`{{d}}`, `{{= formula}}`), formulas for the answer and the wrong options, and conditions. They see a live preview, and the server makes up to 50 versions ahead of time. There's no AI at exam time.
+  - Formulas use a small parser (no `eval`).
+  - Two versions are solved blind (R2.3). If both agree, the rest are verified on the server's own computation, recorded as `method: "template"`. If either doesn't, all stay drafts.
+  - Papers take at most one version per template family.
+  - Coding variants: AI generation already makes a fresh problem per variant seed, verified in the sandbox. No template engine for code.
+  - Evidence: migration 0036, `mcq-template.test.ts` (7), `mcq-templates.test.ts` (3), handler tests (3), and the dialog test.
+
+**Phase 2 complete (2026-10-30)** except R2.5 (Judge0 in production is owner ops). Full suite: 925 tests pass. Migrations 0029–0036 run in PGlite. They aren't applied to local Supabase yet because Docker is unresponsive.
+
+**Phase 3 voice (cheaper option, owner decision 2026-10-30), built:**
+- **How it works:** the room records one answer at a time (speech detection from the mic level, 5 s silence or "Done answering"), and `b2b-interview transcribe` sends it to Groq Whisper large-v3-turbo. `turn` with `speak: true` voices the next line with Google WaveNet `en-IN` in the same request; `speak` voices only this interview's own lines.
+- **Cost:** about ₹0 per 20-minute interview within Google's free tier, then about ₹3, against ₹31 for the earlier streaming plan. Usage is logged per use at the provider's rate (migration 0037) and shows in the R6.1 breakdown.
+- **Limits and fallback:** per-interview caps. No always-on server. Without keys, or when a vendor fails, the room falls back to browser speech.
+- **Data residency:** the room tells candidates their answers go to Groq in the US. Sarvam (India) is one env switch away.
+- Details and trade-offs: `docs/b2b/VOICE_STACK_RESEARCH.md`.
+- Evidence: `interview-voice.test.ts` (10, on real SQL with faked vendors), `cloudVoice.test.ts` (speech detection, 4), and room tests for cloud TTS and cloud STT. Full suite: 941 tests pass.
+- **Owner, to switch it on:** set the `GROQ_API_KEY` and `GOOGLE_TTS_API_KEY` secrets (Google key restricted to the Text-to-Speech API).
+- **Not yet verified with real vendors:**
+  - Whisper accuracy on Indian accents and latency: run the bake-off with real keys.
+  - A consent item for interview voice processing. Today there's only a notice; adding a consent purpose means changing `b2b_record_consent`.
+
+**Voice hosting (decided):** Google Cloud Run in Mumbai (asia-south1); see `docs/b2b/VOICE_STACK_RESEARCH.md`. The plagiarism worker (Dolos, Node) will run on Cloud Run too.
+
+**Phase 2, next:**
+- R2.1–R2.3: paper uniqueness, a pool calculator, parameterised MCQs, and exposure tracking.
+- R2.7: code playback.
+- R2.8: plagiarism with Dolos.
+
+**Deploy notes:**
+- New secrets: `B2B_ALERT_EMAIL` (alert digest recipient). `B2B_CRON_SECRET` and the Vault entries `b2b_project_url` / `b2b_cron_secret` already exist for the evaluation sweep. The new cron jobs (retention, alerts) use them.
+- New edge functions to deploy with the batch: `b2b-retention`, `b2b-alerts`. Both have `verify_jwt = false` and are called by cron with `x-cron-secret`.
+- Super admins must enrol an authenticator app on first visit to `/admin/*` once 0022 is live.
+- Hotfix migration `20261029100001` (in #7) sorts after 0006–0018. When the batch goes to production, use `supabase db push --include-all`; the CLI skips older-numbered migrations otherwise, as it did locally.
+- Migrations 0006–0018 and the V1 functions are not in production. Never deploy B2B functions from this branch until they are.
+- Local test runs: use `--maxWorkers=2`. With Docker running, the 8 GB machine times out under full parallelism.
+
+---
+
+_Previous status (2026-10-22) below._
+
+## Where things stand
+
+**Fast-track mode (Decisions log 2026-10-20).** Phase 1 and all V1 tracks (A–E) are built: PR #3 (Phase 1) and
+PR #4 (tracks, on top of #3). **Now blocked on Docker** for the local walkthroughs (`docs/b2b/TESTING.md`); after
+those, one batched production release for your approval.
+
+## PRs
+| PR | Branch | Base | What |
+|---|---|---|---|
+| #1 | `fix/b2b-lockdown` | main | B2B off by default; no model calls without membership; evaluation retry cap |
+| #2 | `chore/b2b-followups` | main (stacked on #1) | Real cost rates, voice latency logging, decisions, fast-track spec |
+| #3 | `feat/b2b-v1-phase1` | `chore/b2b-followups` (stacked) | Phase 1: V1 schema, AI gateway, contracts, super admin v1, e2e + CI |
+| #4 | `feat/b2b-v1-tracks` | `feat/b2b-v1-phase1` (stacked) | V1 tracks A–E + local testing kit |
+
+Merge in order #1 → #2 → #3. **Hold #4 out of `main` until the batched release:** a push to `main` deploys edge
+functions (`deploy-functions.yml`), and track C's `b2b-evaluate` needs migration 0009, so migrations must go first. Merging to `main` deploys the website (Vercel) immediately; edge functions deploy
+from `main` once the `SUPABASE_ACCESS_TOKEN` secret exists. **B2B stays off in production either way** (frontend
+flag unset, `B2B_ENABLED` secret unset). Production migrations are batched and applied only by you (see below).
+
+## Waiting on you
+1. **Docker for local Supabase** (you chose this, 2026-10-20). In an *administrator* PowerShell:
+   ```powershell
+   wsl --install            # then reboot
+   ```
+   After the reboot, install Docker Desktop (https://www.docker.com/products/docker-desktop/), start it once, then tell
+   me. I'll run local Supabase without the heavy extras: `npx supabase start -x studio,imgproxy,vector,logflare`.
+2. **Judge0 server** (track A). Judge0 needs cgroup v1, which Docker Desktop on Windows doesn't provide, so it can't run
+   on this laptop. Please create the **DigitalOcean droplet: Bangalore (BLR1), Basic, 4 vCPU / 8 GB, Ubuntu 22.04,
+   $48/month**, add your SSH key, and send me its IP. (Approved hosting; this is the pilot server.)
+3. **CI secrets** (CI proposal approved):
+   - Supabase → Account → Access Tokens → *Generate new token* (name: `github-actions`) → copy it.
+   - Then, in the repo folder: `gh secret set SUPABASE_ACCESS_TOKEN` and paste the token
+     (or GitHub → repo → Settings → Secrets and variables → Actions → *New repository secret*).
+   - For the manual migration workflow also: `gh secret set SUPABASE_DB_PASSWORD` (Supabase → Project Settings →
+     Database → database password; reset it there if you don't have it).
+4. **Branch protection** (after PR #3 is merged, so the `checks` and `e2e` checks exist on `main`): GitHub → repo →
+   Settings → Branches → *Add branch protection rule* → `main` → tick *Require a pull request before merging*
+   (Required approvals: **0**) and *Require status checks to pass* → add `checks` and `e2e` → Save. I can do this
+   with `gh api` if you prefer; say so.
+5. **Phone voice check** (still open from Phase 0) and the old items: Resend domain + MX, archive tag for
+   `feat/proctoring` (`git tag archive/proctoring-2026-09-28 feat/proctoring && git push origin archive/proctoring-2026-09-28`).
+
+## Phase 1 — done (2026-10-21)
+
+**Built**
+- **Schema** (migrations `20261021000001…0005`, not applied; batched for the V1 release):
+  - Tenancy reshaped in place: org type and member role are **text + CHECK** (enums dropped). Org types `college`,
+    `company` (+ legacy `coaching_institute`). Roles `org_admin` (TPO admin / company admin), `trainer`, `student`,
+    `recruiter`, `hiring_manager`; a trigger ties roles to the org type; the type is locked once an org has members.
+  - Orgs: status, seat limit, contacts, `settings` (modules, quotas, proctoring/results defaults, retention 90 days),
+    **pooled credit balance + ledger** (atomic, idempotent consume/refund; super-admin grant/top-up).
+  - **Audit log** written by triggers on every admin-managed table, with the acting user.
+  - **Consents** itemised by purpose, withdrawable by the subject. **Staff invites** bound to the invited email.
+  - **Every V1 table**: students (held if under 18), candidates, question bank + test cases + reference solutions,
+    assessments, drives + assignments, job roles + role candidates + comments, attempts + autosaved answers +
+    submissions + edit history, interviews linked to drives/roles/coding attempts, proctoring sessions/events/reviews,
+    competency dimensions + scores, share links, resume links. RLS on all of them.
+  - Results visibility: practice always; drives per the release rule; candidates never. Hiring managers see only
+    assigned roles.
+- **AI gateway** (`supabase/functions/_shared/ai-gateway`): per-feature provider/model config (Gemini default,
+  `B2B_AI_CONFIG` overrides), exact-match cache (per org for personal data), **single flight**, quotas, zod-validated
+  output with one retry, cost log with context-cached tokens. Interview turns and evaluations never cached.
+- **Contracts** (`supabase/functions/_shared/contracts`): zod schemas for admin, college, company, candidate, assess,
+  proctor, interview — shared by edge functions and browser. Stub functions answer 501 until a track implements them.
+- **Super admin v1**: `b2b-admin` function + `/admin/orgs` (create college/company with plan, seats, validity, opening
+  credits and first admin invite; invite staff; credits ledger; suspend/reactivate) + `/admin/usage` (per-org AI cost,
+  cache hit rate, credits, students/candidates). Scoped B2B theme (slate/blue) on V1 screens only.
+- **Quality gates**: Playwright B2C smoke + screenshots (8 pages × desktop/mobile) and "B2B routes are 404 in production
+  builds"; ESLint/TypeScript baseline (fail on new errors only); strict TS for new B2B code; CI workflows.
+
+**Tests**: 431 pass / 3 skipped (Vitest: unit, UI, RLS on embedded Postgres) + 36 Playwright tests. New: V1 isolation
+suite (4 orgs × every role × every V1 table, reads and writes), AI gateway DB + unit tests, contract tests, admin UI tests.
+**Bugs caught and fixed by the new tests:** an org admin could invite staff into another org (NULL role comparison);
+a taken-over AI cache key kept its old expiry so the prune job could delete an in-flight claim.
+
+**Found, not fixed (B2C frozen):** `supabase/functions/referral` selects the profile without `id` and then filters by
+`profile.id`, so referral stats are probably always empty. CI skips Deno-checking it until you decide.
+
+**Manual test (once local Supabase runs; before that, the UI tests cover it):**
+1. `.env.local`: `VITE_B2B_ENABLED=true`; `supabase/functions/.env`: `B2B_ENABLED=true`, `GEMINI_API_KEY=…`.
+2. Make your local user super admin: `insert into user_roles (user_id, role) select id, 'admin' from auth.users where email = '<you>';`
+3. `/admin/orgs` → New organisation → College, Starter, 300 seats → credits suggested 1,200 → Create with a TPO email →
+   copy the invite link (email isn't configured locally) → open it signed in as that email → you're the TPO admin.
+4. New organisation → Company → Company plan → invite a recruiter → `/admin/usage` shows both orgs.
+
+## Next: V1 tracks
+Up to 3 at a time, subagents in separate worktrees; tracks list schema changes, I add the migrations.
+- **A** assessment engine (needs the Judge0 server for real runs; bank, generation, runner, MCQ can start without it)
+- **B** proctoring V1
+- **C** interview V1 + Gemini Live spike
+- **D** college portal
+- **E** startup portal
+
+Planned order: A + B + D first (college walkthrough), then C + E (startup walkthrough).
+
+## V1 tracks A, B, D — merged (2026-10-20)
+
+Branch `feat/b2b-v1-tracks` (from `feat/b2b-v1-phase1`): tracks merged in order A → B → D; their SQL is now migrations
+`20261021000006_b2b_v1_assessment`, `…07_b2b_v1_proctoring`, `…08_b2b_v1_college` (not applied to prod).
+- **A, assessment:** Judge0 client (503 `JUDGE0_NOT_CONFIGURED` until the server exists), `b2b-assess`, question bank
+  `/assess/bank/:orgId` (+ `global`), test builder `/assess/tests/:orgId`, runner `/assess/start`, `/assess/a/:attemptId`.
+  Cron: deadline sweep every minute; grading call every 2 min only when submissions are queued (reuses Vault secrets).
+- **B, proctoring:** `b2b-proctor`, system check `/proctor/check`, `ProctoredSession`, review `/proctor/review/:id`,
+  private `b2b-evidence` bucket (guarded block; untested on PGlite). Real-browser checks still to do (MediaPipe,
+  `getDisplayMedia` monitor surface, `screen.isExtended`, fullscreen, VAD, snapshots).
+- **D, college:** `b2b-college`, `/c/:orgId/*` (students + import, drives, analytics + exports, credits & team),
+  `/learn/v1`. College tabs now link to Tests and Question bank.
+
+Checks on the merged branch: DB/unit 321 pass / 3 skipped; B2B UI 113 pass; strict tsc 0; quality no new errors
+(132 lint / 25 tsc baseline); deno check passes for b2b-assess/proctor/college/admin.
+
+Known gaps: ~~builder allows saving a test whose pool rules can't be filled~~ (fixed 2026-10-22); analytics speed unmeasured at scale;
+the bank's "Portal" tab points at the college portal (company portal comes with Track E).
+
+Next: tracks C (interview V1 + Gemini Live spike) and E (startup portal).
+
+## V1 tracks C, E — merged (2026-10-21)
+
+Same branch `feat/b2b-v1-tracks`; migrations `20261021000009_b2b_v1_interview`, `…10_b2b_v1_startup` (not applied).
+- **C, interview:** `_shared/interview-v1/` (template, section state machine with follow-ups, coverage and time-boxes,
+  code walkthrough, injection detector, blind scrub, verified quotes, answer signals, latency p50/p95, evaluator with
+  1–5 anchors and band); V1 actions in `b2b-interview/v1.ts`; room `/interview/v1/start`, `/interview/v1/i/:id`
+  (**voice only**, audio re-check + resume); dev page `/interview/v1/live-spike` + `docs/b2b/gemini-live-spike.md`
+  (owner runs it; nothing measured yet). b2b-evaluate no longer shows unreleased drive results.
+- **E, startup:** `b2b-company`, `b2b-candidate`, `/co/:orgId/*` (roles from JD + skills matrix, pipeline, report,
+  credits & team), `/t/:token` (+ `/t` resumes the last link), `/share/:token`, `/portal/:orgId` (routes to `/c` or
+  `/co`). `job_roles.interview_config` drives C's interview. Credits charged once per completed candidate.
+- **Lead fixes on merge:** a drive assignment completes only when both test and interview are done (trigger +
+  analytics status); pilot `current` ignores V1 interviews; runner "Done" returns to the drive / candidate steps /
+  practice zone; the internal-links test now reads B2B route files (all B2B links resolve).
+
+Checks: Vitest 760 pass / 3 skipped (whole suite); strict tsc 0; quality no new errors (132 / 25); deno check passes
+for all 9 B2B functions.
+
+Known gaps: nothing run in a real browser or against local Supabase yet (needs Docker); Judge0 server not created;
+Gemini Live untested; ~~job-role completion synced only on touch~~ (trigger, migration 0011); candidate system check is self-reported.
+
+Next: local Supabase (Docker) → college + startup walkthroughs end to end → one batched production release for approval.
+
+## 2026-10-22
+- **Migration `20261021000011_b2b_v1_completion_sync`:** job-role candidates are synced (credits, notification) by a
+  trigger the moment their test or interview ends, no longer only when someone opens the row.
+- **Local testing kit:** `scripts/b2b-local-setup.mjs` (env files, demo accounts, super admin, seeded bank; local only),
+  `docs/b2b/TESTING.md` (setup + both walkthroughs), fixtures in `docs/b2b/fixtures`. Anonymous sign-ins on in local
+  config. Accepted invites now land in the right portal (staff → `/c` or `/co`, college students → `/learn/v1`).
+- **Test builder draw check:** the server quietly gives fewer questions when a pool runs dry, and rules draw in order
+  without repeats, so overlapping rules (or a rule overlapping chosen questions, also across sections) could short a
+  candidate even when each rule alone had enough. The builder now shows the worst-case count per rule and refuses to
+  save a test as **Ready** if any rule can come up short; drafts still save with the warning (`checkDraw` in
+  `src/b2b/bank/forms.ts`).
+- Docker still not installed (checked 2026-10-22: no Docker Desktop; WSL component not enabled).
+
+## Decisions made
+See the **Decisions log** at the top of the build prompt. Phase 1 implementation choices:
+- Roles: `org_admin` serves as both TPO admin and company admin (label by org type); no separate enum values.
+- Legacy org type `coaching_institute` kept (the pilot's public test uses it); not offered when creating orgs.
+- Candidate sessions are Supabase anonymous users linked to the candidate row on first token use.
+- Super admin stays `user_roles.role = 'admin'` (owner's account only, granted by SQL; no UI path).
+
+## How to run locally
+```sh
+npm install
+npm run dev                 # add VITE_B2B_ENABLED=true to .env.local for B2B pages
+npm test                    # Vitest (about 4 min; --maxWorkers=2 if memory is low)
+npm run test:db             # RLS + DB tests on embedded Postgres (PGlite)
+npm run typecheck:b2b       # strict TS for new B2B code
+npm run quality             # fails only on NEW lint/type errors (quality:update after fixing old ones)
+npm run build:e2e && npm run e2e   # B2C smoke + screenshots (local win32 baselines are not committed)
+npx -y deno@latest check supabase/functions/<fn>/index.ts
+```
+
+## Baselines (2026-10-21, `feat/b2b-v1-phase1`)
+- Vitest 431 pass / 3 skipped; Playwright 36 pass. tsc (app) 25 errors; ESLint 132 errors (both baselined).
+- Prod unchanged: 38/38 migrations applied; 5 V1 migrations + 2 Phase-0 migrations pending your approval.

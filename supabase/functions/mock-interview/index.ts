@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { aiText, isRateLimit, type ChatMessage } from "../_shared/ai.ts";
+import { logTurnLatency } from "../_shared/turn-latency.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,7 +45,9 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Unauthorized");
 
-    const { action, sessionId, role, experienceLevel, messages } = await req.json();
+    const { action, sessionId, role, experienceLevel, messages, clientLatency } = await req.json();
+    // Previous turn's timing from the browser (logging only).
+    logTurnLatency("mock-interview", sessionId, clientLatency);
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,

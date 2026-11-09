@@ -54,7 +54,7 @@ const count = async (tx: Transaction, sql: string, params: unknown[] = []) => (a
 describe("anonymous and B2C users", () => {
   it("anon sees no B2B rows and cannot call helper functions", async () => {
     await asUser(db, null, async (tx) => {
-      expect(await count(tx, "SELECT * FROM organizations")).toBe(0);
+      expect(await count(tx, "SELECT id FROM organizations")).toBe(0);
       expect(await count(tx, "SELECT * FROM batches")).toBe(0);
       expect(await count(tx, "SELECT * FROM org_memberships")).toBe(0);
       expect(await expectRejected(tx, "SELECT public.is_org_member($1)", [org.a])).toMatch(/permission denied/);
@@ -63,7 +63,7 @@ describe("anonymous and B2C users", () => {
 
   it("a B2C user with no org sees nothing and cannot create an org or join one", async () => {
     await asUser(db, u.b2c, async (tx) => {
-      expect(await count(tx, "SELECT * FROM organizations")).toBe(0);
+      expect(await count(tx, "SELECT id FROM organizations")).toBe(0);
       expect(await count(tx, "SELECT * FROM org_memberships")).toBe(0);
       await expectRejected(tx, "INSERT INTO organizations (name, slug, type) VALUES ('Mine', 'mine-org', 'college')");
       await expectRejected(tx,
@@ -86,7 +86,7 @@ describe("students", () => {
 
   it("cannot read another org by id", async () => {
     await asUser(db, u.studentA1, async (tx) => {
-      expect(await count(tx, "SELECT * FROM organizations WHERE id = $1", [org.b])).toBe(0);
+      expect(await count(tx, "SELECT id FROM organizations WHERE id = $1", [org.b])).toBe(0);
       expect(await count(tx, "SELECT * FROM org_memberships WHERE org_id = $1", [org.b])).toBe(0);
     });
   });
@@ -127,7 +127,7 @@ describe("org admin of A vs org B data", () => {
       expect(await count(tx, "SELECT * FROM org_memberships")).toBe(4);
       expect(await count(tx, "SELECT * FROM org_memberships WHERE org_id = $1", [org.b])).toBe(0);
       expect(await count(tx, "SELECT * FROM batches WHERE org_id = $1", [org.b])).toBe(0);
-      expect(await count(tx, "SELECT * FROM organizations WHERE id = $1", [org.b])).toBe(0);
+      expect(await count(tx, "SELECT id FROM organizations WHERE id = $1", [org.b])).toBe(0);
     });
   });
 
@@ -181,7 +181,7 @@ describe("org admin of A vs org B data", () => {
 describe("super-admin", () => {
   it("can create orgs and add members to any org", async () => {
     await asUser(db, u.super, async (tx) => {
-      expect(await count(tx, "SELECT * FROM organizations")).toBe(2);
+      expect(await count(tx, "SELECT id FROM organizations")).toBe(2);
       const r = await tx.query<{ id: string }>(
         "INSERT INTO organizations (name, slug, type, created_by) VALUES ('New College', 'new-college', 'college', $1) RETURNING id",
         [u.super]);

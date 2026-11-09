@@ -1,16 +1,17 @@
 import { useMemo, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download, Mail, Phone, Search } from "lucide-react";
+import { Download, Mail, Phone, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { B2BShell, CenteredSpinner, EmptyState } from "../components/B2BShell";
+import { V1Shell, Loading as CenteredSpinner, Empty as EmptyState } from "@/b2b/layout/V1Shell";
+import { ADMIN_TABS } from "@/b2b/admin/AdminOrgsPage";
 import { useIsSuperAdmin } from "../hooks/useB2B";
-import { b2bDb } from "../lib/db";
+import { b2bDb, selectAll } from "../lib/db";
 import { friendlyDbError } from "../lib/format";
 import { downloadCsv, toCsv } from "../lib/csv-export";
 
@@ -20,14 +21,15 @@ export type EnquiryStatus = (typeof ENQUIRY_STATUSES)[number];
 export const STATUS_LABEL: Record<EnquiryStatus, string> = {
   new: "New", contacted: "Contacted", demo_scheduled: "Demo scheduled", pilot: "Pilot", won: "Won", lost: "Lost", spam: "Spam",
 };
+// Series colours only (decision D2): a new enquiry needs a reply (red), live conversations are blue, won is gold.
 const STATUS_TONE: Record<EnquiryStatus, string> = {
-  new: "bg-violet-500/15 text-violet-200 border-violet-500/30",
-  contacted: "bg-sky-500/15 text-sky-200 border-sky-500/30",
-  demo_scheduled: "bg-amber-500/15 text-amber-200 border-amber-500/30",
-  pilot: "bg-cyan-500/15 text-cyan-200 border-cyan-500/30",
-  won: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
-  lost: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-  spam: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+  new: "text-[var(--hr-red-ink)] border-[var(--hr-red-ink)]",
+  contacted: "text-[var(--hr-blue-ink)] border-[var(--hr-blue-ink)]",
+  demo_scheduled: "text-[var(--hr-blue-ink)] border-[var(--hr-blue-ink)]",
+  pilot: "text-[var(--hr-blue-ink)] border-[var(--hr-blue-ink)]",
+  won: "text-[var(--hr-gold)] border-[var(--hr-gold)]",
+  lost: "text-[var(--hr-muted)] border-[var(--hr-rule)]",
+  spam: "text-[var(--hr-muted)] border-[var(--hr-rule)]",
 };
 
 export interface Enquiry {
@@ -53,9 +55,8 @@ function useEnquiries(enabled: boolean) {
     queryKey: ["admin", "enquiries"],
     enabled,
     queryFn: async () => {
-      const { data, error } = await b2bDb.from("institution_enquiries").select(COLUMNS).order("created_at", { ascending: false }).limit(1000);
-      if (error) throw error;
-      return (data ?? []) as Enquiry[];
+      return selectAll<Enquiry>((from, to) =>
+        b2bDb.from("institution_enquiries").select(COLUMNS).order("created_at", { ascending: false }).order("id").range(from, to));
     },
   });
 }
@@ -186,15 +187,13 @@ export default function SuperAdminEnquiries() {
   const tabs: Array<[typeof status, string]> = [["open", "Open"], ...ENQUIRY_STATUSES.map((s) => [s, STATUS_LABEL[s]] as [EnquiryStatus, string]), ["all", "All"]];
 
   return (
-    <B2BShell
+    <V1Shell
+      tabs={ADMIN_TABS}
       title="Enquiries"
-      subtitle="Super-admin · Institutions that asked about HiResume"
+      subtitle="Super admin"
       actions={<Button size="sm" variant="outline" onClick={exportCsv} disabled={!shown.length}><Download className="h-4 w-4 mr-1" /> CSV</Button>}
     >
       <div className="space-y-5">
-        <Link to="/admin/orgs" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Institutions
-        </Link>
 
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
           <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="Filter by status">
@@ -204,8 +203,8 @@ export default function SuperAdminEnquiries() {
                 role="tab"
                 aria-selected={status === key}
                 onClick={() => setStatus(key)}
-                className={cn("shrink-0 rounded-full px-3 py-1 text-xs border transition-colors",
-                  status === key ? "bg-primary text-primary-foreground border-primary" : "border-border/60 text-muted-foreground hover:text-foreground")}
+                className={cn("shrink-0 px-3 py-2 text-sm transition-colors",
+                  status === key ? "text-foreground shadow-[inset_0_-2px_0_var(--hr-orange)]" : "text-muted-foreground hover:text-foreground")}
               >
                 {label} <span className="opacity-70">{counts[key] ?? 0}</span>
               </button>
@@ -229,6 +228,6 @@ export default function SuperAdminEnquiries() {
           </ul>
         )}
       </div>
-    </B2BShell>
+    </V1Shell>
   );
 }

@@ -37,7 +37,14 @@ describe("pricing lookup", () => {
       (await tx.query<{ input_inr_per_million: string }>("SELECT (public.b2b_price_for($1)).input_inr_per_million", [k])).rows[0].input_inr_per_million);
     expect(Number(await price("gemini-9-pro"))).toBe(100);
     expect(Number(await price("gemini-3.6-flash"))).toBe(20);
-    expect(Number(await price("some-other-model"))).toBe(25.2);
+    // Seeded default: gemini-3.6-flash's 2026 rate (20261020000002); the 2027 row isn't in effect yet.
+    expect(Number(await price("some-other-model"))).toBe(71.25);
+  });
+
+  it("a dated rate takes over by itself once it is in effect", async () => {
+    const rows = (await db.query<{ input: string; output: string }>(
+      "SELECT input_inr_per_million AS input, output_inr_per_million AS output FROM b2b_pricing WHERE provider_key = '%' AND effective_from = '2027-01-01 00:00:00+00'")).rows;
+    expect(rows.map((r) => [Number(r.input), Number(r.output)])).toEqual([[142.5, 712.5]]);
   });
 });
 

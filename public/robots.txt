@@ -23,5 +23,14 @@ Disallow: /learn
 Disallow: /invite/
 Disallow: /test/
 Disallow: /dev/
+# B2B V1: college and company portals, assessments, proctoring, interviews, candidate and share links
+Disallow: /c/
+Disallow: /co/
+Disallow: /portal/
+Disallow: /assess/
+Disallow: /proctor/
+Disallow: /interview/
+Disallow: /t/
+Disallow: /share/
 
 Sitemap: https://hiresume.in/sitemap.xml

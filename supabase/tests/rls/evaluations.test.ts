@@ -67,6 +67,10 @@ describe("claiming", () => {
     const id = await interview(u.s2, "completed", 2);
     const c = await claim(id);
     await save(c.evaluation_id as string, "failed", null);
+    // A failure is not re-claimed straight away (no retry loop from the client)…
+    expect(await claim(id)).toMatchObject({ claimed: false, status: "failed", evaluation_id: c.evaluation_id });
+    // …only after the 5-minute pause.
+    await db.query("UPDATE b2b_evaluations SET updated_at = now() - interval '6 minutes' WHERE id = $1", [c.evaluation_id]);
     expect(await claim(id)).toMatchObject({ claimed: true, evaluation_id: c.evaluation_id });
     await db.query("UPDATE b2b_evaluations SET updated_at = now() - interval '5 minutes' WHERE id = $1", [c.evaluation_id]);
     expect(await claim(id)).toMatchObject({ claimed: true });
@@ -75,6 +79,14 @@ describe("claiming", () => {
     expect(v2).toMatchObject({ claimed: true });
     expect(v2.evaluation_id).not.toBe(c.evaluation_id);
     expect((await one<{ attempts: number }>("SELECT attempts FROM b2b_evaluations WHERE id = $1", [c.evaluation_id])).attempts).toBe(2);
+  });
+
+  it("a failed evaluation is never re-claimed after 5 attempts, on any path", async () => {
+    const id = await interview(u.s2, "completed", 2);
+    const c = await claim(id);
+    await save(c.evaluation_id as string, "failed", null);
+    await db.query("UPDATE b2b_evaluations SET attempts = 5, updated_at = now() - interval '1 hour' WHERE id = $1", [c.evaluation_id]);
+    expect(await claim(id)).toMatchObject({ claimed: false, status: "failed" });
   });
 
   it("lists interviews still needing an evaluation at a version (re-run after rubric change)", async () => {

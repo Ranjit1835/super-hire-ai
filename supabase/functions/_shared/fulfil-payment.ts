@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 // What a successful payment grants. Both verify-payment (the browser came back) and razorpay-webhook
 // (the browser closed, or the webhook won the race) run this, so the two can't drift apart. They can
 // also run at the same moment: the fulfilled_at claim means only the first caller grants anything.
@@ -20,7 +21,7 @@ function check(result: { error?: { message: string } | null }) {
   if (result.error) throw new Error(result.error.message);
 }
 
-// deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function grant(admin: any, payment: FulfilablePayment, now: Date) {
   const type = payment.payment_type;
 
@@ -74,7 +75,7 @@ async function grant(admin: any, payment: FulfilablePayment, now: Date) {
 }
 
 /** Grant what this payment bought. Returns false when another caller already did. */
-// deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function fulfilPayment(admin: any, payment: FulfilablePayment, now = new Date()): Promise<boolean> {
   const { data: claimed, error } = await admin
     .from("payments")

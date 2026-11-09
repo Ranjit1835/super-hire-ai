@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { B2BShell, CenteredSpinner, EmptyState, StatCard } from "../components/B2BShell";
+import { V1Shell, Loading as CenteredSpinner, Empty as EmptyState, Stat as StatCard } from "@/b2b/layout/V1Shell";
+import { ADMIN_TABS } from "@/b2b/admin/AdminOrgsPage";
 import { useIsSuperAdmin, usePlans } from "../hooks/useB2B";
 import type { Plan } from "../types";
 import { b2bDb } from "../lib/db";
@@ -99,9 +100,10 @@ export default function SuperAdminCosts() {
   if (!isSuper.data) return <Navigate to="/dashboard" replace />;
 
   return (
-    <B2BShell
+    <V1Shell
+      tabs={ADMIN_TABS}
       title="Costs"
-      subtitle="Super-admin · AI and speech usage across institutions"
+      subtitle="Super admin"
       actions={
         <div className="flex items-center gap-2 mr-2">
           <Switch id="incl-demo" checked={includeDemo} onCheckedChange={setIncludeDemo} />
@@ -110,9 +112,6 @@ export default function SuperAdminCosts() {
       }
     >
       <div className="space-y-8">
-        <Link to="/admin/orgs" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Institutions
-        </Link>
 
         {q.isLoading ? <CenteredSpinner /> : q.error ? <EmptyState title="Couldn't load costs" body={friendlyDbError(q.error)} /> : (
           <>
@@ -141,7 +140,7 @@ export default function SuperAdminCosts() {
                     <TableBody>
                       {q.data.revenue.map((r) => (
                         <TableRow key={r.org_id}>
-                          <TableCell>{r.org_name}{r.is_demo && <span className="text-xs text-amber-300 ml-1">demo</span>}</TableCell>
+                          <TableCell>{r.org_name}{r.is_demo && <span className="text-xs text-[var(--hr-muted)] ml-1">demo</span>}</TableCell>
                           <TableCell className="text-muted-foreground">{r.plan_id} · {inr(r.price_inr_per_student, 0)}/student</TableCell>
                           <TableCell className="text-right tabular-nums">{r.students}</TableCell>
                           <TableCell className="text-right tabular-nums">{inr(r.revenue_inr, 0)}</TableCell>
@@ -150,7 +149,7 @@ export default function SuperAdminCosts() {
                           <TableCell className="text-right tabular-nums">{inr(r.cost_per_interview)}</TableCell>
                           <TableCell className="text-right tabular-nums">{inr(r.cost_per_student)}</TableCell>
                           <TableCell className={cn("text-right tabular-nums", r.margin_inr < 0 && "text-red-300")}>{inr(r.margin_inr, 0)}</TableCell>
-                          <TableCell className={cn("text-right tabular-nums", r.cost_share !== null && r.cost_share > 0.3 && "text-amber-300")}>
+                          <TableCell className={cn("text-right tabular-nums", r.cost_share !== null && r.cost_share > 0.3 && "text-[var(--hr-red-ink)]")}>
                             {r.cost_share === null ? (r.revenue_inr === 0 ? "no price set" : "—") : `${(r.cost_share * 100).toFixed(1)}%`}
                           </TableCell>
                         </TableRow>
@@ -179,7 +178,7 @@ export default function SuperAdminCosts() {
                       {q.data.months.map((r) => (
                         <TableRow key={`${r.month}-${r.org_id}`}>
                           <TableCell className="whitespace-nowrap">{new Date(r.month).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</TableCell>
-                          <TableCell>{r.org_name}{r.is_demo && <span className="text-xs text-amber-300 ml-1">demo</span>}</TableCell>
+                          <TableCell>{r.org_name}{r.is_demo && <span className="text-xs text-[var(--hr-muted)] ml-1">demo</span>}</TableCell>
                           <TableCell className="text-right tabular-nums">{r.interviews}</TableCell>
                           <TableCell className="text-right tabular-nums">{compact(r.llm_calls)}</TableCell>
                           <TableCell className="text-right tabular-nums">{compact(r.input_tokens)} / {compact(r.output_tokens)}</TableCell>
@@ -199,14 +198,14 @@ export default function SuperAdminCosts() {
             <PricingEditor rows={q.data!.pricing} onChanged={() => qc.invalidateQueries({ queryKey: ["b2b", "costs"] })} />
             <div className="flex items-center gap-3">
               <Button variant="secondary" onClick={recompute} disabled={recomputing}>
-                {recomputing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />} Recalculate all costs with current rates
+                {recomputing ? "Recalculating…" : <><RefreshCw className="h-4 w-4 mr-1" /> Recalculate all costs with current rates</>}
               </Button>
               <p className="text-xs text-muted-foreground">Logged costs keep the rate at the time they happened until you recalculate.</p>
             </div>
           </>
         )}
       </div>
-    </B2BShell>
+    </V1Shell>
   );
 }
 

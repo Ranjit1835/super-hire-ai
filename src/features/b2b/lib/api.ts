@@ -1,7 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TurnLatency } from "@/lib/turn-latency";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+/** Fired on window when any B2B call answers SESSION_ENDED (detail: the message to show). */
+export const SESSION_ENDED_EVENT = "b2b:session-ended";
 
 export class ApiError extends Error {
   status: number;
@@ -39,6 +43,10 @@ export async function callB2B<T>(
   if (!res.ok) {
     const err = new ApiError(res.status, data?.code ?? "ERROR", data?.error ?? `Request failed (${res.status})`);
     err.data = data;
+    // R1.6: the server ended this student's session (another device, idle, expired). useStudentSession signs out.
+    if (err.code === "SESSION_ENDED" && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT, { detail: err.message }));
+    }
     throw err;
   }
   return data as T;
@@ -52,6 +60,8 @@ export interface ImportResponse { results: ImportRowResult[]; invited: InvitedSt
 
 export interface InvitePreview {
   status: "pending" | "accepted" | "revoked" | "expired";
+  /** Invited role; older function versions omit it (treated as student). */
+  role?: string;
   full_name: string;
   email: string;
   roll_no: string;
@@ -113,7 +123,7 @@ export const interviewApi = {
     callB2B<InterviewPayload>("b2b-interview", { action: "start", moduleId, clientMeta }, { timeoutMs: TURN_TIMEOUT_MS }),
   resume: (interviewId: string) =>
     callB2B<InterviewPayload>("b2b-interview", { action: "resume", interviewId }, { timeoutMs: 15_000 }),
-  answer: (a: { interviewId: string; clientTurnId: string; turnCount: number; answer: string; meta: Record<string, unknown> }) =>
+  answer: (a: { interviewId: string; clientTurnId: string; turnCount: number; answer: string; meta: Record<string, unknown>; clientLatency?: TurnLatency | null }) =>
     callB2B<InterviewPayload>("b2b-interview", { action: "answer", ...a }, { timeoutMs: TURN_TIMEOUT_MS }),
   end: (interviewId: string) =>
     callB2B<InterviewPayload>("b2b-interview", { action: "end", interviewId }, { timeoutMs: 15_000 }),
@@ -160,6 +170,13 @@ export async function ensureVisitorSession(): Promise<void> {
   if (data.session) return;
   const { error } = await supabase.auth.signInAnonymously();
   if (error) throw new ApiError(error.status ?? 0, "ANON_AUTH", "Couldn't start a test session. Please refresh and try again.");
+}
+
+/** Drop an anonymous session left by someone else in this browser (shared computer) and start a new one. */
+export async function freshVisitorSession(): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user.is_anonymous) await supabase.auth.signOut({ scope: "local" });
+  await ensureVisitorSession();
 }
 
 export const publicTestApi = {

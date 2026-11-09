@@ -20,10 +20,11 @@ const BENEFITS = [
   { icon: Building2, title: "Excel and PDF Exports", desc: "Download batch summaries and student reports with your institution's logo for placement meetings." },
 ];
 
+// No public prices (owner, 2026-11-07): pricing is quoted per institution, including partner arrangements.
 const PLANS = [
-  { name: "Pilot", price: "Free", students: "30 days · up to 150 students", features: ["6 AI interviews per student", "Readiness dashboard", "Company-style practice packs", "Excel and PDF exports"], highlighted: true },
-  { name: "Basic", price: "₹149", students: "per student per year · any batch size", features: ["4 AI interviews per student", "Student reports", "Your own modules"], highlighted: false },
-  { name: "Pro", price: "₹299", students: "per student per year · any batch size", features: ["10 AI interviews per student", "Readiness dashboard", "Company-style practice packs", "Excel and PDF exports"], highlighted: false },
+  { name: "Pilot batch", students: "one batch, to see it working with your students", features: ["Coding and aptitude tests, unique paper per student", "AI interviews with evidence-based reports", "Proctoring with an integrity review", "Readiness dashboard and exports"], highlighted: true },
+  { name: "Placement season", students: "all your eligible batches for the year", features: ["Everything in the pilot", "Code replay and similarity checks", "Company-style practice", "Your own question bank and modules"], highlighted: false },
+  { name: "Group of institutions", students: "several campuses under one agreement", features: ["Everything in placement season", "A separate portal for each campus", "Onboarding for your placement team"], highlighted: false },
 ];
 
 const stagger = {
@@ -183,7 +184,7 @@ export default function CollegePlacement() {
               className="text-center mb-12"
             >
               <h2 className="text-3xl font-bold mb-3 text-foreground">Plans for Institutions</h2>
-              <p className="text-muted-foreground">Priced per student, per year. Start with a free 30-day pilot for one batch — no payment details needed.</p>
+              <p className="text-muted-foreground">Every institution gets a quote for its batch size and needs. Tell us about yours and we'll come back with one.</p>
             </motion.div>
             <div className="grid sm:grid-cols-3 gap-6">
               {PLANS.map((plan, i) => (
@@ -207,7 +208,6 @@ export default function CollegePlacement() {
                     )}
                     <div className="p-6 pt-8">
                       <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
-                      <div className="text-3xl font-bold mt-2 gradient-text-new">{plan.price}</div>
                       <p className="text-sm text-muted-foreground mt-1">{plan.students}</p>
                     </div>
                     <div className="px-6 pb-6">
@@ -229,7 +229,7 @@ export default function CollegePlacement() {
                             : "border border-violet-500/20 text-foreground hover:bg-violet-500/5"
                         }`}
                       >
-                        Talk to us
+                        Get a quote
                       </motion.button>
                     </div>
                   </motion.div>

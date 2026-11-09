@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { b2bDb } from "../lib/db";
+import { b2bDb, selectAll } from "../lib/db";
 import type { DashEval, RosterStudent } from "../lib/dashboard";
 import type { Batch } from "../types";
 import type { EvaluationRow } from "../lib/api";
@@ -7,16 +7,16 @@ import type { EvaluationRow } from "../lib/api";
 interface MemberRow { user_id: string; full_name: string | null; roll_no: string | null; email: string | null; batch_id: string | null }
 
 async function loadRoster(orgId: string): Promise<{ roster: RosterStudent[]; batches: Batch[] }> {
-  const [{ data: members, error }, { data: batches, error: bErr }] = await Promise.all([
-    b2bDb.from("org_memberships").select("user_id, full_name, roll_no, email, batch_id").eq("org_id", orgId).eq("role", "student").order("roll_no"),
+  const [members, { data: batches, error: bErr }] = await Promise.all([
+    selectAll<MemberRow>((from, to) => b2bDb.from("org_memberships").select("user_id, full_name, roll_no, email, batch_id")
+      .eq("org_id", orgId).eq("role", "student").order("roll_no").order("user_id").range(from, to)),
     b2bDb.from("batches").select("*").eq("org_id", orgId).order("name"),
   ]);
-  if (error) throw error;
   if (bErr) throw bErr;
   const byId = new Map((batches as Batch[]).map((b) => [b.id, b]));
   return {
     batches: batches as Batch[],
-    roster: (members as MemberRow[]).map((m) => ({
+    roster: members.map((m) => ({
       ...m,
       batch_name: m.batch_id ? byId.get(m.batch_id)?.name ?? null : null,
       department: m.batch_id ? byId.get(m.batch_id)?.department ?? null : null,
@@ -32,11 +32,11 @@ export function useDashboardData(orgId: string | undefined) {
     staleTime: 30_000,
     retry: (n, e) => !/PLAN_FEATURE|FORBIDDEN/.test(String((e as { message?: string })?.message)) && n < 2,
     queryFn: async () => {
-      const [{ roster, batches }, { data, error }] = await Promise.all([
+      // The rpc returns a row set, which PostgREST also caps at 1000: page through it in a stable order.
+      const [{ roster, batches }, data] = await Promise.all([
         loadRoster(orgId!),
-        b2bDb.rpc("org_dashboard_evaluations", { _org_id: orgId }),
+        selectAll<unknown>((from, to) => b2bDb.rpc("org_dashboard_evaluations", { _org_id: orgId }).order("interview_id").range(from, to)),
       ]);
-      if (error) throw error;
       const evals = ((data ?? []) as Array<Omit<DashEval, "overall_score" | "pass_threshold"> & { overall_score: string | number | null; pass_threshold: string | number }>)
         .map((e) => ({ ...e, overall_score: e.overall_score === null ? null : Number(e.overall_score), pass_threshold: Number(e.pass_threshold) }));
       return { roster, batches, evals: evals as DashEval[] };

@@ -1,12 +1,29 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/((?!assets/).*)", "destination": "/app" }
+    {
+      "source": "/((?!assets/).*)",
+      "destination": "/app"
+    }
   ],
   "headers": [
     {
       "source": "/assets/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(t|share|c|co|portal|assess|proctor|interview|invite|learn)/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ]
 }

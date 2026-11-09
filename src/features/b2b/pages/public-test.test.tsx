@@ -26,12 +26,14 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "admin"
 
 const dbm = vi.hoisted(() => ({ rpc: vi.fn(), update: vi.fn(), leads: [] as unknown[] }));
 vi.mock("../lib/db", () => ({
+  // One chunk is the whole fixture list (fewer than 1000 rows), so selectAll stops after the first page.
+  selectAll: async (page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>) => (await page(0, 999)).data,
   b2bDb: {
     rpc: dbm.rpc,
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
-          order: () => ({ limit: async () => ({ data: table === "org_leads" ? dbm.leads : [], error: null }) }),
+          order: () => ({ order: () => ({ range: async () => ({ data: table === "org_leads" ? dbm.leads : [], error: null }) }) }),
           maybeSingle: async () => ({ data: null, error: null }),
         }),
       }),
