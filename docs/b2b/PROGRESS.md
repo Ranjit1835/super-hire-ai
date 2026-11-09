@@ -3,7 +3,26 @@
 > Read this first at the start of every session; update it at the end.
 > Spec + **Decisions log**: `docs/b2b/hiresume-b2b-build-prompt.md` · Evidence and numbers: `docs/b2b/AUDIT.md`
 
-_Last updated: 2026-11-07_
+_Last updated: 2026-11-09_
+
+## 2026-11-09: LAUNCH IN PROGRESS (read this first)
+Owner wants production live now; remaining bugs are fixed after launch.
+- Branch `feat/b2b-hardening` now includes `main` (merge `7562711`: B2C fixes #9/#10, whose migrations
+  20261104002824 / 20261104004219 are already on prod). Full suite after merge: **981 pass, 0 fail**.
+- Also fixed 2026-11-08: `0666bf7` B35 (integrity finalizer, every 10 minutes, + drive card waits for all sessions).
+- Website = Vercel (auto-deploys `main`). B2B is hidden behind `VITE_B2B_ENABLED` (off in prod).
+
+Launch steps; owner says "go" before each:
+1. [ ] Backup prod → `Documents\hiresume-backups\prod-<date>\{schema,data,roles}.sql` via
+   `npx supabase db dump --linked [-f …] [--data-only] [--role-only]` (needs Docker). 2026-11-09 attempt failed: WSL hung;
+   owner rebooting. Empty files from that attempt in `prod-20261109-1035`, delete them.
+2. [ ] `npx supabase db push` (about 40 B2B migrations pending on prod; all applied locally).
+3. [ ] Secrets: `B2B_CRON_SECRET` (function env) + Vault `b2b_project_url`, `b2b_cron_secret`; optional GROQ_API_KEY,
+   GOOGLE_TTS_API_KEY (else browser voice).
+4. [ ] `npx supabase functions deploy --project-ref zhfahrrxuguagwbujkiz`
+5. [ ] Merge to `main` (retarget PR #8 to main; it supersedes #3, #4, #5, #7) → Vercel publishes, B2B still off.
+6. [ ] Vercel prod env `VITE_B2B_ENABLED=true` → redeploy.
+7. [ ] Smoke test: super admin creates the first college; owner runs one test + interview as a student.
 
 ## 2026-11-07: test-run blockers fixed (`776e830`, pushed to PR #8)
 Fixes for blockers found in the 2026-11-03 guide run (`docs/b2b/TEST-RUN-2026-11-03.md`), each with a regression test:
@@ -26,7 +45,7 @@ Full suite on 2026-11-08: 950 pass, 3 skipped (run with `--maxWorkers=1` when fr
 
 **Still open from the run, B2B first:**
 - Wrong results shown to staff:
-  - B33/B35: scores don't match
+  - B33: MCQ 85.7% (6/7) on a test thought to have 5 one-mark MCQs; scoring = marks ÷ max marks per question, looks right; check the real attempt's question_set when Docker is up
   - B30: raw score keys shown
   - B37: each exit penalised twice
   - B36: dismissing a flag doesn't update the score
