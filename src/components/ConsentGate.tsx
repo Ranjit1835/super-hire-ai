@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { b2bDb } from "@/features/b2b/lib/db";
 import { useIsSuperAdmin, useMyMemberships } from "@/features/b2b/hooks/useB2B";
 import { MIN_AGE, PRIVACY_NOTICE_VERSION } from "@/lib/privacy";
+import { usePendingStaffInvites } from "@/b2b/access/PendingInvites";
 
 export const CONSENT_TEXT = {
   age_18_plus: `I confirm I am ${MIN_AGE} years of age or older.`,
@@ -37,7 +38,9 @@ export function ConsentGate() {
   const qc = useQueryClient();
   const memberships = useMyMemberships();
   const isSuper = useIsSuperAdmin();
-  const b2b = (memberships.data?.length ?? 0) > 0 || isSuper.data === true;
+  // Invited staff accept their invite first (PendingInvites); after that they're org members and skip this prompt.
+  const invited = (usePendingStaffInvites().data?.length ?? 0) > 0;
+  const b2b = (memberships.data?.length ?? 0) > 0 || isSuper.data === true || invited;
   const consent = useQuery({
     queryKey: ["privacy-consent", user?.id, PRIVACY_NOTICE_VERSION],
     enabled: !!user && !memberships.isLoading && !isSuper.isLoading && !b2b,
