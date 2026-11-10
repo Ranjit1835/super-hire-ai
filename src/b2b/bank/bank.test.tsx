@@ -30,6 +30,8 @@ vi.mock("./queries", async (orig) => ({
   setQuestionStatus: fns.setQuestionStatus,
 }));
 vi.mock("@/features/b2b/lib/db", () => ({ b2bDb: { rpc: fns.rpc } }));
+// The portal tabs look up the org and the viewer's role; not what these tests are about.
+vi.mock("./tabs", () => ({ useAssessTabs: () => [] }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), assessApi: fns.assessApi }));
 
 import BankPage from "./BankPage";
