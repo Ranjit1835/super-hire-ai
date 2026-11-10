@@ -244,11 +244,11 @@ export default function BankPage() {
         )}
       </div>
       <McqDialog open={editing?.kind === "mcq"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
-                 onSaved={(id, ready) => { if (ready) void verify(id); else { setNotice({ tone: "ok", text: "Question saved." }); void refresh(); } }} />
+                 onSaved={(id, ready) => { void refresh(); if (ready) void verify(id); else { setNotice({ tone: "ok", text: "Question saved." }); void refresh(); } }} />
       <OverrideDialog target={overriding ? disputed : null} onClose={() => setOverriding(false)}
                       onDone={() => { setOverriding(false); setDisputed(null); setNotice({ tone: "ok", text: "Verified with your reason. The override is recorded in the audit log." }); void refresh(); }} />
       <CodingDialog open={editing?.kind === "coding"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
-                    onSaved={(id) => { void verify(id); }} />
+                    onSaved={(id) => { void refresh(); void verify(id); }} />
       <GenerateDialog open={generating} onOpenChange={setGenerating} orgId={orgId} onDone={onGenerated} />
       <TemplateDialog open={templating} onOpenChange={setTemplating} orgId={orgId} onDone={(r) => {
         setNotice(r.reason

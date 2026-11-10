@@ -104,7 +104,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
         <div>
           <h2 className="hr-display text-[22px]">Roster</h2>
           <p className="text-sm text-[var(--hr-muted)] mt-1.5">Every student imported for this college, across every batch and branch.</p>
-          <p className="hr-data text-sm text-foreground mt-1.5">{total0 ?? "–"} students</p>
+          <p className="hr-data text-sm text-foreground mt-1.5">{total0 ?? "–"} {total0 === 1 ? "student" : "students"}</p>
         </div>
         {isAdmin && (
           <div className="flex gap-2">
@@ -234,7 +234,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
               </TableBody>
             </Table>
             <div className="flex items-center justify-between text-sm">
-              <span className="hr-data text-[var(--hr-muted)]">{data.total} students</span>
+              <span className="hr-data text-[var(--hr-muted)]">{data.total} {data.total === 1 ? "student" : "students"}</span>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="outline" disabled={q.page <= 1} onClick={() => setQ((c) => ({ ...c, page: c.page - 1 }))}>Previous</Button>
                 <span className="hr-data text-xs">Page {q.page} of {pages}</span>
