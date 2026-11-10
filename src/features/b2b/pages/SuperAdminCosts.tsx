@@ -31,8 +31,13 @@ interface PriceRow {
 }
 
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
-const inr = (v: number | null, digits = 2) =>
-  v === null ? "—" : `₹${v.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+/** Rounded before the sign is chosen, so -0.05 at 0 digits reads ₹0 (not ₹-0) and real losses read −₹12. */
+const inr = (v: number | null, digits = 2) => {
+  if (v === null) return "—";
+  const r = Number(v.toFixed(digits));
+  const s = Math.abs(r).toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return r < 0 ? `−₹${s}` : `₹${s}`;
+};
 const compact = (n: number) => n.toLocaleString("en-IN");
 
 function useCosts(enabled: boolean, includeDemo: boolean) {
@@ -148,7 +153,7 @@ export default function SuperAdminCosts() {
                           <TableCell className="text-right tabular-nums">{inr(r.cost_inr)}</TableCell>
                           <TableCell className="text-right tabular-nums">{inr(r.cost_per_interview)}</TableCell>
                           <TableCell className="text-right tabular-nums">{inr(r.cost_per_student)}</TableCell>
-                          <TableCell className={cn("text-right tabular-nums", r.margin_inr < 0 && "text-red-300")}>{inr(r.margin_inr, 0)}</TableCell>
+                          <TableCell className={cn("text-right tabular-nums", Math.round(r.margin_inr) < 0 && "text-red-300")}>{inr(r.margin_inr, 0)}</TableCell>
                           <TableCell className={cn("text-right tabular-nums", r.cost_share !== null && r.cost_share > 0.3 && "text-[var(--hr-red-ink)]")}>
                             {r.cost_share === null ? (r.revenue_inr === 0 ? "no price set" : "—") : `${(r.cost_share * 100).toFixed(1)}%`}
                           </TableCell>

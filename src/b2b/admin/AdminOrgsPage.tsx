@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Plus } from "lucide-react";
@@ -14,6 +14,13 @@ import { CreditsDialog, InviteStaffDialog, OrgLifecycleDialog, SettingsDialog } 
 import { ORG_TYPE_LABEL, ROLE_LABEL, alertText, fmtDate, friendly, num, useIsSuperAdmin, useOrgAlerts, useOrgs, usePlans, useStaffInvites } from "./admin-queries";
 
 import { ADMIN_TABS } from "./tabs";
+import { prefetch } from "../lib/prefetch";
+
+/** The super admin's other screens, fetched while idle (see ../lib/prefetch.ts). */
+const prefetchAdmin = () => prefetch("admin", [
+  () => import("./AdminUsagePage"), () => import("../bank/BankPage"), () => import("../company/PortalRedirect"),
+  () => import("../college/StudentsPage"),
+]);
 
 /** `demoInviteLink` seeds the just-created-invite panel for the gallery only; the live page never passes it. */
 export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { email: string; link: string } } = {}) {
@@ -30,6 +37,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
   const [crediting, setCrediting] = useState<OrgRow | null>(null);
   const [configuring, setConfiguring] = useState<OrgRow | null>(null);
   const [lifecycle, setLifecycle] = useState<{ org: OrgRow; mode: "deactivate" | "reactivate" | "delete" } | null>(null);
+  useEffect(() => { if (enabled) prefetchAdmin(); }, [enabled]);
   const [lastLink, setLastLink] = useState<{ email: string; link: string } | null>(demoInviteLink ?? null);
 
   if (isSuper.isLoading) return <V1Shell title="Super admin"><Loading /></V1Shell>;

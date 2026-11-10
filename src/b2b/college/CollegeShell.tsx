@@ -1,8 +1,9 @@
-import type { ReactNode, SelectHTMLAttributes } from "react";
+import { useEffect, type ReactNode, type SelectHTMLAttributes } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { V1Shell, Loading, Empty, CreditsTag } from "../layout/V1Shell";
 import { useCollegeAccess, useMyColleges, useOrg } from "./queries";
+import { prefetchCollegePortal } from "../lib/prefetch";
 
 /** TPO admins (and super admins) also manage credits and see the team; trainers get the teaching sections only. */
 export const collegeTabs = (orgId: string, isAdmin = true) => [
@@ -22,6 +23,8 @@ export function CollegeShell({ children, actions }: { children: (ctx: CollegeCtx
   const { orgId = "" } = useParams();
   const access = useCollegeAccess(orgId);
   const org = useOrg(access.data?.staff ? orgId : undefined);
+  const staff = access.data?.staff === true;
+  useEffect(() => { if (staff) prefetchCollegePortal(); }, [staff]);
   if (access.isLoading || (access.data?.staff && org.isLoading)) return <V1Shell title="College portal"><Loading /></V1Shell>;
   if (!access.data?.staff) {
     return (

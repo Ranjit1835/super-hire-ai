@@ -5,6 +5,7 @@ import {
   GeneratedMcq, GeneratedQuestion, McqSolution, mcqCheckReason, type AttemptState, type JudgeResult, type McqCheck, type RunnerQuestion,
 } from "../_shared/contracts/assess.ts";
 export { mcqCheckReason } from "../_shared/contracts/assess.ts";
+import { avoidList, repeats, type QuestionText } from "../_shared/question-dedupe.ts";
 import type { GatewayRequest, GatewayResult } from "../_shared/ai-gateway/core.ts";
 import { generateVariants as makeVariants, templateErrors, type McqTemplate } from "../_shared/mcq-template.ts";
 import {
@@ -341,9 +342,16 @@ export function makeHandlers(deps: Deps) {
       if (!(await canEdit(actor, input.orgId))) throw new AssessError(403, "FORBIDDEN", "You can't add questions here.");
       const created: { questionId: string; status: "verified" | "draft"; reason?: string }[] = [];
       let lastError = "";
-      for (let i = 0; i < input.count; i++) {
+      // No repeats (owner, 2026-11-10): the model sees what the bank already holds on this topic, near-copies are
+      // dropped, and each new question joins the list. Retries make up for dropped ones: count + max(2, count) tries.
+      const digest = await deps.rpc("b2b_question_digest_as", { _actor: actor, _org_id: input.orgId, _type: input.type, _topic: input.topic });
+      // Every question of this type is checked for repeats; only the on-topic ones go into the prompt.
+      const seen: (QuestionText & { on_topic?: boolean })[] = Array.isArray(digest) ? (digest as (QuestionText & { on_topic?: boolean })[]) : [];
+      let repeated = 0;
+      for (let attempt = 0; created.length < input.count && attempt < input.count + Math.max(2, input.count); attempt++) {
         const nonce = Math.floor(rand() * 1e9).toString(36);
-        const brief = `Topic: ${input.topic}\nDifficulty: ${input.difficulty}\n${input.role ? `Role: ${input.role}\n` : ""}Variant seed: ${nonce}`;
+        const avoid = avoidList(seen.filter((q) => q.on_topic !== false));
+        const brief = `Topic: ${input.topic}\nDifficulty: ${input.difficulty}\n${input.role ? `Role: ${input.role}\n` : ""}Variant seed: ${nonce}${avoid ? `\n\n${avoid}` : ""}`;
         const common = { orgId: input.orgId, userId: actor, messages: [{ role: "user" as const, content: brief }],
                          cacheInput: { type: input.type, topic: input.topic, difficulty: input.difficulty, role: input.role ?? null, nonce } };
         if (input.type === "coding") {
@@ -353,6 +361,8 @@ export function makeHandlers(deps: Deps) {
             if (g.code === "QUOTA_EXCEEDED") throw new AssessError(429, "QUOTA_EXCEEDED", "This month's question-generation limit is used up.");
             lastError = g.message; continue;
           }
+          if (repeats(g.data, seen)) { repeated++; lastError = "repeated an existing question"; continue; }
+          seen.unshift({ title: g.data.title, statement: g.data.statement, on_topic: true });
           const saved = await rpc("b2b_save_question_as", { _actor: actor, _q: codingPayload(input.orgId, g.data, nonce) });
           if (!saved.ok) { lastError = String(saved.reason); continue; }
           const qid = String(saved.question_id);
@@ -372,6 +382,8 @@ export function makeHandlers(deps: Deps) {
             if (g.code === "QUOTA_EXCEEDED") throw new AssessError(429, "QUOTA_EXCEEDED", "This month's question-generation limit is used up.");
             lastError = g.message; continue;
           }
+          if (repeats(g.data, seen)) { repeated++; lastError = "repeated an existing question"; continue; }
+          seen.unshift({ title: g.data.title, statement: g.data.statement, options: g.data.options, on_topic: true });
           const saved = await rpc("b2b_save_question_as", { _actor: actor, _q: mcqPayload(input.orgId, g.data) });
           if (!saved.ok) { lastError = String(saved.reason); continue; }
           const qid = String(saved.question_id);
@@ -385,6 +397,7 @@ export function makeHandlers(deps: Deps) {
           }
         }
       }
+      if (repeated) console.log(`[b2b-assess] generation dropped ${repeated} repeated question(s)`);
       if (created.length === 0) {
         console.error("[b2b-assess] generation failed:", lastError);
         throw new AssessError(502, "AI_FAILED", "Couldn't generate questions right now. Please try again.");

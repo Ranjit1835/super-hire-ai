@@ -43,6 +43,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
   const [editing, setEditing] = useState<StudentRecord | "new" | null>(null);
   const [links, setLinks] = useState<{ links: InviteLinkRow[]; emailed: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [inviting, setInviting] = useState<string[]>([]);   // shown on the buttons: creating links takes a few seconds
   const [showFilters, setShowFilters] = useState(false);
 
   const set = (patch: Partial<StudentQuery>) => { setQ((cur) => ({ ...cur, page: 1, ...patch })); setSelected(new Set()); };
@@ -53,6 +54,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
 
   const invite = async (ids: string[]) => {
     setBusy(true);
+    setInviting(ids);
     try {
       const r = await collegeApi("inviteStudents", { orgId, studentIds: ids });
       setLinks({ links: r.links, emailed: r.queued });
@@ -61,7 +63,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
       refresh();
     } catch (e) {
       toast({ title: "Couldn't send invites", description: e instanceof ApiError ? e.message : friendly(e), variant: "destructive" });
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setInviting([]); }
   };
 
   const setStatus = async (s: StudentRecord, status: StudentStatus) => {
@@ -167,7 +169,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
       {isAdmin && selected.size > 0 && (
         <div className="flex items-center gap-3 border border-[var(--hr-rule)] bg-[var(--hr-surface)] px-3 py-2 text-sm">
           <span className="hr-data">{selected.size} selected</span>
-          <Button size="sm" disabled={busy} onClick={() => void invite([...selected])}>Send activation invites</Button>
+          <Button size="sm" disabled={busy} onClick={() => void invite([...selected])}>{inviting.length > 1 ? "Inviting…" : "Send activation invites"}</Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
         </div>
       )}
@@ -222,7 +224,7 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
                     {isAdmin && (
                       <TableCell className="text-right whitespace-nowrap">
                         <Button size="sm" variant="ghost" onClick={() => setEditing(s)}>Edit</Button>
-                        {invitable(s) && <Button size="sm" variant="ghost" disabled={busy} onClick={() => void invite([s.id])}>{s.status === "invited" ? "Resend" : "Invite"}</Button>}
+                        {invitable(s) && <Button size="sm" variant="ghost" disabled={busy} onClick={() => void invite([s.id])}>{inviting.includes(s.id) ? "Inviting…" : s.status === "invited" ? "Resend" : "Invite"}</Button>}
                         {s.status === "held_minor" && <Button size="sm" variant="ghost" onClick={() => void setStatus(s, "imported")}>Release hold</Button>}
                         {s.status === "deactivated"
                           ? <Button size="sm" variant="ghost" onClick={() => void setStatus(s, s.user_id ? "active" : "imported")}>Restore</Button>

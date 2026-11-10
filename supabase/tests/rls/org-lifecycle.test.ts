@@ -132,3 +132,28 @@ describe("delete an organisation permanently", () => {
     await expect(asUser(db, u.super, (tx) => tx.query("SELECT public.b2b_delete_org($1, $2, 'x')", [u.super, org]))).rejects.toThrow(/permission denied/);
   });
 });
+
+describe("question digest for generation (20261110000003, 20261110000005)", () => {
+  it("lists every question the actor can use, flags the on-topic ones, only to editors", async () => {
+    const o = await id("INSERT INTO organizations (name, slug, type) VALUES ('Digest College', 'digest-college', 'college') RETURNING id");
+    const tpo = await createUser(db);
+    const outsider = await createUser(db);
+    await db.query("INSERT INTO org_memberships (org_id, user_id, role) VALUES ($1, $2, 'org_admin')", [o, tpo]);
+    const q = (org: string | null, title: string, topics: string, status = "draft") => db.query(
+      `INSERT INTO questions (org_id, type, title, statement, difficulty, topics, options, answer, status)
+       VALUES ($1, 'mcq', $2, $3, 'easy', $4::text[], '[{"id":"a","text":"1"},{"id":"b","text":"2"}]', '["a"]', $5)`,
+      [org, title, `${title}: what is the answer?`, topics, status]);
+    await q(o, "Own speed", "{speed}");
+    await q(null, "Global speed", "{speed}");
+    await q(null, "Retired speed", "{speed}", "retired");
+    await q(null, "Global ratio", "{ratio}");
+    const digest = (actor: string, org: string | null) => call<{ title: string; on_topic: boolean }[]>(
+      "SELECT public.b2b_question_digest_as($1, $2, 'mcq', 'speed') AS r", [actor, org]);
+    const mine = await digest(tpo, o);
+    expect(mine.map((r) => r.title).sort()).toEqual(["Global ratio", "Global speed", "Own speed"]);   // retired one left out
+    expect(mine.filter((r) => r.on_topic).map((r) => r.title).sort()).toEqual(["Global speed", "Own speed"]);
+    expect(await digest(outsider, o)).toEqual([]);
+    expect(await digest(tpo, null)).toEqual([]);                       // the global bank is the super admin's
+    expect((await digest(u.super, null)).filter((r) => r.on_topic).map((r) => r.title)).toEqual(["Global speed"]);
+  });
+});

@@ -360,7 +360,10 @@ function PaperUniqueness({ cap, target, batch, onBatch, loading }: {
       {loading ? <p className="text-xs text-[var(--hr-muted)]">Checking the question bank…</p> : (
         <>
           <p className={`text-sm ${cap.feasible ? "text-[var(--hr-gold)]" : "text-[var(--hr-red-ink)]"}`}>
-            {cap.feasible ? `OK: papers overlap about ${cap.expectedOverlapPct}% on average (limit ${target}%).`
+            {batch <= 1
+              ? (cap.feasible ? "OK: with one student there are no other papers to overlap with."
+                : "Not enough verified questions for the pick rules below.")
+              : cap.feasible ? `OK: papers overlap about ${cap.expectedOverlapPct}% on average (limit ${target}%).`
               : `Not enough questions to keep ${batch} papers under ${target}% overlap.`}
           </p>
           {!cap.fixed.ok && (
