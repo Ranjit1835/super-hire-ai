@@ -38,6 +38,7 @@ function setup(over: Partial<Deps> & { db?: Record<string, (args: Record<string,
     b2b_runner_question: () => codingQ,
     b2b_create_submission: () => ({ ok: true, submission_id: SUB }),
     b2b_record_judge_result: () => ({ ok: true }),
+    b2b_question_digest_as: () => [],
     ...(over.db ?? {}),
   };
   const deps: Deps = {
@@ -311,7 +312,9 @@ describe("bank", () => {
   });
 
   it("generateQuestions: drafts without Judge0, MCQs checked, forbidden for non-editors, errors surfaced", async () => {
-    const ai = vi.fn(async (req: { parse: (x: unknown) => { success: boolean; data?: unknown } }) => ({ ok: true, data: req.parse(generated).data, cacheHit: false }));
+    let n = 0;   // each call writes a different question (identical ones are dropped as repeats, tested below)
+    const ai = vi.fn(async (req: { parse: (x: unknown) => { success: boolean; data?: unknown } }) =>
+      ({ ok: true, data: req.parse({ ...generated, title: `Lantern rows ${++n}`, statement: `Count the ${n * 7} lanterns lit in row ${n} of the festival.` }).data, cacheHit: false }));
     const noJudge = setup({ judge0: null, ai: ai as unknown as Deps["ai"], db: { actor_is_org_editor: () => true, b2b_save_question_as: () => ({ ok: true, question_id: Q }) } });
     expect((await noJudge.h.generateQuestions({ orgId: A, type: "coding", topic: "arrays", difficulty: "easy", count: 2 }, ACTOR)).created)
       .toEqual([expect.objectContaining({ status: "draft" }), expect.objectContaining({ status: "draft" })]);
@@ -343,6 +346,37 @@ describe("bank", () => {
     await expect(failing.h.generateQuestions({ orgId: A, type: "mcq", topic: "x", difficulty: "easy", count: 1 }, ACTOR)).rejects.toMatchObject({ status: 502 });
     const quota = setup({ ai: (async () => ({ ok: false, code: "QUOTA_EXCEEDED", message: "limit" })) as unknown as Deps["ai"], db: { actor_is_org_editor: () => true } });
     await expect(quota.h.generateQuestions({ orgId: A, type: "mcq", topic: "x", difficulty: "easy", count: 1 }, ACTOR)).rejects.toMatchObject({ status: 429 });
+  });
+
+  it("generateQuestions: no repeats; the model is told what the bank already has (owner, 2026-11-10)", async () => {
+    const existing = { title: "Train speed", statement: "A train covers 120 km in 2 hours. What is its average speed in km/h?" };
+    const copies = [
+      { title: "Average speed of a train", statement: "A train covers 120 km in 2 hours. What is its average speed in km/h?" },   // same wording
+      { title: "Train speed", statement: "Something else entirely about a bus." },                                                // same title
+      { title: "Cyclist distance", statement: "A cyclist rides at 15 km/h for 3 hours. How far does she travel in km?" },        // new
+    ];
+    let call = 0;
+    const briefs: string[] = [];
+    const ai = vi.fn(async (req: { feature: string; messages: { content: string }[]; parse: (x: unknown) => { success: boolean; data?: unknown } }) => {
+      if (req.feature === "mcq.validate") return { ok: true, data: req.parse({ answer: ["a"], confidence: 0.9, ambiguous: false, note: "" }).data, cacheHit: false };
+      briefs.push(req.messages[0].content);
+      const c = copies[Math.min(call++, copies.length - 1)];
+      return { ok: true, data: req.parse({ ...c, difficulty: "easy", category: "aptitude", topics: ["speed"], options: [{ id: "a", text: "45" }, { id: "b", text: "40" }], answer: ["a"], explanation: "15 x 3" }).data, cacheHit: false };
+    });
+    const saved: Record<string, unknown>[] = [];
+    const { h } = setup({ ai: ai as unknown as Deps["ai"], db: {
+      actor_is_super_admin: () => true,
+      b2b_question_digest_as: () => [existing],
+      b2b_save_question_as: (a) => { saved.push(a._q as Record<string, unknown>); return { ok: true, question_id: Q }; },
+      b2b_question_for_verify: () => ({ ok: true, type: "mcq", version: 1, org_id: null, statement: "x", options: [{ id: "a", text: "45" }], answer: ["a"], multi_select: false, mcq_check: null }),
+      b2b_record_mcq_check: () => ({ ok: true }),
+      b2b_record_verification: () => ({ ok: true, status: "verified" }),
+    } });
+    const out = await h.generateQuestions({ orgId: null, type: "mcq", topic: "speed", difficulty: "easy", count: 1 }, ACTOR);
+    expect(out.created).toHaveLength(1);
+    expect(saved.map((q) => q.title)).toEqual(["Cyclist distance"]);     // both copies were dropped, never saved
+    expect(briefs[0]).toContain("Already in the bank");
+    expect(briefs[0]).toContain("Train speed");
   });
 
   it("gradePending does nothing without Judge0", async () => {
