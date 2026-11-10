@@ -4,13 +4,15 @@ import { cn } from "@/lib/utils";
 import { V1Shell, Loading, Empty, CreditsTag } from "../layout/V1Shell";
 import { useCollegeAccess, useMyColleges, useOrg } from "./queries";
 
-export const collegeTabs = (orgId: string) => [
+/** TPO admins (and super admins) also manage credits and see the team; trainers get the teaching sections only. */
+export const collegeTabs = (orgId: string, isAdmin = true) => [
   { to: `/c/${orgId}/students`, label: "Students" },
   { to: `/c/${orgId}/drives`, label: "Drives" },
   { to: `/assess/tests/${orgId}`, label: "Tests" },
   { to: `/assess/bank/${orgId}`, label: "Question bank" },
+  { to: `/org/${orgId}/modules`, label: "Interview modules" },
   { to: `/c/${orgId}/analytics`, label: "Analytics" },
-  { to: `/c/${orgId}/settings`, label: "Credits & team" },
+  ...(isAdmin ? [{ to: `/c/${orgId}/settings`, label: "Credits & team" }] : []),
 ];
 
 export interface CollegeCtx { orgId: string; isAdmin: boolean; orgName: string; /** Super admin: the only role that manages staff (R3.3). */ isSuper: boolean }
@@ -30,7 +32,7 @@ export function CollegeShell({ children, actions }: { children: (ctx: CollegeCtx
   }
   const name = org.data?.name ?? "College";
   return (
-    <V1Shell title={name} subtitle={access.data.isAdmin ? "TPO admin" : "Trainer"} tabs={collegeTabs(orgId)} actions={actions}
+    <V1Shell title={name} subtitle={access.data.isSuper ? "Super admin" : access.data.isAdmin ? "TPO admin" : "Trainer"} tabs={collegeTabs(orgId, access.data.isAdmin)} actions={actions}
              aside={<CreditsTag value={org.data?.credits_balance} />}>
       {children({ orgId, isAdmin: access.data.isAdmin, orgName: name, isSuper: access.data.isSuper })}
     </V1Shell>

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { Empty, Loading, V1Shell } from "../layout/V1Shell";
 import { Chip } from "../ui/broadcast";
-import { assessTabs } from "../bank/BankPage";
+import { useAssessTabs } from "../bank/tabs";
 import {
   AssessmentForm, assessmentFromRow, assessmentRow, checkDraw, describeRule, emptyAssessment, firstError, LANGUAGE_LABEL, LANGUAGES,
   paperCapacity, poolMatches, type PaperCapacity, type PoolRule, type SectionForm,
@@ -29,6 +29,7 @@ type Lang = AssessmentForm["languages"][number];
 
 export default function BuilderPage() {
   const { orgId = "", assessmentId } = useParams();
+  const tabs = useAssessTabs(orgId);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const canEdit = useCanEdit(orgId);
@@ -97,7 +98,7 @@ export default function BuilderPage() {
     s.pick.map((r, ri) => ({ si, ri, r, sure: draw.guaranteed[si]?.[ri] })).filter((x) => x.sure !== undefined && x.sure < x.r.count));
 
   return (
-    <V1Shell title={title} tabs={assessTabs(orgId)}>
+    <V1Shell title={title} tabs={tabs}>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start max-w-[1200px]">
       <div className="grid gap-6">
         <section className="grid gap-3 hr-rule-b pb-6">

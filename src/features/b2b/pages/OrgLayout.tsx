@@ -1,3 +1,4 @@
+import { collegeTabs } from "@/b2b/college/CollegeShell";
 import { Navigate, Outlet, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { B2BShell, CenteredSpinner, EmptyState, type ShellTab } from "../components/B2BShell";
@@ -53,14 +54,11 @@ export function OrgLayout() {
 
   const canManage = role === "org_admin" || role === "super_admin";
   const base = `/org/${org.data.id}`;
+  // Same tabs as the college portal (/c), plus Leads where the public test is on.
   const tabs: ShellTab[] = [
-    { to: base, label: "Overview", end: true },
-    { to: `${base}/dashboard`, label: "Readiness" },
-    { to: `${base}/modules`, label: "Modules" },
-    { to: `${base}/invites`, label: "Invites" },
+    ...collegeTabs(org.data.id, canManage),
     ...(org.data.type === "coaching_institute" || (org.data as { public_test_enabled?: boolean }).public_test_enabled
       ? [{ to: `${base}/leads`, label: "Leads" }] : []),
-    ...(canManage ? [{ to: `${base}/import`, label: "Add students" }] : []),
   ];
 
   return (

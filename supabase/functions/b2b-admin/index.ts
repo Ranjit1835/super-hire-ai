@@ -21,6 +21,9 @@ const REASONS: Record<string, [number, string]> = {
   ROLE_NOT_ALLOWED: [400, "That role isn't available for this kind of organisation."],
   ALREADY_MEMBER: [409, "That person is already a member of this organisation."],
   INVALID_EMAIL: [400, "That email address doesn't look right."],
+  NOT_FOUND: [404, "Organisation not found."],
+  NOT_DEACTIVATED: [409, "Deactivate the organisation before deleting it."],
+  NAME_MISMATCH: [400, "The name you typed doesn't match the organisation's name."],
 };
 function refuse(reason: string): never {
   const [status, msg] = REASONS[reason] ?? [400, "Request refused."];
@@ -42,6 +45,23 @@ async function inviteStaff(actor: string, orgId: string, email: string, fullName
   return { inviteId: r.invite_id!, link, emailed: mail.sent };
 }
 
+/** Every proctoring file of an org (org/<id>/sessions/<session>/<file>); storage has no recursive delete. */
+async function removeOrgEvidence(orgId: string) {
+  const bucket = db().storage.from("b2b-evidence");
+  const root = `org/${orgId}/sessions`;
+  const { data: sessions, error } = await bucket.list(root, { limit: 1000 });
+  if (error) throw error;
+  for (const s of sessions ?? []) {
+    for (;;) {
+      const { data: files, error: e } = await bucket.list(`${root}/${s.name}`, { limit: 1000 });
+      if (e) throw e;
+      if (!files?.length) break;
+      const { error: r } = await bucket.remove(files.map((f) => `${root}/${s.name}/${f.name}`));
+      if (r) throw r;
+    }
+  }
+}
+
 serve(serveContract("B2B-ADMIN", adminContract, {
   async createOrg(input, ctx) {
     await requireSuperAdmin(ctx);
@@ -58,6 +78,30 @@ serve(serveContract("B2B-ADMIN", adminContract, {
     await requireSuperAdmin(ctx);
     const { orgId, ...patch } = input;
     const { data, error } = await db().rpc("super_update_org", { _actor: ctx.user.id, _org_id: orgId, _patch: patch });
+    if (error) throw error;
+    const r = data as { ok: boolean; reason?: string };
+    if (!r.ok) refuse(r.reason!);
+    return { ok: true as const };
+  },
+
+  async setOrgActive(input, ctx) {
+    await requireSuperAdmin(ctx);
+    const { data, error } = await db().rpc("b2b_set_org_active", { _actor: ctx.user.id, _org_id: input.orgId, _active: input.active });
+    if (error) throw error;
+    const r = data as { ok: boolean; reason?: string };
+    if (!r.ok) refuse(r.reason!);
+    return { ok: true as const };
+  },
+
+  async deleteOrg(input, ctx) {
+    await requireSuperAdmin(ctx);
+    const { data: org, error: e } = await db().from("organizations").select("name, deactivated_at").eq("id", input.orgId).maybeSingle();
+    if (e) throw e;
+    if (!org) refuse("NOT_FOUND");
+    if (!org.deactivated_at) refuse("NOT_DEACTIVATED");
+    if (input.confirmName.trim() !== org.name.trim()) refuse("NAME_MISMATCH");
+    await removeOrgEvidence(input.orgId);   // files first: the rows that point at them go with the org
+    const { data, error } = await db().rpc("b2b_delete_org", { _actor: ctx.user.id, _org_id: input.orgId, _confirm_name: input.confirmName });
     if (error) throw error;
     const r = data as { ok: boolean; reason?: string };
     if (!r.ok) refuse(r.reason!);

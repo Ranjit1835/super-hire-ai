@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { V1Shell, Loading, Empty, Stat } from "../layout/V1Shell";
-import { ADMIN_TABS } from "./AdminOrgsPage";
+import { ADMIN_TABS } from "./tabs";
 import { ORG_TYPE_LABEL, friendly, inr, num, useCostBreakdown, useIsSuperAdmin, useOrgUsage, type CostGroup } from "./queries";
 
 /** Per organisation: seats and people, credits used this month, AI calls, cost and cache savings. */

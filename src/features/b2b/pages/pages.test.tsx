@@ -130,14 +130,16 @@ describe("org overview", () => {
     const cells = (name: string) => [...screen.getByText(name).closest("tr")!.querySelectorAll("td")].map((td) => td.textContent);
     expect(cells("Anil Kumar").at(-1)).toBe("0");
     expect(cells("Divya R").at(-1)).toBe("5");
-    expect(screen.getByRole("link", { name: "Add students" })).toBeInTheDocument();
+    // The pilot pages carry the college portal's tabs; admins also get Credits & team.
+    expect(screen.getByRole("link", { name: "Students" })).toHaveAttribute("href", "/c/org-a/students");
+    expect(screen.getByRole("link", { name: "Credits & team" })).toBeInTheDocument();
   });
 
   it("hides management for trainers and blocks outsiders", async () => {
     hooks.useMyMemberships.mockReturnValue(ok([{ ...adminMembership[0], role: "trainer" }]));
     const { unmount } = renderApp("/org/org-a");
     expect(await screen.findByText("Trainer (view only)")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Add students" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Credits & team" })).toBeNull();
     unmount();
 
     hooks.useMyMemberships.mockReturnValue(ok([]));

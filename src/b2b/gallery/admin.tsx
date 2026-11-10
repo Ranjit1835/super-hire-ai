@@ -4,7 +4,7 @@ import AdminOrgsPage from "../admin/AdminOrgsPage";
 import AdminUsagePage from "../admin/AdminUsagePage";
 import { CreateOrgDialog } from "../admin/CreateOrgDialog";
 import { V1Shell } from "../layout/V1Shell";
-import { ADMIN_TABS } from "../admin/AdminOrgsPage";
+import { ADMIN_TABS } from "../admin/tabs";
 import type { CreditLedgerRow, InviteRow, OrgRow, PlanRow } from "../types";
 import type { OrgUsageRow } from "../../../supabase/functions/_shared/contracts/admin";
 import { Scene } from "./kit";

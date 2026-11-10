@@ -25,6 +25,8 @@ export interface OrgRow {
   logo_url: string | null;
   settings: z.infer<typeof OrgSettings>;
   is_demo: boolean;
+  /** Set while the org is deactivated: every member is locked out (20261109000001). */
+  deactivated_at?: string | null;
   created_at: string;
 }
 

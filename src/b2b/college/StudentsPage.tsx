@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Upload } from "lucide-react";
+import { Download, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,8 @@ import { collegeApi, ApiError } from "../lib/api";
 import { CollegeShell, NativeSelect } from "./CollegeShell";
 import { InviteLinks, type InviteLinkRow } from "./InviteLinks";
 import { parseDob } from "./lib/import";
-import { STATUS_TEXT, STUDENT_PAGE, fmtDate, friendly, numOrNull, useStudentFacets, useStudentActivity, useStudentStatusCounts, useStudents, type StudentQuery, type StudentRecord, type StudentStatus } from "./queries";
+import { downloadCsvFile, downloadXlsxFile, fileStamp } from "./lib/exports";
+import { STATUS_TEXT, STUDENT_PAGE, fetchAllStudents, fmtDate, friendly, numOrNull, useStudentFacets, useStudentActivity, useStudentStatusCounts, useStudents, type StudentQuery, type StudentRecord, type StudentStatus } from "./queries";
 
 export default function StudentsPage() {
   return <CollegeShell>{({ orgId, isAdmin }) => <Students orgId={orgId} isAdmin={isAdmin} />}</CollegeShell>;
@@ -27,6 +28,7 @@ const STATUS_TONE: Record<StudentStatus, Tone> = {
 };
 
 const STATUS_TABS: StudentStatus[] = ["active", "invited", "imported", "held_minor", "deactivated"];
+const ROSTER_COLUMNS = ["Roll no", "Name", "Email", "Phone", "Department", "Batch", "Section", "CGPA", "Backlogs", "10th %", "12th %", "Status"] as const;
 const STATUS_TAB_LABEL: Partial<Record<StudentStatus, string>> = { held_minor: "Held" };
 
 function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
@@ -74,6 +76,24 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
     }
   };
 
+  // The whole filtered roster, not just this page (TPO admins and super admins).
+  const [exporting, setExporting] = useState(false);
+  const exportRoster = async (format: "xlsx" | "csv") => {
+    setExporting(true);
+    try {
+      const all = await fetchAllStudents(orgId, q);
+      const rows = all.map((r) => [r.roll_no, r.full_name, r.email, r.phone, r.department, r.batch_year, r.section,
+        r.cgpa === null ? null : Number(r.cgpa), r.active_backlogs, r.tenth_pct === null ? null : Number(r.tenth_pct),
+        r.twelfth_pct === null ? null : Number(r.twelfth_pct), STATUS_TEXT[r.status]]);
+      const name = `students-${fileStamp()}.${format}`;
+      if (format === "xlsx") await downloadXlsxFile(name, "Students", ROSTER_COLUMNS, rows);
+      else downloadCsvFile(name, ROSTER_COLUMNS, rows);
+      toast({ title: `Exported ${all.length} students` });
+    } catch (e) {
+      toast({ title: "Couldn't export", description: friendly(e), variant: "destructive" });
+    } finally { setExporting(false); }
+  };
+
   const c = counts.data;
   const total0 = c ? c.active + c.invited + c.imported + c.held_minor + c.deactivated : undefined;
   const otherFiltered = !!(q.search || q.department || q.batchYear);
@@ -88,6 +108,10 @@ function Students({ orgId, isAdmin }: { orgId: string; isAdmin: boolean }) {
         </div>
         {isAdmin && (
           <div className="flex gap-2">
+            <Button variant="outline" disabled={exporting || !total0} onClick={() => void exportRoster("xlsx")}>
+              <Download className="h-4 w-4 mr-1" />{exporting ? "Exporting…" : "Export Excel"}
+            </Button>
+            <Button variant="ghost" disabled={exporting || !total0} onClick={() => void exportRoster("csv")}>CSV</Button>
             <Button variant="outline" onClick={() => setEditing("new")}><Plus className="h-4 w-4 mr-1" />Add student</Button>
             <Button asChild><Link to={`/c/${orgId}/students/import`}><Upload className="h-4 w-4 mr-1" />Import</Link></Button>
           </div>

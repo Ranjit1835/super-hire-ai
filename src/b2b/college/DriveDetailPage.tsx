@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { b2bDb } from "@/features/b2b/lib/db";
 import { Loading, Empty } from "../layout/V1Shell";
 import { Chip, PlayerCard, Scorebug, StatStrip, type Series } from "../ui/broadcast";
 import { collegeApi, ApiError } from "../lib/api";
@@ -39,6 +40,8 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
   const { toast } = useToast();
   const [page, setPage] = useState(1);
   const [confirmRelease, setConfirmRelease] = useState(false);
+  const [confirmEnd, setConfirmEnd] = useState<"delete" | "close" | null>(null);
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [replayOpen, setReplayOpen] = useState(false);
@@ -91,6 +94,34 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
     } catch (e) {
       toast({ title: "Couldn't release results", description: e instanceof ApiError ? e.message : friendly(e), variant: "destructive" });
     } finally { setBusy(false); setConfirmRelease(false); }
+  };
+
+  // Owner decision 2026-11-09: a drive can be deleted only while nobody has started it (the database enforces this,
+  // b2b_drive_delete_guard); after that it can only be closed, so students' results stay with the college.
+  const started = useQuery({
+    queryKey: ["b2b-college", "drive-started", drive.id],
+    enabled: isAdmin && drive.status !== "closed",
+    queryFn: async () => {
+      const { data, error } = await b2bDb.rpc("b2b_drive_started", { _drive_id: drive.id });
+      if (error) throw new Error(error.message);
+      return data as boolean;
+    },
+  });
+  const endDrive = async (how: "delete" | "close") => {
+    setBusy(true);
+    try {
+      const { error } = how === "delete"
+        ? await b2bDb.from("drives").delete().eq("id", drive.id)
+        : await b2bDb.from("drives").update({ status: "closed" }).eq("id", drive.id);
+      if (error) throw new Error(/DRIVE_STARTED/.test(error.message) ? "Students have started this drive, so it can only be closed." : error.message);
+      toast({ title: how === "delete" ? `${drive.name} deleted` : `${drive.name} closed`,
+              description: how === "close" ? "Students can't start it any more; their results stay here." : undefined });
+      refresh();
+      if (how === "delete") navigate(`/c/${orgId}/drives`, { replace: true });
+    } catch (e) {
+      toast({ title: how === "delete" ? "Couldn't delete the drive" : "Couldn't close the drive", description: friendly(e), variant: "destructive" });
+      void started.refetch();
+    } finally { setBusy(false); setConfirmEnd(null); }
   };
 
   const counts = overview.data?.summary.byStatus;
@@ -146,6 +177,11 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
         <Button variant="outline" asChild><Link to={`/c/${orgId}/analytics?drive=${drive.id}`}>Analytics</Link></Button>
         <Button variant="outline" asChild><Link to={`/c/${orgId}/drives/${drive.id}/similarity`}>Similarity</Link></Button>
         <Button variant="outline" asChild><Link to={`/c/${orgId}/drives/${drive.id}/edit`}>Edit</Link></Button>
+        {isAdmin && drive.status !== "closed" && started.data !== undefined && (
+          started.data
+            ? <Button variant="outline" onClick={() => setConfirmEnd("close")} disabled={busy}>Close drive</Button>
+            : <Button variant="outline" className="text-[var(--hr-red-ink)]" onClick={() => setConfirmEnd("delete")} disabled={busy}>Delete drive</Button>
+        )}
       </div>
 
       {/* Decision D4: status is a tab bar with counts; integrity and search sit behind one Filters button. */}
@@ -275,6 +311,25 @@ export function DriveView({ orgId, drive, isAdmin }: { orgId: string; drive: Dri
             )}
           </div>
         )}
+
+      <AlertDialog open={confirmEnd !== null} onOpenChange={(o) => !o && setConfirmEnd(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmEnd === "delete" ? `Delete ${drive.name}?` : `Close ${drive.name}?`}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmEnd === "delete"
+                ? "Nobody has started this drive yet. Deleting it removes the drive and its student assignments. This can't be undone."
+                : "Students have already started this drive, so it can't be deleted. Closing it stops anyone from starting; every result stays here."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} onClick={(e) => { e.preventDefault(); if (confirmEnd) void endDrive(confirmEnd); }}>
+              {confirmEnd === "delete" ? "Delete drive" : "Close drive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmRelease} onOpenChange={setConfirmRelease}>
         <AlertDialogContent>

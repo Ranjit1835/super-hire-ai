@@ -33,6 +33,7 @@ export const APP_NAV: NavLinkItem[] = [
 export const ACCOUNT_NAV: NavLinkItem[] = [
   { href: "/pricing", label: "Plans & pricing" },
   { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/account", label: "Account & privacy" },
 ];
 
 export const FOOTER_COLUMNS: { title: string; links: NavLinkItem[] }[] = [
@@ -60,6 +61,7 @@ export const FOOTER_COLUMNS: { title: string; links: NavLinkItem[] }[] = [
     links: [
       { href: "/about", label: "About" },
       { href: "/college-placement", label: "For Colleges" },
+      { href: "/privacy", label: "Privacy" },
     ],
   },
 ];

@@ -189,3 +189,70 @@ export function SettingsDialog({ org, onClose, onSaved }: { org: OrgRow | null; 
     </Dialog>
   );
 }
+
+/**
+ * Deactivate (reversible lock-out of every member) or delete permanently (only once deactivated, by typing the name).
+ * Owner decision 2026-11-09: two steps, so nothing is lost by one click.
+ */
+export function OrgLifecycleDialog({ org, mode, onClose, onDone }: {
+  org: OrgRow | null; mode: "deactivate" | "reactivate" | "delete"; onClose: () => void; onDone: (message: string) => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!org) return null;
+  const nameOk = typed.trim() === org.name.trim();
+  const submit = async () => {
+    setBusy(true); setError(null);
+    try {
+      if (mode === "delete") await adminApi("deleteOrg", { orgId: org.id, confirmName: typed });
+      else await adminApi("setOrgActive", { orgId: org.id, active: mode === "reactivate" });
+      onDone(mode === "delete" ? `${org.name} deleted` : mode === "reactivate" ? `${org.name} reactivated` : `${org.name} deactivated`);
+      setTyped("");
+      onClose();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : friendly(e));
+    } finally { setBusy(false); }
+  };
+  const copy = {
+    deactivate: {
+      title: `Deactivate ${org.name}?`,
+      body: "Every staff member and student is signed out and can't use HiResume until you reactivate it. Nothing is deleted.",
+      action: "Deactivate",
+    },
+    reactivate: {
+      title: `Reactivate ${org.name}?`,
+      body: "Staff and students get their access back, with all their data as it was.",
+      action: "Reactivate",
+    },
+    delete: {
+      title: `Delete ${org.name} permanently?`,
+      body: "This removes its students, drives, tests, attempts, interview reports, proctoring evidence and staff access. It can't be undone. The credit history is kept separately for 8 years, as billing records must be.",
+      action: "Delete permanently",
+    },
+  }[mode];
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogDescription>{copy.body}</DialogDescription>
+        </DialogHeader>
+        {mode === "delete" && (
+          <div>
+            <Label htmlFor="del-name">Type <b className="text-foreground">{org.name}</b> to confirm</Label>
+            <Input id="del-name" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
+          </div>
+        )}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant={mode === "reactivate" ? "default" : "destructive"} onClick={submit}
+                  disabled={busy || (mode === "delete" && !nameOk)}>
+            {busy ? "Working…" : copy.action}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

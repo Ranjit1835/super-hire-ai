@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Empty, Loading, V1Shell } from "../layout/V1Shell";
 import { Chip, type Tone } from "../ui/broadcast";
-import { assessTabs } from "../bank/BankPage";
+import { useAssessTabs } from "../bank/tabs";
 import { friendly, useAssessments, useCanEdit } from "../bank/queries";
 import { describeRule, type PoolRule } from "../bank/forms";
 
@@ -14,6 +14,7 @@ const STATUS_TONE: Record<keyof typeof STATUS_LABEL, Tone> = { ready: "gold", dr
 
 export default function TestsPage() {
   const { orgId = "" } = useParams();
+  const tabs = useAssessTabs(orgId);
   const canEdit = useCanEdit(orgId);
   const list = useAssessments(orgId);
 
@@ -23,7 +24,7 @@ export default function TestsPage() {
   }
 
   return (
-    <V1Shell title="Tests" subtitle="Built from your question bank" tabs={assessTabs(orgId)}>
+    <V1Shell title="Tests" subtitle="Built from your question bank" tabs={tabs}>
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <div>

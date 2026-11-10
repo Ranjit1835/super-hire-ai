@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { V1Shell, Loading as CenteredSpinner, Empty as EmptyState } from "@/b2b/layout/V1Shell";
-import { ADMIN_TABS } from "@/b2b/admin/AdminOrgsPage";
+import { ADMIN_TABS } from "@/b2b/admin/tabs";
 import { useIsSuperAdmin } from "../hooks/useB2B";
 import { b2bDb, selectAll } from "../lib/db";
 import { friendlyDbError } from "../lib/format";

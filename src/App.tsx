@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -13,6 +13,8 @@ import { StudioFAB } from "./components/StudioFAB";
 import { StudioOnboardingTooltip } from "./components/StudioOnboardingTooltip";
 import { B2B_ENABLED } from "./lib/config";
 import { routeElements, v1Routes } from "./b2b/routes";
+import { AccessGate } from "./b2b/access/AccessGate";
+import { ConsentGate } from "./components/ConsentGate";
 
 /**
  * lazy() for pre-rendered public pages. Once preload() has resolved the chunk, the page renders
@@ -47,6 +49,8 @@ const StudioSharedPage = lazy(() => import("./features/studio/pages/StudioShared
 const ATSChecker = preloadable(() => import("./pages/ATSChecker"));
 const Pricing = preloadable(() => import("./pages/Pricing"));
 const About = preloadable(() => import("./pages/About"));
+const Privacy = preloadable(() => import("./pages/Privacy"));
+const Account = lazy(() => import("./pages/Account"));
 const Blog = preloadable(() => import("./pages/Blog"));
 const BlogPost = preloadable(() => import("./pages/BlogPost"));
 const AdminOrgsPage = lazy(() => import("./b2b/admin/AdminOrgsPage"));
@@ -56,18 +60,11 @@ const SuperAdminEnquiries = lazy(() => import("./features/b2b/pages/SuperAdminEn
 const OrgLeads = lazy(() => import("./features/b2b/pages/OrgLeads"));
 const PublicTest = lazy(() => import("./features/b2b/pages/PublicTest"));
 const OrgLayout = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgLayout })));
-const OrgRedirect = lazy(() => import("./features/b2b/pages/OrgLayout").then((m) => ({ default: m.OrgRedirect })));
-const OrgOverview = lazy(() => import("./features/b2b/pages/OrgHome"));
-const OrgInvites = lazy(() => import("./features/b2b/pages/OrgInvites"));
-const OrgImport = lazy(() => import("./features/b2b/pages/OrgImport"));
 const InviteAccept = lazy(() => import("./features/b2b/pages/InviteAccept"));
 const OrgModules = lazy(() => import("./features/b2b/pages/OrgModules"));
 const ModuleEditor = lazy(() => import("./features/b2b/pages/ModuleEditor"));
-const OrgDashboard = lazy(() => import("./features/b2b/pages/OrgDashboard"));
 import { B2CGuard } from "./features/b2b/components/B2CGuard";
 import { MfaGate } from "./features/b2b/components/MfaGate";
-const StudentDetail = lazy(() => import("./features/b2b/pages/StudentDetail"));
-const LearnHome = lazy(() => import("./features/b2b/pages/LearnHome"));
 const InterviewRoom = lazy(() => import("./features/b2b/pages/InterviewRoom"));
 const StudentReport = lazy(() => import("./features/b2b/pages/StudentReport"));
 // Dev-only in-memory preview of the demo dashboard (tree-shaken out of production builds).
@@ -88,6 +85,13 @@ const PageLoader = () => (
   </div>
 );
 
+/** Old pilot pages that the college portal replaced: same org, the matching /c page. */
+function ToCollege({ to = "students" }: { to?: "students" | "analytics" | "students/import" }) {
+  const { orgId = "" } = useParams();
+  const path = to === "analytics" ? `/c/${orgId}/analytics` : to === "students/import" ? `/c/${orgId}/students/import` : `/c/${orgId}/students`;
+  return <Navigate to={path} replace />;
+}
+
 // R3.2: B2C pages with pricing, paywalls, upgrades or checkout send signed-in B2B members to their portal.
 function AppRoutes() {
   return (
@@ -107,6 +111,8 @@ function AppRoutes() {
       <Route path="/ats-checker" element={<B2CGuard><ATSChecker /></B2CGuard>} />
       <Route path="/pricing" element={<B2CGuard><Pricing /></B2CGuard>} />
       <Route path="/about" element={<About />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
       <Route path="/college-placement" element={<B2CGuard><CollegePlacement /></B2CGuard>} />
@@ -127,20 +133,21 @@ function AppRoutes() {
           <Route path="/admin/usage" element={<ProtectedRoute><MfaGate><AdminUsagePage /></MfaGate></ProtectedRoute>} />
           {routeElements(v1Routes)}
           <Route path="/admin/costs" element={<ProtectedRoute><MfaGate><SuperAdminCosts /></MfaGate></ProtectedRoute>} />
-          <Route path="/org" element={<ProtectedRoute><OrgRedirect /></ProtectedRoute>} />
+          {/* The pilot portal: only interview modules and leads live here now; the rest moved to /c (one portal per role). */}
+          <Route path="/org" element={<Navigate to="/c" replace />} />
           <Route path="/org/:orgId" element={<ProtectedRoute><OrgLayout /></ProtectedRoute>}>
-            <Route index element={<OrgOverview />} />
-            <Route path="dashboard" element={<OrgDashboard />} />
-            <Route path="students/:userId" element={<StudentDetail />} />
+            <Route index element={<ToCollege />} />
+            <Route path="dashboard" element={<ToCollege to="analytics" />} />
+            <Route path="students/:userId" element={<ToCollege />} />
             <Route path="modules" element={<OrgModules />} />
             <Route path="modules/:moduleId" element={<ModuleEditor />} />
-            <Route path="invites" element={<OrgInvites />} />
+            <Route path="invites" element={<ToCollege />} />
             <Route path="leads" element={<OrgLeads />} />
-            <Route path="import" element={<OrgImport />} />
+            <Route path="import" element={<ToCollege to="students/import" />} />
           </Route>
           <Route path="/invite/:token" element={<InviteAccept />} />
           <Route path="/test/:slug" element={<PublicTest />} />
-          <Route path="/learn" element={<ProtectedRoute><LearnHome /></ProtectedRoute>} />
+          <Route path="/learn" element={<Navigate to="/learn/v1" replace />} />
           <Route path="/learn/interview/:moduleId" element={<ProtectedRoute><InterviewRoom /></ProtectedRoute>} />
           <Route path="/learn/report/:interviewId" element={<ProtectedRoute><StudentReport /></ProtectedRoute>} />
         </>
@@ -158,6 +165,7 @@ export function preloadPublicPage(pathname: string): Promise<unknown> {
     p === "/ats-checker" ? ATSChecker :
     p === "/pricing" ? Pricing :
     p === "/about" ? About :
+    p === "/privacy" ? Privacy :
     p === "/college-placement" ? CollegePlacement :
     p === "/blog" ? Blog :
     p.startsWith("/blog/") ? BlogPost : null;
@@ -169,6 +177,8 @@ export function AppContent() {
   return (
     <AuthProvider>
       <ErrorBoundary>
+        <AccessGate />
+        <ConsentGate />
         <AppHeader />
         <Suspense fallback={<PageLoader />}>
           <AppRoutes />
