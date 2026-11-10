@@ -9,7 +9,7 @@ import { b2bDb } from "@/features/b2b/lib/db";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Empty, Loading, V1Shell, type ShellTab } from "../layout/V1Shell";
+import { Empty, Loading, V1Shell } from "../layout/V1Shell";
 import { Chip, type Tone } from "../ui/broadcast";
 import { ApiError, assessApi } from "../lib/api";
 import { CodingDialog } from "./CodingDialog";
