@@ -157,3 +157,31 @@ describe("question digest for generation (20261110000003, 20261110000005)", () =
     expect((await digest(u.super, null)).filter((r) => r.on_topic).map((r) => r.title)).toEqual(["Global speed"]);
   });
 });
+
+describe("staff invites after sign-in (20261110000006)", () => {
+  it("a verified user sees and accepts their own staff invite; nobody else can", async () => {
+    const o = await id("INSERT INTO organizations (name, slug, type) VALUES ('Manora Test', 'manora-test', 'college') RETURNING id");
+    const tpo = await createUser(db);
+    const other = await createUser(db);
+    const unverified = await createUser(db);
+    const email = (await one<{ email: string }>("SELECT email FROM auth.users WHERE id = $1", [tpo])).email;
+    const uEmail = (await one<{ email: string }>("SELECT email FROM auth.users WHERE id = $1", [unverified])).email;
+    await db.query("UPDATE auth.users SET email_confirmed_at = NULL WHERE id = $1", [unverified]);
+    const hash = (n: number) => String(n).repeat(64).slice(0, 64);
+    const inv = await id("INSERT INTO org_invites (org_id, full_name, email, role, token_hash) VALUES ($1, 'TPO', $2, 'org_admin', $3) RETURNING id", [o, email, hash(1)]);
+    await db.query("INSERT INTO org_invites (org_id, full_name, email, role, token_hash) VALUES ($1, 'U', $2, 'org_admin', $3)", [o, uEmail, hash(2)]);
+    const o2 = await id("INSERT INTO organizations (name, slug, type) VALUES ('Other Test', 'other-test-inv', 'college') RETURNING id");
+    await db.query("INSERT INTO org_invites (org_id, full_name, email, roll_no, token_hash) VALUES ($1, 'Stu', $2, 'R9', $3)", [o2, email, hash(3)]);   // student invite
+    const mine = (user: string) => asUser(db, user, async (tx) => (await tx.query<{ r: { id: string; role: string; org: { name: string } }[] }>("SELECT public.b2b_my_staff_invites() AS r")).rows[0].r);
+    const accept = (user: string, inviteId: string) => asUser(db, user, async (tx) =>
+      (await tx.query<{ r: { ok: boolean; reason?: string } }>("SELECT public.b2b_accept_my_invite($1) AS r", [inviteId])).rows[0].r, { commit: true });
+
+    expect((await mine(tpo)).map((i) => [i.role, i.org.name])).toEqual([["org_admin", "Manora Test"]]);   // student invite not listed
+    expect(await mine(other)).toEqual([]);
+    expect(await mine(unverified)).toEqual([]);                                                            // email not verified
+    expect(await accept(other, inv)).toEqual({ ok: false, reason: "INVALID" });                            // someone else's invite
+    expect(await accept(tpo, inv)).toMatchObject({ ok: true, role: "org_admin" });
+    expect(await one("SELECT role FROM org_memberships WHERE org_id = $1 AND user_id = $2", [o, tpo])).toEqual({ role: "org_admin" });
+    expect(await mine(tpo)).toEqual([]);                                                                   // accepted: gone from the list
+  });
+});
