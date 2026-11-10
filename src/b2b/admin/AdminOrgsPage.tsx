@@ -11,7 +11,7 @@ import { adminApi } from "../lib/api";
 import type { OrgRow } from "../types";
 import { CreateOrgDialog } from "./CreateOrgDialog";
 import { CreditsDialog, InviteStaffDialog, OrgLifecycleDialog, SettingsDialog } from "./OrgActions";
-import { ORG_TYPE_LABEL, ROLE_LABEL, alertText, fmtDate, friendly, num, useIsSuperAdmin, useOrgAlerts, useOrgs, usePlans, useStaffInvites } from "./queries";
+import { ORG_TYPE_LABEL, ROLE_LABEL, alertText, fmtDate, friendly, num, useIsSuperAdmin, useOrgAlerts, useOrgs, usePlans, useStaffInvites } from "./admin-queries";
 
 import { ADMIN_TABS } from "./tabs";
 

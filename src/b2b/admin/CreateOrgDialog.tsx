@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { adminApi, ApiError } from "../lib/api";
 import type { PlanRow } from "../types";
-import { inr, num } from "./queries";
+import { inr, num } from "./admin-queries";
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50);
 /** While typing: same rules, but a trailing hyphen stays so "qa-test" can be typed (trimmed by slugify on save). */

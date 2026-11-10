@@ -16,8 +16,8 @@ const state = vi.hoisted(() => ({
 const api = vi.hoisted(() => ({ adminApi: vi.fn() }));
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" }, signOut: vi.fn() }) }));
-vi.mock("./queries", async (orig) => ({
-  ...(await orig<typeof import("./queries")>()),
+vi.mock("./admin-queries", async (orig) => ({
+  ...(await orig<typeof import("./admin-queries")>()),
   useIsSuperAdmin: () => ({ data: state.isSuper, isLoading: false }),
   useOrgs: () => ({ data: state.orgs, isLoading: false, error: null }),
   usePlans: () => ({ data: state.plans }),

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { adminApi, ApiError } from "../lib/api";
 import type { OrgRow } from "../types";
-import { ROLE_LABEL, adjustCredits, fmtDate, friendly, num, useLedger } from "./queries";
+import { ROLE_LABEL, adjustCredits, fmtDate, friendly, num, useLedger } from "./admin-queries";
 
 const ROLES_BY_TYPE: Record<string, ("org_admin" | "trainer" | "recruiter" | "hiring_manager")[]> = {
   college: ["org_admin", "trainer"],

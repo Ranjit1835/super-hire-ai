@@ -11,8 +11,8 @@ const ROOT = process.cwd();
 const PRICE = /price_inr|pricePerStudent|₹\s?\d|\bRs\.?\s?\d|\bINR\s?\d/;
 /** Super-admin code may show prices; type declarations don't ship. */
 const SOURCE_ALLOW = [/^src\/b2b\/admin\//, /^src\/features\/b2b\/pages\/SuperAdmin/, /^src\/b2b\/gallery\//, /\/types\.ts$/, /\.test\.tsx?$/];
-/** Chunks Vite names after super-admin pages. */
-const CHUNK_ALLOW = [/^(AdminOrgsPage|AdminUsagePage|SuperAdminCosts|SuperAdminOrgs|SuperAdminEnquiries|CreateOrgDialog|OrgActions)-/];
+/** Chunks Vite names after super-admin pages, and the super-admin data module (src/b2b/admin/admin-queries.ts). */
+const CHUNK_ALLOW = [/^(AdminOrgsPage|AdminUsagePage|SuperAdminCosts|SuperAdminOrgs|SuperAdminEnquiries|CreateOrgDialog|OrgActions|admin-queries)-/];
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
