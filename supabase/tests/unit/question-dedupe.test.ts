@@ -18,6 +18,16 @@ describe("question repeats (owner, 2026-11-10)", () => {
     expect(repeats({ title: "Cyclist", statement: "A cyclist rides at 15 km/h for 3 hours. How far does she go?" }, [train])).toBeNull();
   });
 
+  it("a reworded copy with the same options is a repeat (the 2026-11-10 deadlock miss)", () => {
+    const opts = [{ text: "Mutual exclusion" }, { text: "Hold and wait" }, { text: "Preemption" }, { text: "Circular wait" }];
+    const seed = { title: "Not a deadlock condition", statement: "Which of these is NOT one of the four necessary conditions for deadlock?", options: opts };
+    const ai = { title: "Necessary Conditions for Deadlock", options: [...opts].reverse(),
+      statement: "Which of the following is NOT one of the four necessary Coffman conditions for a deadlock to occur in an operating system?" };
+    expect(repeats(ai, [seed])).toBe(seed);
+    // Same options alone isn't enough: a different question can reuse common options.
+    expect(repeats({ title: "Lock ordering", statement: "Which condition does always taking locks in a fixed global order remove?", options: opts }, [seed])).toBeNull();
+  });
+
   it("tells the model what to avoid, compactly", () => {
     expect(avoidList([])).toBe("");
     const list = avoidList(Array.from({ length: 60 }, (_, i) => ({ title: `Q${i}`, statement: "x ".repeat(200) })));

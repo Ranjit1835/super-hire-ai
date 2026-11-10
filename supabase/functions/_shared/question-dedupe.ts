@@ -22,12 +22,29 @@ export function overlap(a: string, b: string): number {
 
 export const SAME_QUESTION = 0.8;
 
-export interface QuestionText { title: string; statement: string }
+/** Same options and this much of the wording: a reworded copy ("Which is NOT a deadlock condition?" twice). */
+export const SAME_WITH_OPTIONS = 0.4;
 
-/** The existing question this one repeats, if any: same title, or statements at least SAME_QUESTION alike. */
+export interface QuestionText { title: string; statement: string; options?: { text: string }[] | null }
+
+/** MCQ options as one comparable key, ignoring order, case and punctuation. Null when there are none. */
+function optionKey(q: QuestionText): string | null {
+  if (!q.options?.length) return null;
+  return q.options.map((o) => [...wordsOf(o.text)].join(" ")).sort().join("|");
+}
+
+/**
+ * The existing question this one repeats, if any: the same title; statements at least SAME_QUESTION alike; or the
+ * same set of options with statements at least SAME_WITH_OPTIONS alike.
+ */
 export function repeats(q: QuestionText, existing: QuestionText[]): QuestionText | null {
   const title = q.title.trim().toLowerCase();
-  return existing.find((e) => e.title.trim().toLowerCase() === title || overlap(e.statement, q.statement) >= SAME_QUESTION) ?? null;
+  const opts = optionKey(q);
+  return existing.find((e) => {
+    if (e.title.trim().toLowerCase() === title) return true;
+    const o = overlap(e.statement, q.statement);
+    return o >= SAME_QUESTION || (opts !== null && o >= SAME_WITH_OPTIONS && optionKey(e) === opts);
+  }) ?? null;
 }
 
 /** A compact list for the model: "write something different from these". Newest first, capped so the prompt stays small. */

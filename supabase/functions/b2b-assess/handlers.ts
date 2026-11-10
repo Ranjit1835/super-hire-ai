@@ -345,11 +345,12 @@ export function makeHandlers(deps: Deps) {
       // No repeats (owner, 2026-11-10): the model sees what the bank already holds on this topic, near-copies are
       // dropped, and each new question joins the list. Retries make up for dropped ones: count + max(2, count) tries.
       const digest = await deps.rpc("b2b_question_digest_as", { _actor: actor, _org_id: input.orgId, _type: input.type, _topic: input.topic });
-      const seen: QuestionText[] = Array.isArray(digest) ? (digest as QuestionText[]) : [];
+      // Every question of this type is checked for repeats; only the on-topic ones go into the prompt.
+      const seen: (QuestionText & { on_topic?: boolean })[] = Array.isArray(digest) ? (digest as (QuestionText & { on_topic?: boolean })[]) : [];
       let repeated = 0;
       for (let attempt = 0; created.length < input.count && attempt < input.count + Math.max(2, input.count); attempt++) {
         const nonce = Math.floor(rand() * 1e9).toString(36);
-        const avoid = avoidList(seen);
+        const avoid = avoidList(seen.filter((q) => q.on_topic !== false));
         const brief = `Topic: ${input.topic}\nDifficulty: ${input.difficulty}\n${input.role ? `Role: ${input.role}\n` : ""}Variant seed: ${nonce}${avoid ? `\n\n${avoid}` : ""}`;
         const common = { orgId: input.orgId, userId: actor, messages: [{ role: "user" as const, content: brief }],
                          cacheInput: { type: input.type, topic: input.topic, difficulty: input.difficulty, role: input.role ?? null, nonce } };
@@ -361,7 +362,7 @@ export function makeHandlers(deps: Deps) {
             lastError = g.message; continue;
           }
           if (repeats(g.data, seen)) { repeated++; lastError = "repeated an existing question"; continue; }
-          seen.unshift({ title: g.data.title, statement: g.data.statement });
+          seen.unshift({ title: g.data.title, statement: g.data.statement, on_topic: true });
           const saved = await rpc("b2b_save_question_as", { _actor: actor, _q: codingPayload(input.orgId, g.data, nonce) });
           if (!saved.ok) { lastError = String(saved.reason); continue; }
           const qid = String(saved.question_id);
@@ -382,7 +383,7 @@ export function makeHandlers(deps: Deps) {
             lastError = g.message; continue;
           }
           if (repeats(g.data, seen)) { repeated++; lastError = "repeated an existing question"; continue; }
-          seen.unshift({ title: g.data.title, statement: g.data.statement });
+          seen.unshift({ title: g.data.title, statement: g.data.statement, options: g.data.options, on_topic: true });
           const saved = await rpc("b2b_save_question_as", { _actor: actor, _q: mcqPayload(input.orgId, g.data) });
           if (!saved.ok) { lastError = String(saved.reason); continue; }
           const qid = String(saved.question_id);

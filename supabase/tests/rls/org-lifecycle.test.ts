@@ -133,8 +133,8 @@ describe("delete an organisation permanently", () => {
   });
 });
 
-describe("question digest for generation (20261110000003)", () => {
-  it("lists the org's and global questions on a topic, only to editors", async () => {
+describe("question digest for generation (20261110000003, 20261110000005)", () => {
+  it("lists every question the actor can use, flags the on-topic ones, only to editors", async () => {
     const o = await id("INSERT INTO organizations (name, slug, type) VALUES ('Digest College', 'digest-college', 'college') RETURNING id");
     const tpo = await createUser(db);
     const outsider = await createUser(db);
@@ -147,11 +147,13 @@ describe("question digest for generation (20261110000003)", () => {
     await q(null, "Global speed", "{speed}");
     await q(null, "Retired speed", "{speed}", "retired");
     await q(null, "Global ratio", "{ratio}");
-    const digest = (actor: string, org: string | null) => call<{ title: string }[]>(
+    const digest = (actor: string, org: string | null) => call<{ title: string; on_topic: boolean }[]>(
       "SELECT public.b2b_question_digest_as($1, $2, 'mcq', 'speed') AS r", [actor, org]);
-    expect((await digest(tpo, o)).map((r) => r.title).sort()).toEqual(["Global speed", "Own speed"]);
+    const mine = await digest(tpo, o);
+    expect(mine.map((r) => r.title).sort()).toEqual(["Global ratio", "Global speed", "Own speed"]);   // retired one left out
+    expect(mine.filter((r) => r.on_topic).map((r) => r.title).sort()).toEqual(["Global speed", "Own speed"]);
     expect(await digest(outsider, o)).toEqual([]);
     expect(await digest(tpo, null)).toEqual([]);                       // the global bank is the super admin's
-    expect((await digest(u.super, null)).map((r) => r.title)).toEqual(["Global speed"]);
+    expect((await digest(u.super, null)).filter((r) => r.on_topic).map((r) => r.title)).toEqual(["Global speed"]);
   });
 });
