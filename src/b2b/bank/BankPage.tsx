@@ -9,7 +9,7 @@ import { b2bDb } from "@/features/b2b/lib/db";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Empty, Loading, V1Shell, type ShellTab } from "../layout/V1Shell";
+import { Empty, Loading, V1Shell } from "../layout/V1Shell";
 import { Chip, type Tone } from "../ui/broadcast";
 import { ApiError, assessApi } from "../lib/api";
 import { CodingDialog } from "./CodingDialog";
@@ -17,21 +17,18 @@ import { GenerateDialog, type GenerateResult } from "./GenerateDialog";
 import { McqDialog } from "./McqDialog";
 import { OverrideDialog } from "./OverrideDialog";
 import { TemplateDialog } from "./TemplateDialog";
+import { useAssessTabs } from "./tabs";
 import { mcqCheckReason, type McqCheck } from "../../../supabase/functions/_shared/contracts/assess";
 import { LANGUAGE_LABEL, type QuestionRow } from "./forms";
 import { BANK_PAGE, friendly, orgOf, setQuestionStatus, useBankPage, useCanEdit, type BankOwner, type BankType } from "./queries";
 
-export function assessTabs(orgParam: string): ShellTab[] {
-  if (orgParam === "global") return [{ to: "/assess/bank/global", label: "Global question bank" }];
-  // /portal/:orgId sends company orgs to /co/:orgId and colleges to /c/:orgId (track E).
-  return [{ to: `/portal/${orgParam}`, label: "Portal" }, { to: `/assess/tests/${orgParam}`, label: "Tests" }, { to: `/assess/bank/${orgParam}`, label: "Question bank" }];
-}
 
 const STATUS_LABEL: Record<QuestionRow["status"], string> = { draft: "Draft", verified: "Verified", retired: "Retired" };
 const STATUS_TONE: Record<QuestionRow["status"], Tone> = { verified: "gold", draft: "muted", retired: "muted" };
 
 export default function BankPage() {
   const { orgId: orgParam = "" } = useParams();
+  const tabs = useAssessTabs(orgParam);
   const orgId = orgOf(orgParam);
   const qc = useQueryClient();
   const canEdit = useCanEdit(orgId);
@@ -117,7 +114,7 @@ export default function BankPage() {
 
   return (
     <V1Shell title={title} subtitle={orgId === null ? "Shared once verified" : "Yours plus the global bank"}
-             tabs={assessTabs(orgParam)}
+             tabs={tabs}
              actions={<div className="hidden sm:flex gap-2">
                <Button size="sm" variant="outline" onClick={() => setGenerating(true)}>Generate with AI</Button>
                <Button size="sm" variant="outline" onClick={() => setEditing({ kind: "mcq", row: null })}>New MCQ</Button>
@@ -247,11 +244,11 @@ export default function BankPage() {
         )}
       </div>
       <McqDialog open={editing?.kind === "mcq"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
-                 onSaved={(id, ready) => { if (ready) void verify(id); else { setNotice({ tone: "ok", text: "Question saved." }); void refresh(); } }} />
+                 onSaved={(id, ready) => { void refresh(); if (ready) void verify(id); else { setNotice({ tone: "ok", text: "Question saved." }); void refresh(); } }} />
       <OverrideDialog target={overriding ? disputed : null} onClose={() => setOverriding(false)}
                       onDone={() => { setOverriding(false); setDisputed(null); setNotice({ tone: "ok", text: "Verified with your reason. The override is recorded in the audit log." }); void refresh(); }} />
       <CodingDialog open={editing?.kind === "coding"} onOpenChange={(o) => { if (!o) setEditing(null); }} orgId={orgId} question={editing?.row}
-                    onSaved={(id) => { void verify(id); }} />
+                    onSaved={(id) => { void refresh(); void verify(id); }} />
       <GenerateDialog open={generating} onOpenChange={setGenerating} orgId={orgId} onDone={onGenerated} />
       <TemplateDialog open={templating} onOpenChange={setTemplating} orgId={orgId} onDone={(r) => {
         setNotice(r.reason

@@ -1,8 +1,9 @@
 import { useEffect, type ReactNode } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { ArrowLeft, LogOut, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsSuperAdmin } from "@/features/b2b/hooks/useB2B";
 import { cn } from "@/lib/utils";
 import { LogoMark, Numeral } from "../ui/broadcast";
 import { Stage, type StageStep } from "../three/Stage";
@@ -77,10 +78,7 @@ export function V1Shell({ title, subtitle, tabs, actions, aside, children }: {
           <div className="ml-auto flex items-center gap-1 shrink-0 h-14 max-w-[45vw] lg:max-w-none overflow-x-auto">
             {aside && <div className="hidden lg:flex items-center pr-3 mr-1 shadow-[inset_-1px_0_0_var(--hr-rule)]">{aside}</div>}
             {actions}
-            <Link to="/dashboard" aria-label="Back to HiResume"
-                  className="inline-flex items-center gap-1 px-2 py-1.5 text-sm text-[var(--hr-muted)] hover:text-foreground">
-              <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">HiResume</span>
-            </Link>
+            <RoleLinks />
             <button type="button" aria-label="Sign out" className="p-2 text-[var(--hr-muted)] hover:text-foreground"
                     onClick={async () => { await endServerSession(); await signOut(); navigate("/auth"); }}>
               <LogOut className="h-4 w-4" />
@@ -94,6 +92,31 @@ export function V1Shell({ title, subtitle, tabs, actions, aside, children }: {
         {children}
       </motion.main>
     </div>
+  );
+}
+
+/**
+ * Links by role. Super admins get "Admin" (back to their sections from any portal) and "HiResume" (the B2C site, which
+ * they may use). College and company members don't: B2C pages send them straight back to their portal (R3.2), so the
+ * link would only bounce.
+ */
+function RoleLinks() {
+  const { pathname } = useLocation();
+  const isSuper = useIsSuperAdmin().data === true;
+  if (!isSuper) return null;
+  const inAdmin = pathname.startsWith("/admin/") || pathname === "/assess/bank/global";
+  const link = "inline-flex items-center gap-1 px-2 py-1.5 text-sm text-[var(--hr-muted)] hover:text-foreground";
+  return (
+    <>
+      {!inAdmin && (
+        <Link to="/admin/orgs" aria-label="Super admin" className={link}>
+          <ShieldCheck className="h-4 w-4" /> <span className="hidden sm:inline">Admin</span>
+        </Link>
+      )}
+      <Link to="/dashboard" aria-label="Back to HiResume" className={link}>
+        <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">HiResume</span>
+      </Link>
+    </>
   );
 }
 

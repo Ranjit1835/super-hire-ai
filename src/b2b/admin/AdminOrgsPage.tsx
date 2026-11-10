@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -10,15 +10,10 @@ import { Chip } from "../ui/broadcast";
 import { adminApi } from "../lib/api";
 import type { OrgRow } from "../types";
 import { CreateOrgDialog } from "./CreateOrgDialog";
-import { CreditsDialog, InviteStaffDialog, SettingsDialog } from "./OrgActions";
-import { ORG_TYPE_LABEL, ROLE_LABEL, alertText, fmtDate, friendly, num, useIsSuperAdmin, useOrgAlerts, useOrgs, usePlans, useStaffInvites } from "./queries";
+import { CreditsDialog, InviteStaffDialog, OrgLifecycleDialog, SettingsDialog } from "./OrgActions";
+import { ORG_TYPE_LABEL, ROLE_LABEL, alertText, fmtDate, friendly, num, useIsSuperAdmin, useOrgAlerts, useOrgs, usePlans, useStaffInvites } from "./admin-queries";
 
-export const ADMIN_TABS = [
-  { to: "/admin/orgs", label: "Organisations" },
-  { to: "/admin/usage", label: "Usage" },
-  { to: "/admin/costs", label: "AI costs" },
-  { to: "/admin/enquiries", label: "Enquiries" },
-];
+import { ADMIN_TABS } from "./tabs";
 
 /** `demoInviteLink` seeds the just-created-invite panel for the gallery only; the live page never passes it. */
 export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { email: string; link: string } } = {}) {
@@ -34,6 +29,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
   const [inviting, setInviting] = useState<OrgRow | null>(null);
   const [crediting, setCrediting] = useState<OrgRow | null>(null);
   const [configuring, setConfiguring] = useState<OrgRow | null>(null);
+  const [lifecycle, setLifecycle] = useState<{ org: OrgRow; mode: "deactivate" | "reactivate" | "delete" } | null>(null);
   const [lastLink, setLastLink] = useState<{ email: string; link: string } | null>(demoInviteLink ?? null);
 
   if (isSuper.isLoading) return <V1Shell title="Super admin"><Loading /></V1Shell>;
@@ -43,7 +39,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
   const setStatus = async (org: OrgRow, status: "active" | "suspended") => {
     try {
       await adminApi("updateOrg", { orgId: org.id, status });
-      toast({ title: status === "suspended" ? `${org.name} suspended` : `${org.name} reactivated` });
+      toast({ title: status === "suspended" ? `${org.name} suspended` : `${org.name} resumed` });
       refresh();
     } catch (e) { toast({ title: "Couldn't change status", description: friendly(e), variant: "destructive" }); }
   };
@@ -116,7 +112,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
                     <div className="font-medium">{o.name}</div>
                     <div className="flex gap-1.5 mt-1 items-center">
                       <Chip>{ORG_TYPE_LABEL[o.type] ?? o.type}</Chip>
-                      {o.status === "suspended" && <Chip tone="red">Suspended</Chip>}
+                      {o.deactivated_at ? <Chip tone="red">Deactivated</Chip> : o.status === "suspended" && <Chip tone="red">Suspended</Chip>}
                       {o.is_demo && <Chip tone="muted">Demo</Chip>}
                     </div>
                   </TableCell>
@@ -130,12 +126,27 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
                     {pendingFor(o.id).map((i) => <div key={i.id}>{i.email} · {ROLE_LABEL[i.role]}</div>)}
                   </TableCell>
                   <TableCell className="py-2.5 text-right whitespace-nowrap">
-                    <Button size="sm" variant="ghost" onClick={() => setInviting(o)}>Invite</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setCrediting(o)}>Credits</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setConfiguring(o)}>Costs &amp; limits</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setStatus(o, o.status === "active" ? "suspended" : "active")}>
-                      {o.status === "active" ? "Suspend" : "Reactivate"}
-                    </Button>
+                    {o.deactivated_at ? (
+                      <>
+                        <Button size="sm" variant="ghost" onClick={() => setLifecycle({ org: o, mode: "reactivate" })}>Reactivate</Button>
+                        <Button size="sm" variant="ghost" className="text-[var(--hr-red-ink)]" onClick={() => setLifecycle({ org: o, mode: "delete" })}>Delete…</Button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Super admins have full rights inside every portal (useCollegeAccess / useCompanyAccess). */}
+                        <Button size="sm" variant="ghost" asChild>
+                          <Link to={`/portal/${o.id}`}><ExternalLink className="h-3.5 w-3.5 mr-1" />Open portal</Link>
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setInviting(o)}>Invite</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setCrediting(o)}>Credits</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfiguring(o)}>Costs &amp; limits</Button>
+                        <Button size="sm" variant="ghost" title="Pauses new tests and interviews; staff keep access"
+                                onClick={() => setStatus(o, o.status === "active" ? "suspended" : "active")}>
+                          {o.status === "active" ? "Suspend" : "Resume"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-[var(--hr-red-ink)]" onClick={() => setLifecycle({ org: o, mode: "deactivate" })}>Deactivate…</Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -152,6 +163,8 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
       <InviteStaffDialog org={inviting} onClose={() => setInviting(null)}
         onInvited={(r) => { toast({ title: r.emailed ? `Invite emailed to ${r.email}` : "Invite created" }); if (!r.emailed) setLastLink(r); refresh(); }} />
       <CreditsDialog org={crediting} onClose={() => setCrediting(null)} onChanged={refresh} />
+      {lifecycle && <OrgLifecycleDialog key={`${lifecycle.org.id}-${lifecycle.mode}`} org={lifecycle.org} mode={lifecycle.mode}
+        onClose={() => setLifecycle(null)} onDone={(m) => { toast({ title: m }); refresh(); }} />}
       {configuring && <SettingsDialog key={configuring.id} org={configuring} onClose={() => setConfiguring(null)} onSaved={refresh} />}
     </V1Shell>
   );

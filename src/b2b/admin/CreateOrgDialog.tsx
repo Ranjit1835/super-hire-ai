@@ -6,9 +6,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { adminApi, ApiError } from "../lib/api";
 import type { PlanRow } from "../types";
-import { inr, num } from "./queries";
+import { inr, num } from "./admin-queries";
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50);
+/** While typing: same rules, but a trailing hyphen stays so "qa-test" can be typed (trimmed by slugify on save). */
+const slugDraft = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 50);
 const endOfDay = (d: string) => (d ? new Date(`${d}T23:59:59+05:30`).toISOString() : null);
 
 export interface CreatedOrg { orgId: string; name: string; credits: number; inviteLink: string | null; emailed: boolean }
@@ -41,7 +43,7 @@ export function CreateOrgDialog({ open, onOpenChange, plans, onCreated }: {
     setBusy(true);
     try {
       const r = await adminApi("createOrg", {
-        name, slug: slug || slugify(name), type, planId: plan.id,
+        name, slug: slugify(slug) || slugify(name), type, planId: plan.id,
         seatLimit: seatN, validTo: endOfDay(validTo),
         initialCredits: credits === "" ? undefined : Number(credits),
         contactPhone: contactPhone || null,
@@ -80,7 +82,7 @@ export function CreateOrgDialog({ open, onOpenChange, plans, onCreated }: {
           </div>
           <div>
             <Label htmlFor="org-slug">Link name</Label>
-            <Input id="org-slug" value={slug} onChange={(e) => { setSlugTouched(true); setSlug(slugify(e.target.value)); }} />
+            <Input id="org-slug" value={slug} onChange={(e) => { setSlugTouched(true); setSlug(slugDraft(e.target.value)); }} />
             <p className="text-xs text-muted-foreground mt-1">Lowercase letters, digits and hyphens; used in this organisation's links.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">

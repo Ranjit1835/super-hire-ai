@@ -16,8 +16,8 @@ const state = vi.hoisted(() => ({
 const api = vi.hoisted(() => ({ adminApi: vi.fn() }));
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" }, signOut: vi.fn() }) }));
-vi.mock("./queries", async (orig) => ({
-  ...(await orig<typeof import("./queries")>()),
+vi.mock("./admin-queries", async (orig) => ({
+  ...(await orig<typeof import("./admin-queries")>()),
   useIsSuperAdmin: () => ({ data: state.isSuper, isLoading: false }),
   useOrgs: () => ({ data: state.orgs, isLoading: false, error: null }),
   usePlans: () => ({ data: state.plans }),
@@ -86,7 +86,11 @@ describe("super admin: organisations", () => {
     expect(within(rows[1]).getByText(/tpo@svr.in · Admin/)).toBeInTheDocument();
     expect(within(rows[2]).getByText("Company")).toBeInTheDocument();
     expect(within(rows[2]).getByText("Suspended")).toBeInTheDocument();
-    expect(within(rows[2]).getByRole("button", { name: "Reactivate" })).toBeInTheDocument();
+    expect(within(rows[2]).getByRole("button", { name: "Resume" })).toBeInTheDocument();
+    // Every organisation opens in its portal, and can be deactivated (delete comes only after that).
+    expect(within(rows[1]).getByRole("link", { name: "Open portal" })).toHaveAttribute("href", expect.stringMatching(/^\/portal\//));
+    expect(within(rows[1]).getByRole("button", { name: "Deactivate…" })).toBeInTheDocument();
+    expect(within(rows[1]).queryByRole("button", { name: "Delete…" })).toBeNull();
   });
 
   it("shows organisations that need attention (R1.9), and nothing when all is well", () => {

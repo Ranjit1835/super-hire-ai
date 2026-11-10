@@ -16,5 +16,6 @@ export const PRERENDER_ROUTES: PublicRoute[] = [
   { path: "/college-placement", priority: 0.8, changefreq: "monthly" },
   { path: "/blog", priority: 0.8, changefreq: "weekly" },
   { path: "/about", priority: 0.5, changefreq: "monthly" },
+  { path: "/privacy", priority: 0.3, changefreq: "monthly" },
   ...ARTICLES.map((a) => ({ path: `/blog/${a.slug}`, priority: 0.7, changefreq: "monthly" as const, lastmod: a.updated })),
 ];

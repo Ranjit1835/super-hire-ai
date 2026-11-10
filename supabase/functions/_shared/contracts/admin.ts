@@ -57,6 +57,16 @@ export const adminContract = {
       Object.entries(OrgFields).map(([k, v]) => [k, (v as z.ZodTypeAny).optional()])) }),
     output: Ok,
   },
+  /** Deactivate locks every member out at once (nothing deleted); active: true undoes it. */
+  setOrgActive: {
+    input: z.object({ orgId: Uuid, active: z.boolean() }),
+    output: Ok,
+  },
+  /** Permanent: only a deactivated org, confirmed by typing its exact name. Evidence files go first. */
+  deleteOrg: {
+    input: z.object({ orgId: Uuid, confirmName: NonEmpty(200) }),
+    output: Ok,
+  },
   inviteStaff: {
     input: z.object({ orgId: Uuid, email: Email, fullName: z.string().trim().max(200).optional(), role: StaffRole }),
     output: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean() }),

@@ -2,7 +2,7 @@
 // through collegeApi (b2b-college). Manual student add/edit and drive create/edit use RLS-guarded table writes.
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { b2bDb } from "@/features/b2b/lib/db";
+import { b2bDb, selectAll } from "@/features/b2b/lib/db";
 import type { Eligibility } from "../../../supabase/functions/_shared/contracts/college";
 import type { CreditLedgerRow, InviteRow, ProctoringPolicyV1, ResultsReleaseV1 } from "../types";
 
@@ -77,18 +77,28 @@ export function useOrg(orgId: string | undefined) {
 export interface StudentQuery { search: string; department: string; batchYear: string; status: string; page: number }
 export const STUDENT_PAGE = 50;
 
+/** The roster filters as a query (shared by the paged list and the export). */
+function studentFilter(orgId: string, q: Omit<StudentQuery, "page">, opts?: { count: "exact" }) {
+  let req = b2bDb.from("students").select("*", opts).eq("org_id", orgId);
+  const s = q.search.trim().replace(/[%,()]/g, " ");
+  if (s) req = req.or(`full_name.ilike.%${s}%,roll_no.ilike.%${s}%,email.ilike.%${s}%`);
+  if (q.department) req = req.eq("department", q.department);
+  if (q.batchYear) req = req.eq("batch_year", Number(q.batchYear));
+  if (q.status) req = req.eq("status", q.status);
+  return req;
+}
+
+/** Every student matching the filters, for the Excel/CSV export (past the 1000-row page limit). */
+export function fetchAllStudents(orgId: string, q: Omit<StudentQuery, "page">): Promise<StudentRecord[]> {
+  return selectAll<StudentRecord>((from, to) => studentFilter(orgId, q).order("roll_no").order("id").range(from, to));
+}
+
 export function useStudents(orgId: string, q: StudentQuery) {
   return useQuery({
     queryKey: ["b2b-college", "students", orgId, q],
     queryFn: async () => {
-      let req = b2bDb.from("students").select("*", { count: "exact" }).eq("org_id", orgId);
-      const s = q.search.trim().replace(/[%,()]/g, " ");
-      if (s) req = req.or(`full_name.ilike.%${s}%,roll_no.ilike.%${s}%,email.ilike.%${s}%`);
-      if (q.department) req = req.eq("department", q.department);
-      if (q.batchYear) req = req.eq("batch_year", Number(q.batchYear));
-      if (q.status) req = req.eq("status", q.status);
       const from = (q.page - 1) * STUDENT_PAGE;
-      const { data, error, count } = await req.order("roll_no").range(from, from + STUDENT_PAGE - 1);
+      const { data, error, count } = await studentFilter(orgId, q, { count: "exact" }).order("roll_no").range(from, from + STUDENT_PAGE - 1);
       if (error) throw new Error(error.message);
       return { rows: (data ?? []) as StudentRecord[], total: count ?? 0 };
     },

@@ -14,6 +14,9 @@ import { AnimatedGradientMesh, SparkleParticles } from "@/components/premium";
 import { SEOHead } from "@/components/SEOHead";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { rememberRedirect, safeRedirect } from "@/lib/safe-redirect";
+import { BLOCK_MESSAGE, isBlockReason } from "@/b2b/access/AccessGate";
+import { PENDING_CONSENT_KEY } from "@/components/ConsentGate";
+import { MIN_AGE, PRIVACY_NOTICE_VERSION } from "@/lib/privacy";
 
 const PASSWORD_RULES = {
   minLength: 8,
@@ -48,11 +51,15 @@ export default function Auth() {
   const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirm, setSignupConfirm] = useState("");
+  // DPDP: 18+ and the privacy notice, ticked before either way of creating an account (recorded by ConsentGate).
+  const [consented, setConsented] = useState(false);
+  const markConsent = () => { try { localStorage.setItem(PENDING_CONSENT_KEY, PRIVACY_NOTICE_VERSION); } catch { /* storage blocked */ } };
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
   const returnTo = searchParams.get("returnTo");
+  const blocked = searchParams.get("blocked");
   const guestToken = searchParams.get("guestToken");
   // Only same-site paths (see safe-redirect.ts). Remembered so it survives Google sign-in and the
   // sign-up code step, which land on other pages.
@@ -136,6 +143,8 @@ export default function Auth() {
       toast({ title: "Passwords don't match", variant: "destructive" });
       return;
     }
+    if (!consented) return;
+    markConsent();
 
     setLoading(true);
     const { error } = await signUp(
@@ -257,6 +266,12 @@ export default function Auth() {
                 </form>
               </motion.div>
             ) : (
+              <>
+              {isBlockReason(blocked) && (
+                <div role="alert" className="rounded-lg bg-amber-500/10 border border-amber-500/25 p-3 mb-4">
+                  <p className="text-sm text-amber-200">{BLOCK_MESSAGE[blocked]}</p>
+                </div>
+              )}
               <Tabs defaultValue="signin">
                 <TabsList className="grid w-full grid-cols-2 mb-4 bg-white/5 border border-violet-500/10">
                   <TabsTrigger value="signin" className="gap-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600/80 data-[state=active]:to-cyan-600/80 data-[state=active]:text-white">
@@ -369,14 +384,22 @@ export default function Auth() {
 
                 {/* SIGN UP TAB */}
                 <TabsContent value="signup">
+                  <label className="flex gap-2.5 items-start mb-4 text-xs text-muted-foreground cursor-pointer">
+                    <input type="checkbox" required className="mt-0.5 h-4 w-4 accent-violet-500" checked={consented}
+                           onChange={(e) => setConsented(e.target.checked)} aria-describedby="consent-note" />
+                    <span id="consent-note">
+                      I am {MIN_AGE} or older and I agree to the{" "}
+                      <Link to="/privacy" target="_blank" className="text-violet-400 hover:text-violet-300 underline">privacy notice</Link>.
+                    </span>
+                  </label>
                   <div className="space-y-2 mb-4">
                     <motion.button
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                       type="button"
                       className="w-full h-10 rounded-lg border border-violet-500/15 bg-white/5 hover:bg-white/10 text-sm font-medium text-foreground flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                      onClick={handleGoogleSignIn}
-                      disabled={oauthLoading !== null}
+                      onClick={() => { markConsent(); void handleGoogleSignIn(); }}
+                      disabled={oauthLoading !== null || !consented}
                     >
                       {oauthLoading === "google" ? (
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
@@ -445,7 +468,7 @@ export default function Auth() {
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                       type="submit"
-                      disabled={loading || signupErrors.length > 0 || !signupMatch || !signupPassword}
+                      disabled={loading || signupErrors.length > 0 || !signupMatch || !signupPassword || !consented}
                       className="w-full h-11 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {loading ? (
@@ -465,6 +488,7 @@ export default function Auth() {
                   </form>
                 </TabsContent>
               </Tabs>
+              </>
             )}
           </div>
         </div>

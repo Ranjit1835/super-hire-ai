@@ -26,10 +26,11 @@ function useWorkspaceLinks(): { href: string; label: string; icon: typeof Buildi
   const memberships = useMyMemberships();
   const isSuper = useIsSuperAdmin();
   const links = [];
-  const staff = memberships.data?.find((m) => m.role !== "student");
-  const student = memberships.data?.find((m) => m.role === "student");
-  if (B2B_ENABLED && staff) links.push({ href: `/org/${staff.org_id}`, label: "Institution dashboard", icon: Building2 });
-  else if (B2B_ENABLED && student) links.push({ href: "/learn", label: "My interview practice", icon: Building2 });
+  const staff = memberships.data?.filter((m) => m.role !== "student") ?? [];
+  const student = memberships.data?.some((m) => m.role === "student");
+  if (B2B_ENABLED && staff.some((m) => m.organizations?.type === "company")) links.push({ href: "/co", label: "Company portal", icon: Building2 });
+  if (B2B_ENABLED && staff.some((m) => m.organizations?.type !== "company")) links.push({ href: "/c", label: "College portal", icon: Building2 });
+  if (B2B_ENABLED && !staff.length && student) links.push({ href: "/learn/v1", label: "My placements", icon: Building2 });
   // With B2B switched off the only admin page is the institution-enquiries inbox (fed by the B2C college page).
   if (isSuper.data) links.push({ href: B2B_ENABLED ? "/admin/orgs" : "/admin/enquiries", label: "Super admin", icon: Shield });
   return links;
