@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // R3.1 pricing secrecy check. Prices live in the database and reach only super-admin screens; nothing a TPO, org
 // admin, student or candidate loads may carry a price.
 //  1. Source: B2B code outside super-admin files has no price fields or ₹ amounts (type declarations excepted).

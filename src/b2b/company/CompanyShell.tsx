@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { V1Shell, Loading, Empty, CreditsTag } from "../layout/V1Shell";
 import { useCompanyAccess, useCompanyOrg, useMyCompanies, type CompanyRole } from "./queries";
+import { prefetchCompanyPortal } from "../lib/prefetch";
 
 export const companyTabs = (orgId: string, editor: boolean) => [
   { to: `/co/${orgId}/roles`, label: "Roles" },
@@ -18,6 +19,8 @@ export function CompanyShell({ children, actions }: { children: (ctx: CompanyCtx
   const { orgId = "" } = useParams();
   const access = useCompanyAccess(orgId);
   const org = useCompanyOrg(access.data?.staff ? orgId : undefined);
+  const staff = access.data?.staff === true;
+  useEffect(() => { if (staff) prefetchCompanyPortal(); }, [staff]);
   if (access.isLoading || (access.data?.staff && org.isLoading)) return <V1Shell title="Company portal"><Loading /></V1Shell>;
   if (!access.data?.staff || (org.data && org.data.type !== "company")) {
     return (
