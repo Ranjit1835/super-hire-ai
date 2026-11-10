@@ -18,9 +18,13 @@ const REFUSED: Record<string, string> = {
   SUPER_ADMIN: "HiResume staff accounts can't be deleted from the app.",
 };
 
+interface Bucket {
+  list(path: string, opts: { limit: number }): Promise<{ data: { id: string | null; name: string }[] | null; error: unknown }>;
+  remove(paths: string[]): Promise<{ error: unknown }>;
+}
+
 /** Every object under <userId>/ in the resumes bucket (uploads are stored per user folder). */
-async function removeResumeFiles(admin: ReturnType<typeof createClient>, userId: string) {
-  const bucket = admin.storage.from("resumes");
+async function removeResumeFiles(bucket: Bucket, userId: string) {
   const folders = [userId];
   while (folders.length) {
     const dir = folders.pop()!;
@@ -58,7 +62,7 @@ serve(async (req) => {
     const r = data as { ok: boolean; reason?: string };
     if (!r.ok) return json({ error: REFUSED[r.reason ?? ""] ?? "This account can't be deleted here.", code: r.reason }, 409);
 
-    await removeResumeFiles(admin, user.id);
+    await removeResumeFiles(admin.storage.from("resumes") as unknown as Bucket, user.id);
     const { error: delErr } = await admin.auth.admin.deleteUser(user.id);
     if (delErr) throw delErr;
     console.log(JSON.stringify({ event: "account_deleted", user_id: user.id, at: new Date().toISOString() }));
