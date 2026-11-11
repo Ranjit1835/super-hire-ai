@@ -194,3 +194,32 @@ describe("candidate handlers", () => {
     expect(candidateContract.viewShare.output.safeParse(ok).success).toBe(true);
   });
 });
+
+describe("inviteStaff makes the account for a new email (owner, 2026-11-11)", () => {
+  const db: Db = { b2b_invite_staff: () => ({ ok: true, invite_id: U(5) }), b2b_mark_invite_email: () => ({ ok: true }) };
+  const input = { orgId: U(1), email: "rec@co.in", fullName: "Ravi", role: "recruiter" };
+
+  it("emails the username and temporary password; the password isn't returned once emailed", async () => {
+    const provisionStaff = vi.fn(async () => ({ created: true, userId: U(7), tempPassword: "Temp@Pass2345" }));
+    const { d, mails } = deps(db, { provisionStaff });
+    const out = await company(d).inviteStaff(input, ACTOR);
+    expect(provisionStaff).toHaveBeenCalledWith({ email: "rec@co.in", fullName: "Ravi", tokenHash: expect.stringMatching(/^h\(token-/) });
+    expect(mails[0]).toMatchObject({ to: "rec@co.in", subject: expect.stringMatching(/Your HiResume account/) });
+    expect((mails[0] as unknown as { text: string }).text).toContain("Temp@Pass2345");
+    expect(out.account).toEqual({ created: true, tempPassword: null });
+    expect(companyContract.inviteStaff.output.safeParse(out).success).toBe(true);
+  });
+
+  it("returns the temporary password to the super admin only when the email couldn't be sent", async () => {
+    const provisionStaff = vi.fn(async () => ({ created: true, userId: U(7), tempPassword: "Temp@Pass2345" }));
+    const { d } = deps(db, { provisionStaff, sendMail: vi.fn(async () => ({ sent: false, error: "EMAIL_NOT_CONFIGURED" })) });
+    expect((await company(d).inviteStaff(input, ACTOR)).account).toEqual({ created: true, tempPassword: "Temp@Pass2345" });
+  });
+
+  it("an existing account gets the usual invite link email", async () => {
+    const { d, mails } = deps(db, { provisionStaff: vi.fn(async () => ({ created: false, userId: null, tempPassword: null })) });
+    const out = await company(d).inviteStaff(input, ACTOR);
+    expect(mails[0].subject).toMatch(/invited to a company team/);
+    expect(out.account).toEqual({ created: false, tempPassword: null });
+  });
+});

@@ -41,3 +41,18 @@ export function staffInviteMail(o: { to: string; name: string; orgName: string; 
     `<p><a href="${esc(o.link)}">Accept the invite</a> (valid for 14 days, for ${esc(o.to)} only).</p><p>— HiResume (hiresume.in)</p>`;
   return { to: o.to, subject, html, text };
 }
+
+/** A new staff account made at invite time: the username and temporary password, changed at first sign-in. */
+export function staffAccountMail(o: { to: string; name: string; orgName: string; role: string; tempPassword: string; signInUrl: string }): Mail {
+  const role = ROLE_LABEL[o.role] ?? o.role;
+  const subject = `Your HiResume account for ${o.orgName}`;
+  const text = `Hi ${o.name},\n\nYou've been added as ${role} for ${o.orgName} on HiResume. Your account is ready:\n\n` +
+    `Username: ${o.to}\nTemporary password: ${o.tempPassword}\n\nSign in: ${o.signInUrl}\n\n` +
+    `You'll be asked to set your own password the first time you sign in. Don't share this email.\n\n— HiResume (hiresume.in)`;
+  const html = `<p>Hi ${esc(o.name)},</p><p>You've been added as <b>${esc(role)}</b> for <b>${esc(o.orgName)}</b> on HiResume. Your account is ready:</p>` +
+    `<table style="border-collapse:collapse"><tr><td style="padding:4px 12px 4px 0">Username</td><td><b>${esc(o.to)}</b></td></tr>` +
+    `<tr><td style="padding:4px 12px 4px 0">Temporary password</td><td><code style="font-size:15px">${esc(o.tempPassword)}</code></td></tr></table>` +
+    `<p><a href="${esc(o.signInUrl)}">Sign in to HiResume</a></p>` +
+    `<p>You'll be asked to set your own password the first time you sign in. Don't share this email.</p><p>— HiResume (hiresume.in)</p>`;
+  return { to: o.to, subject, html, text };
+}

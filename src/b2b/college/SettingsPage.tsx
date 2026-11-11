@@ -9,6 +9,7 @@ import { Loading } from "../layout/V1Shell";
 import { Numeral } from "../ui/broadcast";
 import { collegeApi, ApiError } from "../lib/api";
 import { CollegeShell, NativeSelect } from "./CollegeShell";
+import { StaffLogin } from "../ui/StaffLogin";
 import { fmtDate, friendly, useCollegeLedger, useOrg, useStaff, usedThisMonth } from "./queries";
 
 const REASON_TEXT: Record<string, string> = {
@@ -109,14 +110,17 @@ function InviteStaffForm({ orgId }: { orgId: string }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState<"trainer" | "org_admin">("trainer");
   const [link, setLink] = useState<string | null>(null);
+  const [login, setLogin] = useState<{ email: string; tempPassword: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     setBusy(true);
-    setLink(null);
+    setLink(null); setLogin(null);
     try {
       const r = await collegeApi("inviteStaff", { orgId, email, fullName: name || undefined, role });
-      toast({ title: r.emailed ? `Invite emailed to ${email}` : "Invite created" });
-      if (!r.emailed) setLink(r.link);
+      const created = r.account?.created ?? false;
+      toast({ title: r.emailed ? (created ? `Login details emailed to ${email}` : `Invite emailed to ${email}`) : created ? "Account created" : "Invite created" });
+      if (!r.emailed && r.account?.tempPassword) setLogin({ email, tempPassword: r.account.tempPassword });
+      else if (!r.emailed) setLink(r.link);
       setEmail(""); setName("");
       void qc.invalidateQueries({ queryKey: ["b2b-college", "staff", orgId] });
     } catch (e) {
@@ -133,7 +137,8 @@ function InviteStaffForm({ orgId }: { orgId: string }) {
           <option value="org_admin">TPO admin (everything)</option>
         </NativeSelect></div>
       <Button type="submit" disabled={busy}>Invite</Button>
-      {link && <p className="sm:col-span-4 text-sm" role="status">Email isn't set up yet; share this link with them (it only works for that email): <code className="hr-data text-xs break-all text-[var(--hr-muted)]">{link}</code></p>}
+      {login && <div className="sm:col-span-4"><StaffLogin email={login.email} tempPassword={login.tempPassword} onDone={() => setLogin(null)} /></div>}
+      {link && <p className="sm:col-span-4 text-sm" role="status">They already have a HiResume account: they'll see the invite when they sign in. Or share this link (it only works for that email): <code className="hr-data text-xs break-all text-[var(--hr-muted)]">{link}</code></p>}
     </form>
   );
 }

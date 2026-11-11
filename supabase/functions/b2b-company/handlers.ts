@@ -5,6 +5,8 @@ import { SkillsMatrix, type CandidateReport, type PipelineFilters, type Pipeline
 import type { GatewayRequest, GatewayResult } from "../_shared/ai-gateway/core.ts";
 import { matchFromRaw, pipelineExportRows, PIPELINE_EXPORT_COLUMNS, shapeReport } from "../_shared/company-logic.ts";
 import { candidateInviteMail, esc, notifyCompletions as notify, type Mail } from "../_shared/company-mail.ts";
+import { staffAccountMail } from "../_shared/mailer.ts";
+import type { StaffAccount } from "../_shared/staff-account.ts";
 
 export type { Mail };
 
@@ -20,6 +22,8 @@ export interface Deps {
   baseUrl: () => string;
   randomToken: () => string;
   sha256: (s: string) => Promise<string>;
+  /** New email: make the account with a temporary password and accept the invite (_shared/staff-account.ts). */
+  provisionStaff?: (o: { email: string; fullName?: string | null; tokenHash: string }) => Promise<StaffAccount>;
   log?: (msg: string) => void;
 }
 
@@ -204,14 +208,23 @@ export function makeHandlers(deps: Deps) {
 
     async inviteStaff(input: { orgId: string; email: string; fullName?: string; role: string }, actor: string) {
       const token = deps.randomToken();
+      const tokenHash = await deps.sha256(token);
       const r = await rpc<Json & { ok: boolean; reason?: string; invite_id: string }>("b2b_invite_staff", {
         _actor: actor, _org_id: input.orgId, _email: input.email, _full_name: input.fullName ?? null, _role: input.role,
-        _token_hash: await deps.sha256(token),
+        _token_hash: tokenHash,
       });
       if (!r.ok) refuse(r.reason);
       const link = `${deps.baseUrl()}/invite/${token}`;
+      const account = deps.provisionStaff
+        ? await deps.provisionStaff({ email: input.email, fullName: input.fullName, tokenHash })
+        : { created: false, userId: null, tempPassword: null };
       let emailed = false;
-      if (deps.emailConfigured()) {
+      if (account.created) {
+        const m = await deps.sendMail(staffAccountMail({ to: input.email, name: input.fullName || input.email, orgName: "your company",
+          role: input.role, tempPassword: account.tempPassword!, signInUrl: `${deps.baseUrl()}/auth` }));
+        emailed = m.sent;
+        await rpc("b2b_mark_invite_email", { _invite_ids: [r.invite_id], _error: m.sent ? null : m.error });
+      } else if (deps.emailConfigured()) {
         const role = ROLE_LABEL[input.role] ?? input.role;
         const name = input.fullName || input.email;
         const m = await deps.sendMail({
@@ -222,7 +235,10 @@ export function makeHandlers(deps: Deps) {
         emailed = m.sent;
         await rpc("b2b_mark_invite_email", { _invite_ids: [r.invite_id], _error: m.sent ? null : m.error });
       }
-      return { inviteId: r.invite_id, link, emailed };
+      return {
+        inviteId: r.invite_id, link, emailed,
+        account: { created: account.created, tempPassword: account.created && !emailed ? account.tempPassword : null },
+      };
     },
   };
 }

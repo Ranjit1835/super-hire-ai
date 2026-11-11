@@ -151,7 +151,10 @@ export const companyContract = {
   /** Company admin invites a recruiter, hiring manager or another admin (b2b_invite_staff). */
   inviteStaff: {
     input: z.object({ orgId: Uuid, email: Email, fullName: z.string().trim().max(200).optional(), role: z.enum(["org_admin", "recruiter", "hiring_manager"]) }),
-    output: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean() }),
+    output: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean(),
+    /** Set when the invite made a new account: the temporary password, returned only when the email wasn't sent. */
+    account: z.object({ created: z.boolean(), tempPassword: z.string().nullable() }).optional(),
+    }),
   },
 } as const;
 

@@ -14,6 +14,7 @@ import { StudioOnboardingTooltip } from "./components/StudioOnboardingTooltip";
 import { B2B_ENABLED } from "./lib/config";
 import { routeElements, v1Routes } from "./b2b/routes";
 import { AccessGate } from "./b2b/access/AccessGate";
+import { PasswordChangeGate } from "./components/PasswordChangeGate";
 import { PendingInvites } from "./b2b/access/PendingInvites";
 import { ConsentGate } from "./components/ConsentGate";
 
@@ -179,6 +180,7 @@ export function AppContent() {
     <AuthProvider>
       <ErrorBoundary>
         <AccessGate />
+        <PasswordChangeGate />
         <ConsentGate />
         <PendingInvites />
         <AppHeader />

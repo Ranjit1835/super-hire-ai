@@ -14,6 +14,7 @@ import { NativeSelect } from "../college/CollegeShell";
 const TOPUP_MAILTO = "mailto:ranjitperumala@gmail.com?subject=Credit%20top-up%20for%20";
 import { CompanyShell } from "./CompanyShell";
 import { fmtDate, fmtDateTime, useCompanyLedger, useCompanyOrg, useTeam, type CompanyRole } from "./queries";
+import { StaffLogin } from "../ui/StaffLogin";
 
 const ROLE_TEXT: Record<CompanyRole, string> = { org_admin: "Company admin", recruiter: "Recruiter", hiring_manager: "Hiring manager" };
 const REASON_TEXT: Record<string, string> = { grant: "Opening credits", top_up: "Top-up", consume: "Candidate session", refund: "Refund", adjust: "Adjustment", expire: "Expired" };
@@ -90,11 +91,15 @@ function InviteStaff({ orgId }: { orgId: string }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState<CompanyRole>("recruiter");
   const [msg, setMsg] = useState<string | null>(null);
+  const [login, setLogin] = useState<{ email: string; tempPassword: string } | null>(null);
   async function submit() {
-    setMsg(null);
+    setMsg(null); setLogin(null);
     try {
       const r = await companyApi("inviteStaff", { orgId, email: email.trim(), role, ...(name.trim() ? { fullName: name.trim() } : {}) });
-      setMsg(r.emailed ? `Invite emailed to ${email.trim()}.` : `Invite created. Send this link to ${email.trim()} (it works only for that email): ${r.link}`);
+      const created = r.account?.created ?? false;
+      if (!r.emailed && r.account?.tempPassword) setLogin({ email: email.trim(), tempPassword: r.account.tempPassword });
+      else setMsg(r.emailed ? (created ? `Login details emailed to ${email.trim()}.` : `Invite emailed to ${email.trim()}.`)
+        : `They already have a HiResume account and will see the invite when they sign in. Or send this link (it works only for that email): ${r.link}`);
       setEmail(""); setName("");
       await qc.invalidateQueries({ queryKey: ["b2b-company", "team", orgId] });
     } catch (e) {
@@ -112,6 +117,7 @@ function InviteStaff({ orgId }: { orgId: string }) {
       </div>
       <Button onClick={() => void submit()} disabled={!email.trim()}>Invite</Button>
       {msg && <p role="status" className="sm:col-span-4 text-sm break-all">{msg}</p>}
+      {login && <div className="sm:col-span-4"><StaffLogin email={login.email} tempPassword={login.tempPassword} onDone={() => setLogin(null)} /></div>}
     </div>
   );
 }
