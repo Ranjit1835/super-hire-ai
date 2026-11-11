@@ -86,7 +86,10 @@ export const collegeContract = {
   /** TPO admin invites another TPO admin or a trainer (b2b_invite_staff). */
   inviteStaff: {
     input: z.object({ orgId: Uuid, email: Email, fullName: z.string().trim().max(200).optional(), role: z.enum(["org_admin", "trainer"]) }),
-    output: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean() }),
+    output: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean(),
+    /** Set when the invite made a new account: the temporary password, returned only when the email wasn't sent. */
+    account: z.object({ created: z.boolean(), tempPassword: z.string().nullable() }).optional(),
+    }),
   },
   previewEligibility: {
     input: z.object({ orgId: Uuid, eligibility: Eligibility }),

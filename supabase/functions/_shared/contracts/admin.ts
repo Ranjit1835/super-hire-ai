@@ -49,7 +49,8 @@ export const adminContract = {
     output: z.object({
       orgId: Uuid,
       credits: z.number(),
-      invite: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean() }).nullable(),
+      invite: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean(),
+        account: z.object({ created: z.boolean(), tempPassword: z.string().nullable() }).optional() }).nullable(),
     }),
   },
   updateOrg: {
@@ -69,7 +70,10 @@ export const adminContract = {
   },
   inviteStaff: {
     input: z.object({ orgId: Uuid, email: Email, fullName: z.string().trim().max(200).optional(), role: StaffRole }),
-    output: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean() }),
+    output: z.object({ inviteId: Uuid, link: z.string().url(), emailed: z.boolean(),
+    /** Set when the invite made a new account: the temporary password, returned only when the email wasn't sent. */
+    account: z.object({ created: z.boolean(), tempPassword: z.string().nullable() }).optional(),
+    }),
   },
   revokeInvite: {
     input: z.object({ inviteId: Uuid }),

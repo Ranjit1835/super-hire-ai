@@ -14,6 +14,7 @@ import { CreditsDialog, InviteStaffDialog, OrgLifecycleDialog, SettingsDialog } 
 import { ORG_TYPE_LABEL, ROLE_LABEL, alertText, fmtDate, friendly, num, useIsSuperAdmin, useOrgAlerts, useOrgs, usePlans, useStaffInvites } from "./admin-queries";
 
 import { ADMIN_TABS } from "./tabs";
+import { StaffLogin } from "../ui/StaffLogin";
 import { prefetch } from "../lib/prefetch";
 
 /** The super admin's other screens, fetched while idle (see ../lib/prefetch.ts). */
@@ -38,7 +39,7 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
   const [configuring, setConfiguring] = useState<OrgRow | null>(null);
   const [lifecycle, setLifecycle] = useState<{ org: OrgRow; mode: "deactivate" | "reactivate" | "delete" } | null>(null);
   useEffect(() => { if (enabled) prefetchAdmin(); }, [enabled]);
-  const [lastLink, setLastLink] = useState<{ email: string; link: string } | null>(demoInviteLink ?? null);
+  const [lastLink, setLastLink] = useState<{ email: string; link: string; tempPassword?: string | null } | null>(demoInviteLink ?? null);
 
   if (isSuper.isLoading) return <V1Shell title="Super admin"><Loading /></V1Shell>;
   if (!enabled) return <Navigate to="/dashboard" replace />;
@@ -85,16 +86,18 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
           </section>
         )}
 
-        {lastLink && (
+        {lastLink && (lastLink.tempPassword ? (
+          <StaffLogin email={lastLink.email} tempPassword={lastLink.tempPassword} onDone={() => setLastLink(null)} />
+        ) : (
           <div role="status" className="bg-[var(--hr-surface)] shadow-[inset_0_0_0_1px_var(--hr-rule)] px-4 py-3">
             <p className="hr-label">Invite link</p>
-            <p className="text-sm mt-1">For <b className="text-foreground">{lastLink.email}</b>. Email isn't configured yet, so share this link directly.</p>
+            <p className="text-sm mt-1">For <b className="text-foreground">{lastLink.email}</b>, who already has a HiResume account: they'll see the invite when they sign in, or share this link.</p>
             <div className="mt-2 flex gap-2 items-center">
               <code className="hr-data truncate text-xs flex-1 text-[var(--hr-blue-ink)]">{lastLink.link}</code>
               <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard?.writeText(lastLink.link); toast({ title: "Link copied" }); }}>Copy</Button>
             </div>
           </div>
-        )}
+        ))}
 
         {orgs.isLoading ? <Loading /> : orgs.error ? (
           <Empty title="Couldn't load organisations" body={friendly(orgs.error)} />
@@ -164,12 +167,16 @@ export default function AdminOrgsPage({ demoInviteLink }: { demoInviteLink?: { e
       </div>
       <CreateOrgDialog open={creating} onOpenChange={setCreating} plans={plans.data ?? []}
         onCreated={(c) => {
-          toast({ title: `${c.name} created`, description: `${c.credits} credits${c.inviteLink ? (c.emailed ? " · invite emailed" : " · invite link below") : ""}` });
-          if (c.inviteLink && !c.emailed) setLastLink({ email: "the admin", link: c.inviteLink });
+          toast({ title: `${c.name} created`, description: `${c.credits} credits${c.inviteLink ? (c.emailed ? (c.accountCreated ? " · login details emailed" : " · invite emailed") : " · details below") : ""}` });
+          if (c.inviteLink && !c.emailed) setLastLink({ email: c.adminEmail ?? "the admin", link: c.inviteLink, tempPassword: c.tempPassword });
           refresh();
         }} />
       <InviteStaffDialog org={inviting} onClose={() => setInviting(null)}
-        onInvited={(r) => { toast({ title: r.emailed ? `Invite emailed to ${r.email}` : "Invite created" }); if (!r.emailed) setLastLink(r); refresh(); }} />
+        onInvited={(r) => {
+          toast({ title: r.emailed ? (r.created ? `Login details emailed to ${r.email}` : `Invite emailed to ${r.email}`) : r.created ? "Account created" : "Invite created" });
+          if (!r.emailed) setLastLink(r);
+          refresh();
+        }} />
       <CreditsDialog org={crediting} onClose={() => setCrediting(null)} onChanged={refresh} />
       {lifecycle && <OrgLifecycleDialog key={`${lifecycle.org.id}-${lifecycle.mode}`} org={lifecycle.org} mode={lifecycle.mode}
         onClose={() => setLifecycle(null)} onDone={(m) => { toast({ title: m }); refresh(); }} />}

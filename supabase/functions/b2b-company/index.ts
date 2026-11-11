@@ -8,6 +8,7 @@ import { companyContract } from "../_shared/contracts/company.ts";
 import { ai } from "../_shared/ai-gateway/index.ts";
 import { emailConfigured, sendMail } from "../_shared/mailer.ts";
 import { CompanyError, makeHandlers } from "./handlers.ts";
+import { provisionStaffAccount, type StaffAccountClient } from "../_shared/staff-account.ts";
 
 const db = serviceClient();
 const h = makeHandlers({
@@ -22,6 +23,7 @@ const h = makeHandlers({
   baseUrl: appBaseUrl,
   randomToken,
   sha256: sha256Hex,
+  provisionStaff: (o) => provisionStaffAccount(db as unknown as StaffAccountClient, o),
 });
 
 function wrap<I, O>(fn: (input: I, actor: string) => Promise<O>) {

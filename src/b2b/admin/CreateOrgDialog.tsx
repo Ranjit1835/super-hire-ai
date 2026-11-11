@@ -13,7 +13,7 @@ const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").repla
 const slugDraft = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 50);
 const endOfDay = (d: string) => (d ? new Date(`${d}T23:59:59+05:30`).toISOString() : null);
 
-export interface CreatedOrg { orgId: string; name: string; credits: number; inviteLink: string | null; emailed: boolean }
+export interface CreatedOrg { orgId: string; name: string; credits: number; inviteLink: string | null; emailed: boolean; adminEmail?: string; tempPassword?: string | null; accountCreated?: boolean }
 
 export function CreateOrgDialog({ open, onOpenChange, plans, onCreated }: {
   open: boolean; onOpenChange: (o: boolean) => void; plans: PlanRow[]; onCreated: (o: CreatedOrg) => void;
@@ -50,7 +50,8 @@ export function CreateOrgDialog({ open, onOpenChange, plans, onCreated }: {
         contactEmail: adminEmail || null, contactName: adminName || null,
         admin: adminEmail ? { email: adminEmail, fullName: adminName || undefined } : undefined,
       });
-      onCreated({ orgId: r.orgId, name, credits: r.credits, inviteLink: r.invite?.link ?? null, emailed: r.invite?.emailed ?? false });
+      onCreated({ orgId: r.orgId, name, credits: r.credits, inviteLink: r.invite?.link ?? null, emailed: r.invite?.emailed ?? false,
+        adminEmail: adminEmail || undefined, tempPassword: r.invite?.account?.tempPassword ?? null, accountCreated: r.invite?.account?.created ?? false });
       onOpenChange(false);
       setName(""); setSlug(""); setSlugTouched(false); setSeats(""); setValidTo(""); setCredits(""); setAdminEmail(""); setAdminName(""); setContactPhone("");
     } catch (e) {

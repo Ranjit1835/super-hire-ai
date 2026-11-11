@@ -5,7 +5,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, appBaseUrl, randomToken, serviceClient, sha256Hex } from "../_shared/b2b-http.ts";
 import { serveContract, type Ctx } from "../_shared/contract-handler.ts";
 import { collegeContract } from "../_shared/contracts/college.ts";
-import { emailConfigured, esc, sendMail, staffInviteMail } from "../_shared/mailer.ts";
+import { emailConfigured, esc, sendMail, staffAccountMail, staffInviteMail } from "../_shared/mailer.ts";
+import { provisionStaffAccount, type StaffAccountClient } from "../_shared/staff-account.ts";
 import { EXPORT_COLUMNS, MAX_EXPORT_ROWS, toExportRows, type AnalyticsRow } from "../_shared/college-table.ts";
 
 const db = () => serviceClient();
@@ -137,18 +138,26 @@ serve(serveContract("B2B-COLLEGE", collegeContract, {
 
   async inviteStaff(input, ctx) {
     const token = randomToken();
+    const tokenHash = await sha256Hex(token);
     // b2b_invite_staff lets super admins only through (R3.3, migration 0017).
     const r = await rpc<{ ok: boolean; reason?: string; invite_id?: string }>("b2b_invite_staff", {
       _actor: ctx.user.id, _org_id: input.orgId, _email: input.email, _full_name: input.fullName ?? null,
-      _role: input.role, _token_hash: await sha256Hex(token),
+      _role: input.role, _token_hash: tokenHash,
     });
     if (!r.ok) refuse(r.reason);
     const link = `${appBaseUrl()}/invite/${token}`;
-    const mail = await sendMail(staffInviteMail({
-      to: input.email, name: input.fullName || input.email, orgName: await orgName(input.orgId), role: input.role, link,
-    }));
+    // New email: account made now with a temporary password (see _shared/staff-account.ts).
+    const account = await provisionStaffAccount(db() as unknown as StaffAccountClient, { email: input.email, fullName: input.fullName, tokenHash });
+    const name = input.fullName || input.email;
+    const org = await orgName(input.orgId);
+    const mail = await sendMail(account.created
+      ? staffAccountMail({ to: input.email, name, orgName: org, role: input.role, tempPassword: account.tempPassword!, signInUrl: `${appBaseUrl()}/auth` })
+      : staffInviteMail({ to: input.email, name, orgName: org, role: input.role, link }));
     await db().rpc("b2b_mark_invite_email", { _invite_ids: [r.invite_id], _error: mail.sent ? null : mail.error });
-    return { inviteId: r.invite_id!, link, emailed: mail.sent };
+    return {
+      inviteId: r.invite_id!, link, emailed: mail.sent,
+      account: { created: account.created, tempPassword: account.created && !mail.sent ? account.tempPassword : null },
+    };
   },
 
   async previewEligibility(input, ctx) {

@@ -15,7 +15,7 @@ const ROLES_BY_TYPE: Record<string, ("org_admin" | "trainer" | "recruiter" | "hi
 };
 
 export function InviteStaffDialog({ org, onClose, onInvited }: {
-  org: OrgRow | null; onClose: () => void; onInvited: (r: { link: string; emailed: boolean; email: string }) => void;
+  org: OrgRow | null; onClose: () => void; onInvited: (r: { link: string; emailed: boolean; email: string; tempPassword?: string | null; created?: boolean }) => void;
 }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -28,7 +28,7 @@ export function InviteStaffDialog({ org, onClose, onInvited }: {
     setBusy(true); setError(null);
     try {
       const r = await adminApi("inviteStaff", { orgId: org.id, email, fullName: name || undefined, role: role as (typeof roles)[number] });
-      onInvited({ link: r.link, emailed: r.emailed, email });
+      onInvited({ link: r.link, emailed: r.emailed, email, tempPassword: r.account?.tempPassword ?? null, created: r.account?.created ?? false });
       setEmail(""); setName("");
       onClose();
     } catch (e) {

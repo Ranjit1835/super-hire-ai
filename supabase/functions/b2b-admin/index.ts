@@ -3,7 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { HttpError, appBaseUrl, randomToken, serviceClient, sha256Hex } from "../_shared/b2b-http.ts";
 import { serveContract, type Ctx } from "../_shared/contract-handler.ts";
 import { adminContract } from "../_shared/contracts/admin.ts";
-import { sendMail, staffInviteMail } from "../_shared/mailer.ts";
+import { sendMail, staffAccountMail, staffInviteMail } from "../_shared/mailer.ts";
+import { provisionStaffAccount, type StaffAccountClient } from "../_shared/staff-account.ts";
 
 const db = () => serviceClient();
 
@@ -32,17 +33,28 @@ function refuse(reason: string): never {
 
 async function inviteStaff(actor: string, orgId: string, email: string, fullName: string | undefined, role: string) {
   const token = randomToken();
+  const tokenHash = await sha256Hex(token);
   const { data, error } = await db().rpc("b2b_invite_staff", {
-    _actor: actor, _org_id: orgId, _email: email, _full_name: fullName ?? null, _role: role, _token_hash: await sha256Hex(token),
+    _actor: actor, _org_id: orgId, _email: email, _full_name: fullName ?? null, _role: role, _token_hash: tokenHash,
   });
   if (error) throw error;
   const r = data as { ok: boolean; reason?: string; invite_id?: string };
   if (!r.ok) refuse(r.reason!);
   const link = `${appBaseUrl()}/invite/${token}`;
   const { data: org } = await db().from("organizations").select("name").eq("id", orgId).single();
-  const mail = await sendMail(staffInviteMail({ to: email, name: fullName || email, orgName: org?.name ?? "your organisation", role, link }));
+  const orgName = org?.name ?? "your organisation";
+  // New email: the account is made now with a temporary password (changed at first sign-in) and joins the org.
+  // An email that already has an account keeps it; its owner accepts in the app or from the link.
+  const account = await provisionStaffAccount(db() as unknown as StaffAccountClient, { email, fullName, tokenHash });
+  const name = fullName || email;
+  const mail = await sendMail(account.created
+    ? staffAccountMail({ to: email, name, orgName, role, tempPassword: account.tempPassword!, signInUrl: `${appBaseUrl()}/auth` })
+    : staffInviteMail({ to: email, name, orgName, role, link }));
   await db().rpc("b2b_mark_invite_email", { _invite_ids: [r.invite_id], _error: mail.sent ? null : mail.error });
-  return { inviteId: r.invite_id!, link, emailed: mail.sent };
+  return {
+    inviteId: r.invite_id!, link, emailed: mail.sent,
+    account: { created: account.created, tempPassword: account.created && !mail.sent ? account.tempPassword : null },
+  };
 }
 
 /** Every proctoring file of an org (org/<id>/sessions/<session>/<file>); storage has no recursive delete. */
